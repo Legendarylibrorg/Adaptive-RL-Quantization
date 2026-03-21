@@ -10,6 +10,12 @@ Simulator research run:
 python3 run_research.py
 ```
 
+Continual online adaptation run:
+
+```bash
+python3 run_online_learning.py
+```
+
 Generic GPU PyTorch run:
 
 ```bash
@@ -42,6 +48,20 @@ This is the easiest path for:
 - checking that the project works
 - iterating on logic without CUDA
 - validating the simulator pipeline
+
+## What `run_online_learning.py` does
+
+`run_online_learning.py` uses [config_online.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_online.py) and:
+
+1. bootstraps the policy with an offline simulator training phase
+2. simulates a live multi-hardware request stream
+3. logs online telemetry and replay records
+4. applies replay-based policy updates
+5. runs canary checks before serving exploratory decisions
+6. rolls back to the best recent policy snapshot if live reward drifts too far
+7. writes an online analysis summary
+
+This is the recommended path for validating continual self-improvement behavior.
 
 ## What `run_pytorch_gpu.py` does
 
@@ -82,12 +102,14 @@ Benchmarks and summaries:
 - `outputs/benchmarks/*_benchmarks.json`
 - `outputs/benchmarks/*_summary.json`
 - `outputs/benchmarks/*_preflight.json`
+- `outputs/benchmarks/*_online_summary.json`
 
 Analysis:
 
 - `outputs/analysis/<run_name>/hardware`
 - `outputs/analysis/<run_name>/inputs`
 - `outputs/analysis/<run_name>/quant`
+- `outputs/analysis/<run_name>/online`
 
 ## Typical workflows
 
@@ -96,6 +118,7 @@ Validate the repository quickly:
 ```bash
 python3 -m unittest discover -s tests -v
 python3 run_research.py
+python3 run_online_learning.py
 ```
 
 Run the full generic GPU path:
@@ -119,6 +142,18 @@ After the run, inspect:
 
 - `outputs/benchmarks/adaptive_universal_policy_torch4090_preflight.json`
 - `outputs/benchmarks/adaptive_universal_policy_torch4090_summary.json`
+
+Run the continual online path:
+
+```bash
+python3 run_online_learning.py
+```
+
+After the run, inspect:
+
+- `outputs/benchmarks/adaptive_online_policy_online_summary.json`
+- `outputs/benchmarks/adaptive_online_policy_summary.json`
+- `outputs/analysis/adaptive_online_policy/online`
 
 Run with llama.cpp backend:
 

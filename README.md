@@ -11,6 +11,7 @@ The repository has two practical ways to run:
 
 - `simulator` mode: pure-Python, no ML dependencies, works anywhere with Python 3.11+
 - `pytorch` mode: optimized for CUDA GPUs, with auto-tuned profiles for cards like RTX 4070/4080/4090, RTX 3090, L4, A100, H100, and similar VRAM classes
+- `online` mode: simulator-first continual adaptation loop with live telemetry, replay, canary checks, and rollback guards
 
 ## What you need
 
@@ -62,6 +63,12 @@ Run the simulator research workflow:
 python3 run_research.py
 ```
 
+Run the continual online adaptation workflow:
+
+```bash
+python3 run_online_learning.py
+```
+
 Run tests:
 
 ```bash
@@ -103,6 +110,7 @@ Outputs are written under `outputs/`:
 - `config_gpu.py`: generic CUDA/PyTorch configuration with auto GPU profile selection
 - `config_4090.py`: CUDA/PyTorch configuration for RTX 4090-class hardware
 - `run_research.py`: main simulator entrypoint
+- `run_online_learning.py`: continual online adaptation entrypoint
 - `run_pytorch_gpu.py`: main CUDA entrypoint with auto-detected GPU profile
 - `run_pytorch_4090.py`: main CUDA/4090 entrypoint
 - `adaptive_quant/`: environment, policy, trainer, quantization, logging, benchmark, and preflight code
@@ -113,6 +121,7 @@ Outputs are written under `outputs/`:
 
 - [Installation Guide](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/docs/INSTALL.md)
 - [Running Guide](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/docs/RUNNING.md)
+- [Online Adaptation Guide](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/docs/ONLINE.md)
 - [Configuration Guide](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/docs/CONFIG.md)
 - [GPU Profiles Guide](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/docs/GPU_PROFILES.md)
 - [Paper Draft](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/docs/PAPER.md)
@@ -124,6 +133,12 @@ Simulator run:
 
 ```bash
 python3 run_research.py
+```
+
+Online adaptation run:
+
+```bash
+python3 run_online_learning.py
 ```
 
 Generic GPU run:

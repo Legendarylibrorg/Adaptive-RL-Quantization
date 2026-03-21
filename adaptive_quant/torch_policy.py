@@ -288,6 +288,16 @@ class TorchPolicyAdapter:
         index = int(torch.argmax(logits).item()) if deterministic else int(distribution.sample().item())
         return self.supported_modes[index], index, float(distribution.log_prob(torch.tensor(index, device=self.device)).item()), float(distribution.entropy().item())
 
+    def snapshot(self):
+        if torch is None:
+            raise ImportError("PyTorch is not installed in this environment.") from TORCH_IMPORT_ERROR
+        return {name: tensor.detach().cpu().clone() for name, tensor in self.model.state_dict().items()}
+
+    def restore(self, snapshot) -> None:
+        if torch is None:
+            raise ImportError("PyTorch is not installed in this environment.") from TORCH_IMPORT_ERROR
+        self.model.load_state_dict(snapshot)
+
 
 def _resolve_autocast_dtype(dtype_name: str):
     if torch is None:

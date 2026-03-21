@@ -161,3 +161,28 @@ class TorchTrainer:
 
     def close(self) -> None:
         self.env.logger.close()
+
+    def act_online(self, state, deterministic: bool = False):
+        state_vector = state.to_vector(self.ordered_hardware)
+        return self.policy.act(state_vector, deterministic=deterministic)
+
+    def update_online(self, updates: list[tuple[dict[str, Any], float]]) -> dict[str, float]:
+        records: list[dict[str, Any]] = []
+        rewards: list[float] = []
+        for record, reward in updates:
+            replay_record = dict(record)
+            replay_record["reward"] = float(reward)
+            records.append(replay_record)
+            rewards.append(float(reward))
+        if records:
+            self._update_policy(records)
+        return {
+            "batch_size": float(len(records)),
+            "mean_reward": mean(rewards),
+        }
+
+    def snapshot_policy(self):
+        return self.policy.snapshot()
+
+    def restore_policy(self, snapshot) -> None:
+        self.policy.restore(snapshot)

@@ -11,7 +11,7 @@ from adaptive_quant.logging_utils import JsonlLogger
 from adaptive_quant.math_utils import variance
 from adaptive_quant.prompts import PromptLibrary
 from adaptive_quant.quantization import finalize_decision, safe_fallback_decision
-from adaptive_quant.types import EpisodeMetrics, EpisodeResult, EpisodeState, HardwareType, QuantizationDecision
+from adaptive_quant.types import EpisodeMetrics, EpisodeResult, EpisodeState, HardwareType, PromptSample, QuantizationDecision
 
 
 class AdaptiveQuantizationEnv:
@@ -33,9 +33,10 @@ class AdaptiveQuantizationEnv:
         previous_action: list[float] | None = None,
         forced_hardware: HardwareType | None = None,
         forced_prompt_id: str | None = None,
+        forced_prompt: PromptSample | None = None,
     ) -> EpisodeState:
         hardware = forced_hardware or self._sample_hardware()
-        prompt = self._sample_prompt(forced_prompt_id)
+        prompt = self._sample_prompt(forced_prompt_id, forced_prompt)
         previous = previous_action or [0.0, 0.0, 0.0]
         input_features, sensitivity = self._get_prompt_context(prompt)
         self.current_state = EpisodeState(
@@ -47,7 +48,12 @@ class AdaptiveQuantizationEnv:
         )
         return self.current_state
 
-    def evaluate_current(self, decision: QuantizationDecision, episode_index: int | None = None) -> EpisodeResult:
+    def evaluate_current(
+        self,
+        decision: QuantizationDecision,
+        episode_index: int | None = None,
+        log_episode: bool = True,
+    ) -> EpisodeResult:
         if self.current_state is None:
             raise RuntimeError("Environment must be reset before evaluation.")
 
@@ -74,7 +80,8 @@ class AdaptiveQuantizationEnv:
             reward=reward,
         )
         result = EpisodeResult(state=self.current_state, decision=finalized, metrics=metrics)
-        self._log_episode(result, episode_index)
+        if log_episode:
+            self._log_episode(result, episode_index)
         return result
 
     def _sample_hardware(self) -> HardwareType:
@@ -83,7 +90,9 @@ class AdaptiveQuantizationEnv:
             return hardware_modes[0]
         return hardware_modes[self.rng.randrange(len(hardware_modes))]
 
-    def _sample_prompt(self, forced_prompt_id: str | None = None):
+    def _sample_prompt(self, forced_prompt_id: str | None = None, forced_prompt: PromptSample | None = None):
+        if forced_prompt is not None:
+            return forced_prompt
         if forced_prompt_id is None:
             return self.prompt_library.sample(self.rng)
         return self.prompt_library.by_id(forced_prompt_id)

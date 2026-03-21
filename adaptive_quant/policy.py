@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import random
 from dataclasses import dataclass
 import math
@@ -223,6 +224,26 @@ class UniversalQuantizationPolicy:
                     self.config.learning_rate,
                 )
         self.value_head.update(trace.state_vector, reward, self.config.value_learning_rate)
+
+    def snapshot(self) -> dict[str, object]:
+        return {
+            "rng_state": self.rng.getstate(),
+            "mode_head": copy.deepcopy(self.mode_head),
+            "discrete_head": copy.deepcopy(self.discrete_head),
+            "group_heads": copy.deepcopy(self.group_heads),
+            "layer_heads": copy.deepcopy(self.layer_heads),
+            "learned_head": copy.deepcopy(self.learned_head),
+            "value_head": copy.deepcopy(self.value_head),
+        }
+
+    def restore(self, snapshot: dict[str, object]) -> None:
+        self.rng.setstate(snapshot["rng_state"])
+        self.mode_head = copy.deepcopy(snapshot["mode_head"])
+        self.discrete_head = copy.deepcopy(snapshot["discrete_head"])
+        self.group_heads = copy.deepcopy(snapshot["group_heads"])
+        self.layer_heads = copy.deepcopy(snapshot["layer_heads"])
+        self.learned_head = copy.deepcopy(snapshot["learned_head"])
+        self.value_head = copy.deepcopy(snapshot["value_head"])
 
 
 def _sigmoid(value: float) -> float:

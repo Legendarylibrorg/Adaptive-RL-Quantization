@@ -127,3 +127,10 @@ class EpisodeResult:
     decision: QuantizationDecision
     metrics: EpisodeMetrics
 
+
+@dataclass(frozen=True)
+class OnlineRequest:
+    prompt_text: str
+    hardware: HardwareType = HardwareType.GPU
+    prompt_id: str | None = None
+    prompt_domain: str = "online"

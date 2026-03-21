@@ -74,6 +74,21 @@ class FrameworkConfig:
     torch_preflight_warmup_steps: int = 10
     torch_preflight_steps: int = 40
     torch_preflight_min_free_memory_gb: float = 8.0
+    online_learning: bool = False
+    online_requests: int = 256
+    online_exploration_rate: float = 0.12
+    online_canary_ratio: float = 0.50
+    online_replay_capacity: int = 2048
+    online_min_replay_size: int = 64
+    online_update_interval: int = 32
+    online_batch_size: int = 128
+    online_reward_guard: float = 0.75
+    online_max_latency_ratio: float = 1.20
+    online_max_memory_ratio: float = 1.15
+    online_max_perplexity_delta: float = 1.25
+    online_drift_window: int = 48
+    online_drift_reward_delta: float = 1.50
+    online_safe_mode_cooldown: int = 16
     reward_weights: RewardWeights = field(default_factory=RewardWeights)
     seed: int = 13
 
@@ -96,3 +111,9 @@ class FrameworkConfig:
 
     def clone(self, **changes: object) -> "FrameworkConfig":
         return replace(self, **changes)
+
+    def online_telemetry_path(self) -> str:
+        return f"{self.log_dir}/{self.run_name}_online_telemetry.jsonl"
+
+    def online_replay_path(self) -> str:
+        return f"{self.log_dir}/{self.run_name}_online_replay.jsonl"

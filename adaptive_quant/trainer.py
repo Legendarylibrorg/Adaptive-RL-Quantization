@@ -3,7 +3,7 @@ from __future__ import annotations
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.math_utils import mean
-from adaptive_quant.policy import UniversalQuantizationPolicy
+from adaptive_quant.policy import PolicyTrace, UniversalQuantizationPolicy
 from adaptive_quant.types import EpisodeResult, HardwareType
 
 
@@ -85,6 +85,25 @@ class Trainer:
 
     def close(self) -> None:
         self.env.logger.close()
+
+    def act_online(self, state, deterministic: bool = False):
+        return self.policy.act(state, deterministic=deterministic)
+
+    def update_online(self, updates: list[tuple[PolicyTrace, float]]) -> dict[str, float]:
+        rewards: list[float] = []
+        for trace, reward in updates:
+            self.policy.update(trace, reward)
+            rewards.append(reward)
+        return {
+            "batch_size": float(len(rewards)),
+            "mean_reward": mean(rewards),
+        }
+
+    def snapshot_policy(self):
+        return self.policy.snapshot()
+
+    def restore_policy(self, snapshot) -> None:
+        self.policy.restore(snapshot)
 
 
 def build_trainer(config: FrameworkConfig, log_path: str | None = None) -> Trainer:

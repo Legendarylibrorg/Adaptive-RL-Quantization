@@ -5,14 +5,16 @@ import unittest
 
 from analysis.hardware_generalization import analyze as analyze_hardware
 from analysis.input_adaptation import analyze as analyze_inputs
+from analysis.online_learning import analyze as analyze_online
 from analysis.quant_function_behavior import analyze as analyze_quant
 from adaptive_quant.benchmark import BenchmarkSuite
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.gpu_profiles import apply_gpu_profile, infer_gpu_profile
+from adaptive_quant.online_learning import OnlineLearningLoop
 from adaptive_quant.quantization import finalize_decision
 from adaptive_quant.trainer import Trainer, build_trainer
-from adaptive_quant.types import HardwareType, QuantMode, QuantizationDecision
+from adaptive_quant.types import HardwareType, OnlineRequest, QuantMode, QuantizationDecision
 
 
 class FrameworkTests(unittest.TestCase):
@@ -107,6 +109,47 @@ class FrameworkTests(unittest.TestCase):
         self.assertEqual(tuned.torch_gpu_profile, "rtx4080")
         self.assertEqual(metadata["selected_gpu_profile"], "rtx4080")
         self.assertGreaterEqual(tuned.torch_batch_episodes, tuned.torch_minibatch_size)
+
+    def test_online_learning_loop_updates_and_logs(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = FrameworkConfig(
+                training_episodes=4,
+                evaluation_episodes=2,
+                stability_probe_count=1,
+                outputs_dir=temp_dir,
+                log_dir=f"{temp_dir}/logs",
+                benchmark_dir=f"{temp_dir}/benchmarks",
+                analysis_dir=f"{temp_dir}/analysis",
+                run_name="online_test",
+                online_learning=True,
+                online_exploration_rate=1.0,
+                online_canary_ratio=1.0,
+                online_replay_capacity=32,
+                online_min_replay_size=2,
+                online_update_interval=2,
+                online_batch_size=4,
+                online_drift_window=4,
+                online_drift_reward_delta=999.0,
+                seed=11,
+            )
+            trainer = build_trainer(config)
+            loop = OnlineLearningLoop(config, trainer=trainer)
+            requests = [
+                OnlineRequest(prompt_text=f"Summarize deployment risk {index}.", hardware=HardwareType.GPU, prompt_id=f"online_{index}")
+                for index in range(6)
+            ]
+
+            try:
+                summary = loop.run_stream(requests)
+            finally:
+                loop.close()
+                trainer.close()
+
+            analysis = analyze_online(config.online_telemetry_path(), f"{config.analysis_dir}/online")
+            self.assertEqual(summary["requests"], 6)
+            self.assertGreater(summary["total_updates"], 0)
+            self.assertIn("candidate_accept_rate", analysis)
+            self.assertIn("reward_by_hardware", analysis)
 
 
 if __name__ == "__main__":

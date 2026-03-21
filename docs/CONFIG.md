@@ -3,6 +3,7 @@
 Configuration lives in:
 
 - [config.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config.py)
+- [config_online.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_online.py)
 - [config_gpu.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_gpu.py)
 - [config_4090.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_4090.py)
 - [adaptive_quant/configuration.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/adaptive_quant/configuration.py)
@@ -60,6 +61,24 @@ PyTorch and 4090:
 - `torch_fused_optimizer`
 - `torch_preflight`
 
+Online adaptation:
+
+- `online_learning`
+- `online_requests`
+- `online_exploration_rate`
+- `online_canary_ratio`
+- `online_replay_capacity`
+- `online_min_replay_size`
+- `online_update_interval`
+- `online_batch_size`
+- `online_reward_guard`
+- `online_max_latency_ratio`
+- `online_max_memory_ratio`
+- `online_max_perplexity_delta`
+- `online_drift_window`
+- `online_drift_reward_delta`
+- `online_safe_mode_cooldown`
+
 Efficiency-related:
 
 - `cache_prompt_features`
@@ -86,6 +105,11 @@ RTX 4090 training:
 - keep `training_backend="pytorch"`
 - keep `cache_prompt_features=True`
 - keep `torch_preflight=True`
+
+- use [config_online.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_online.py) for continual adaptation experiments
+- keep `online_learning=True`
+- tune `online_exploration_rate` and `online_reward_guard` together
+- increase `online_drift_reward_delta` if the loop is too rollback-heavy
 
 Real llama.cpp experiments:
 
