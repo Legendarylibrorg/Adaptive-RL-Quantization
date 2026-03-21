@@ -9,6 +9,7 @@ from adaptive_quant.features import estimate_layer_sensitivity, extract_input_fe
 from adaptive_quant.hardware import default_hardware_profiles
 from adaptive_quant.logging_utils import JsonlLogger
 from adaptive_quant.math_utils import variance
+from adaptive_quant.moe import ExpertBank
 from adaptive_quant.prompts import PromptLibrary
 from adaptive_quant.quantization import finalize_decision, safe_fallback_decision
 from adaptive_quant.types import EpisodeMetrics, EpisodeResult, EpisodeState, HardwareType, PromptSample, QuantizationDecision
@@ -21,6 +22,7 @@ class AdaptiveQuantizationEnv:
         self.prompt_library = PromptLibrary()
         self.hardware_profiles = default_hardware_profiles()
         self.backend = LlamaCppBackend(config) if config.backend == "llama_cpp" else SimulatorBackend(config)
+        self.expert_bank = ExpertBank(config) if config.moe_enabled else None
         self.logger = JsonlLogger(log_path or f"{config.log_dir}/{config.run_name}.jsonl")
         self.current_state: EpisodeState | None = None
         self._prompt_cache: dict[str, tuple] = {}
@@ -39,12 +41,14 @@ class AdaptiveQuantizationEnv:
         prompt = self._sample_prompt(forced_prompt_id, forced_prompt)
         previous = previous_action or [0.0, 0.0, 0.0]
         input_features, sensitivity = self._get_prompt_context(prompt)
+        hardware_profile = self.hardware_profiles[hardware]
         self.current_state = EpisodeState(
-            hardware_profile=self.hardware_profiles[hardware],
+            hardware_profile=hardware_profile,
             prompt=prompt,
             input_features=input_features,
             sensitivity=sensitivity,
             previous_action=previous,
+            moe_context=self.expert_bank.build_context(prompt, input_features, hardware_profile) if self.expert_bank is not None else None,
         )
         return self.current_state
 
@@ -78,6 +82,9 @@ class AdaptiveQuantizationEnv:
             memory_mb=primary_metrics["memory_mb"],
             stability_penalty=stability_penalty,
             reward=reward,
+            swap_cost_ms=primary_metrics.get("swap_cost_ms", 0.0),
+            cache_miss_count=primary_metrics.get("cache_miss_count", 0.0),
+            variant_churn=primary_metrics.get("variant_churn", 0.0),
         )
         result = EpisodeResult(state=self.current_state, decision=finalized, metrics=metrics)
         if log_episode:
@@ -118,6 +125,9 @@ class AdaptiveQuantizationEnv:
             - weights.gamma_perplexity * metrics["perplexity"]
             - weights.delta_memory * metrics["memory_mb"]
             - weights.epsilon_instability * stability_penalty
+            - self.config.moe_swap_penalty * metrics.get("swap_cost_ms", 0.0)
+            - self.config.moe_cache_miss_penalty * metrics.get("cache_miss_count", 0.0)
+            - self.config.moe_variant_churn_penalty * metrics.get("variant_churn", 0.0)
         )
 
     def _stability_penalty(self, decision: QuantizationDecision, state: EpisodeState) -> float:
@@ -150,6 +160,7 @@ class AdaptiveQuantizationEnv:
             "prompt_domain": result.state.prompt.domain,
             "input_features": result.state.input_features,
             "sensitivity": result.state.sensitivity,
+            "moe_context": result.state.moe_context,
             "decision": result.decision,
             "metrics": result.metrics,
         }

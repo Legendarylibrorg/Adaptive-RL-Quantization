@@ -99,13 +99,14 @@ class UniversalQuantizationPolicy:
         self.rng = random.Random(config.seed + 101)
         self.supported_modes = config.supported_modes()
         self.ordered_hardware = config.ordered_hardware()
-        self.state_dim = len(self.ordered_hardware) + 5 + 2 + config.num_layers + 3
+        self.state_dim = config.state_vector_dim()
         self.mode_head = CategoricalHead(self.state_dim, len(self.supported_modes), self.rng)
         self.discrete_head = CategoricalHead(self.state_dim, len(config.discrete_bit_widths), self.rng)
         self.group_heads = [CategoricalHead(self.state_dim, len(config.discrete_bit_widths), self.rng) for _ in range(config.num_groups)]
         self.layer_heads = [CategoricalHead(self.state_dim, len(config.discrete_bit_widths), self.rng) for _ in range(config.num_layers)]
         self.learned_head = GaussianHead(self.state_dim, 3, self.rng, config.continuous_stddev)
         self.learned_head.bias = [-0.10, -0.20, -0.45]
+        self.moe_heads = [CategoricalHead(self.state_dim, config.moe_variant_count(), self.rng) for _ in range(config.moe_top_k)] if config.moe_enabled else []
         self.value_head = ValueHead(self.state_dim, self.rng)
 
     def act(self, state: EpisodeState, deterministic: bool = False) -> tuple[QuantizationDecision, PolicyTrace]:
@@ -169,6 +170,18 @@ class UniversalQuantizationPolicy:
         else:
             raise ValueError(f"Unsupported selected mode: {selected_mode}")
 
+        if self.config.moe_enabled and state.moe_context is not None:
+            variant_indices: list[int] = []
+            variant_names: list[str] = []
+            for slot, head in enumerate(self.moe_heads[: len(state.moe_context.experts)]):
+                variant_index, probabilities = head.sample(state_vector, self.rng, deterministic=deterministic)
+                variant_indices.append(variant_index)
+                variant_names.append(self.config.moe_variant_names[variant_index])
+                traces.append({"head": "moe", "slot": slot, "selected_index": variant_index, "probabilities": probabilities})
+            decision.moe_variant_indices = variant_indices
+            decision.moe_variant_names = variant_names
+            decision.metadata["moe_head"] = "packed_expert_bank"
+
         decision.metadata["selected_mode"] = selected_mode.value
         trace = PolicyTrace(
             state_vector=state_vector,
@@ -223,6 +236,14 @@ class UniversalQuantizationPolicy:
                     advantage,
                     self.config.learning_rate,
                 )
+            elif head_name == "moe":
+                self.moe_heads[action_trace["slot"]].update(
+                    trace.state_vector,
+                    action_trace["selected_index"],
+                    action_trace["probabilities"],
+                    advantage,
+                    self.config.learning_rate,
+                )
         self.value_head.update(trace.state_vector, reward, self.config.value_learning_rate)
 
     def snapshot(self) -> dict[str, object]:
@@ -233,6 +254,7 @@ class UniversalQuantizationPolicy:
             "group_heads": copy.deepcopy(self.group_heads),
             "layer_heads": copy.deepcopy(self.layer_heads),
             "learned_head": copy.deepcopy(self.learned_head),
+            "moe_heads": copy.deepcopy(self.moe_heads),
             "value_head": copy.deepcopy(self.value_head),
         }
 
@@ -243,6 +265,7 @@ class UniversalQuantizationPolicy:
         self.group_heads = copy.deepcopy(snapshot["group_heads"])
         self.layer_heads = copy.deepcopy(snapshot["layer_heads"])
         self.learned_head = copy.deepcopy(snapshot["learned_head"])
+        self.moe_heads = copy.deepcopy(snapshot.get("moe_heads", self.moe_heads))
         self.value_head = copy.deepcopy(snapshot["value_head"])
 
 

@@ -72,20 +72,72 @@ class LayerSensitivity:
 
 
 @dataclass(frozen=True)
+class MoEExpertState:
+    expert_index: int
+    router_probability: float
+    sensitivity: float
+    resident_on_device: float
+    hotness: float
+    available_variants_mask: list[float]
+
+    def to_vector(self, num_experts: int) -> list[float]:
+        expert_scale = max(1, num_experts - 1)
+        return [
+            self.expert_index / expert_scale,
+            self.router_probability,
+            self.sensitivity,
+            self.resident_on_device,
+            self.hotness,
+            *self.available_variants_mask,
+        ]
+
+
+@dataclass(frozen=True)
+class MoEContext:
+    router_entropy: float
+    active_expert_count: float
+    cache_pressure: float
+    estimated_swap_cost_ms: float
+    experts: list[MoEExpertState]
+    top_k: int
+    variant_count: int
+    num_experts: int
+
+    def to_vector(self) -> list[float]:
+        vector = [
+            self.router_entropy,
+            self.active_expert_count / max(1, self.top_k),
+            self.cache_pressure,
+            min(self.estimated_swap_cost_ms / 20.0, 2.0),
+        ]
+        slot_width = 5 + self.variant_count
+        for slot in range(self.top_k):
+            if slot < len(self.experts):
+                vector.extend(self.experts[slot].to_vector(self.num_experts))
+            else:
+                vector.extend([0.0] * slot_width)
+        return vector
+
+
+@dataclass(frozen=True)
 class EpisodeState:
     hardware_profile: HardwareProfile
     prompt: PromptSample
     input_features: InputFeatures
     sensitivity: LayerSensitivity
     previous_action: list[float]
+    moe_context: MoEContext | None = None
 
     def to_vector(self, ordered_hardware: list[HardwareType]) -> list[float]:
-        return [
+        vector = [
             *self.hardware_profile.one_hot(ordered_hardware),
             *self.input_features.to_vector(),
             *self.sensitivity.to_vector(),
             *self.previous_action,
         ]
+        if self.moe_context is not None:
+            vector.extend(self.moe_context.to_vector())
+        return vector
 
 
 @dataclass
@@ -98,6 +150,8 @@ class QuantizationDecision:
     clipping_range: float = 1.0
     precision_level: float = 0.5
     effective_layer_bits: list[float] = field(default_factory=list)
+    moe_variant_indices: list[int] = field(default_factory=list)
+    moe_variant_names: list[str] = field(default_factory=list)
     fallback_applied: bool = False
     unstable: bool = False
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -119,6 +173,9 @@ class EpisodeMetrics:
     memory_mb: float
     stability_penalty: float
     reward: float
+    swap_cost_ms: float = 0.0
+    cache_miss_count: float = 0.0
+    variant_churn: float = 0.0
 
 
 @dataclass

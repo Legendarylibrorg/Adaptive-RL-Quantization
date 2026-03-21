@@ -6,6 +6,7 @@ from typing import Protocol
 
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.math_utils import clamp, mean, variance
+from adaptive_quant.moe import ExpertBank
 from adaptive_quant.types import EpisodeState, HardwareType, QuantMode, QuantizationDecision
 
 
@@ -19,6 +20,7 @@ class BackendMetrics(Protocol):
 class SimulatorBackend:
     def __init__(self, config: FrameworkConfig) -> None:
         self.config = config
+        self.expert_bank = ExpertBank(config) if config.moe_enabled else None
 
     def evaluate(self, state: EpisodeState, decision: QuantizationDecision) -> dict[str, float]:
         hardware = state.hardware_profile
@@ -103,12 +105,62 @@ class SimulatorBackend:
             throughput_tps *= 1.0 / (1.0 + overflow_ratio * 1.8)
             perplexity += overflow_ratio * 1.50
 
+        swap_cost_ms = 0.0
+        cache_miss_count = 0.0
+        variant_churn = float(decision.metadata.get("moe_variant_churn", 0.0))
+        if self.expert_bank is not None and state.moe_context is not None and decision.moe_variant_indices:
+            latency_ms, throughput_tps, perplexity, memory_mb, swap_cost_ms, cache_miss_count = self._apply_moe_adjustments(
+                state,
+                decision,
+                latency_ms,
+                throughput_tps,
+                perplexity,
+                memory_mb,
+            )
+
         return {
             "latency_ms": clamp(latency_ms, 5.0, 20_000.0),
             "throughput_tps": clamp(throughput_tps, 1.0, 10_000.0),
             "perplexity": clamp(perplexity, 3.0, 100.0),
             "memory_mb": clamp(memory_mb, 200.0, 128_000.0),
+            "swap_cost_ms": swap_cost_ms,
+            "cache_miss_count": cache_miss_count,
+            "variant_churn": variant_churn,
         }
+
+    def _apply_moe_adjustments(
+        self,
+        state: EpisodeState,
+        decision: QuantizationDecision,
+        latency_ms: float,
+        throughput_tps: float,
+        perplexity: float,
+        memory_mb: float,
+    ) -> tuple[float, float, float, float, float, float]:
+        assert self.expert_bank is not None
+        total_swap_cost = 0.0
+        cache_misses = 0.0
+        throughput_multiplier = 1.0
+        memory_multiplier = 1.0
+        sensitivity_penalty = 0.0
+        latency_multiplier = 1.0
+
+        for expert, variant_index in zip(state.moe_context.experts, decision.moe_variant_indices):
+            variant = self.expert_bank.variant_by_index(variant_index)
+            routing_weight = 0.60 + expert.router_probability
+            latency_multiplier *= 1.0 + (variant.latency_multiplier - 1.0) * routing_weight * 0.50
+            throughput_multiplier *= 1.0 + (variant.throughput_multiplier - 1.0) * routing_weight * 0.55
+            memory_multiplier *= 1.0 + (variant.memory_multiplier - 1.0) * routing_weight * 0.40
+            sensitivity_penalty += variant.perplexity_penalty * expert.sensitivity * routing_weight
+            if expert.resident_on_device < 0.5:
+                cache_misses += 1.0
+                total_swap_cost += variant.swap_cost_ms * (1.0 + expert.router_probability) * (1.10 - 0.35 * expert.hotness)
+
+        latency_ms = latency_ms * latency_multiplier + total_swap_cost
+        throughput_tps *= throughput_multiplier
+        memory_mb *= memory_multiplier
+        perplexity += sensitivity_penalty
+        return latency_ms, throughput_tps, perplexity, memory_mb, total_swap_cost, cache_misses
 
 
 class LlamaCppBackend:

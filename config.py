@@ -1,6 +1,7 @@
 from adaptive_quant.configuration import FrameworkConfig
 
 
+# Canonical offline research baseline used by the simplest reproducible workflow.
 CONFIG = FrameworkConfig(
     multi_hardware=True,
     dynamic_quant=True,
@@ -11,4 +12,3 @@ CONFIG = FrameworkConfig(
     evaluation_episodes=60,
     run_name="adaptive_universal_policy",
 )
-

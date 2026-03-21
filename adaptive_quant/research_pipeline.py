@@ -6,6 +6,8 @@ import subprocess
 
 from analysis.hardware_generalization import analyze as analyze_hardware
 from analysis.input_adaptation import analyze as analyze_inputs
+from analysis.moe_cache_behavior import analyze as analyze_moe_cache
+from analysis.moe_expert_behavior import analyze as analyze_moe_experts
 from analysis.quant_function_behavior import analyze as analyze_quant
 from analysis.training_dynamics import analyze as analyze_training_dynamics
 from adaptive_quant.benchmark import BenchmarkSuite
@@ -123,6 +125,9 @@ class ResearchPipeline:
             "input": analyze_inputs(f"{config.log_dir}/{config.run_name}_dynamic.jsonl", f"{analysis_root}/inputs"),
             "quant_function": analyze_quant(f"{config.log_dir}/{config.run_name}_learned.jsonl", f"{analysis_root}/quant"),
         }
+        if config.moe_enabled:
+            analysis["moe_experts"] = analyze_moe_experts(f"{config.log_dir}/{config.run_name}.jsonl", f"{analysis_root}/moe_experts")
+            analysis["moe_cache"] = analyze_moe_cache(f"{config.log_dir}/{config.run_name}.jsonl", f"{analysis_root}/moe_cache")
         if history_path is not None:
             analysis["training_dynamics"] = analyze_training_dynamics(history_path, f"{analysis_root}/training")
         return analysis
@@ -149,7 +154,9 @@ class ResearchPipeline:
             "",
             "## Overview",
             f"- backend: `{config.training_backend}`",
+            f"- training_host_label: `{config.training_host_label or 'unspecified'}`",
             f"- quant_mode: `{config.quant_mode}`",
+            f"- moe_enabled: `{config.moe_enabled}`",
             f"- hardware_modes: `{', '.join(config.hardware_modes)}`",
             f"- git_commit: `{_git_commit() or 'unknown'}`",
             "",

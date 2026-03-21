@@ -16,6 +16,21 @@ There is also an optional experimental extension:
 
 - `online` mode: simulator-first continual adaptation loop with live telemetry, replay, canary checks, and rollback guards. This is useful for systems exploration, but the main research story and paper draft are centered on offline, reproducible training and evaluation.
 
+## Which mode should I use?
+
+Use this as the quick decision guide:
+
+| Goal | Recommended command | Notes |
+| --- | --- | --- |
+| Reproduce the main offline research path | `python3 run_research.py` | Canonical baseline. No CUDA required. Best default starting point. |
+| Run the canonical MoE research path | `python3 run_moe_research.py` | Enables packed expert variants, MoE benchmarks, and MoE analysis outputs. |
+| Train on a 4090 and learn a universal policy | `python3 run_4090_universal.py` | Explicit 4090-host preset for multi-hardware policy learning. |
+| Run the optimized fixed 4090 pipeline | `bash scripts/run_4090_pipeline.sh` | Best path for a Linux RTX 4090 host. Includes validation and preflight. |
+| Run CUDA training on a non-4090 NVIDIA GPU | `python3 run_pytorch_gpu.py` | Auto-detects a GPU profile and uses the shared research pipeline. |
+| Explore continual adaptation ideas | `python3 run_online_learning.py` | Experimental extension, not the main paper path. |
+
+If you only run one thing first, run `python3 run_research.py`.
+
 ## What you need
 
 For the simulator path:
@@ -32,6 +47,90 @@ For real `llama.cpp` measurements:
 
 - a built `llama.cpp` binary
 - a model file to pass through the config
+
+## Linux startup from a fresh host
+
+On a Linux machine, this is the shortest end-to-end startup sequence.
+
+1. Confirm the basics are available:
+
+```bash
+uname -a
+python3 --version
+git --version
+```
+
+2. On a GPU host, confirm the NVIDIA stack is visible:
+
+```bash
+nvidia-smi
+```
+
+3. Clone the repository and enter it:
+
+```bash
+git clone https://github.com/Legendarylibrorg/Adaptive-RL-Quantization.git
+cd Adaptive-RL-Quantization
+```
+
+4. Create and activate a virtual environment:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install --upgrade pip setuptools
+```
+
+5. Install the repository:
+
+```bash
+python3 -m pip install -e .
+```
+
+6. If you are using a CUDA GPU, install a CUDA-enabled PyTorch build that matches your host, then verify:
+
+```bash
+python3 -c "import torch; print(torch.__version__)"
+python3 -c "import torch; print(torch.cuda.is_available())"
+python3 -c "import torch; print(torch.cuda.device_count())"
+python3 -c "import torch; print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'no-cuda')"
+```
+
+7. Run the test suite:
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+8. Run the default offline research path:
+
+```bash
+python3 run_research.py
+```
+
+9. On an RTX 4090 Linux host, run the full GPU pipeline:
+
+```bash
+bash scripts/run_4090_pipeline.sh
+```
+
+If you want the direct CUDA runner instead of the shell wrapper:
+
+```bash
+python3 run_pytorch_4090.py
+```
+
+10. If you want the canonical MoE research setup, run:
+
+```bash
+python3 run_moe_research.py
+```
+
+11. If you want the explicit “train on a 4090, learn a universal policy” path, run:
+
+```bash
+python3 run_4090_universal.py
+```
 
 ## Install
 
@@ -114,9 +213,73 @@ If it fails:
 - wrong GPU detected: make sure the intended 4090 is the active CUDA device
 - low free memory: close other GPU jobs and rerun
 
+## Linux command reference
+
+Fresh clone and setup:
+
+```bash
+git clone https://github.com/Legendarylibrorg/Adaptive-RL-Quantization.git
+cd Adaptive-RL-Quantization
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install --upgrade pip setuptools
+python3 -m pip install -e .
+```
+
+Quick simulator validation:
+
+```bash
+python3 -m unittest discover -s tests -v
+python3 run_research.py
+```
+
+Generic NVIDIA GPU run:
+
+```bash
+python3 run_pytorch_gpu.py
+```
+
+RTX 4090 recommended run:
+
+```bash
+bash scripts/run_4090_pipeline.sh
+```
+
+RTX 4090 direct run:
+
+```bash
+python3 run_pytorch_4090.py
+```
+
+Canonical MoE research run:
+
+```bash
+python3 run_moe_research.py
+```
+
+4090-host universal policy run:
+
+```bash
+python3 run_4090_universal.py
+```
+
+Experimental online loop:
+
+```bash
+python3 run_online_learning.py
+```
+
+Optional real `llama.cpp` backend:
+
+```bash
+# first set backend="llama_cpp" and the binary/model paths in config.py,
+# config_gpu.py, or config_4090.py, then rerun the entrypoint you want
+python3 run_research.py
+```
+
 ## Fastest way to run
 
-Run the main simulator research workflow:
+Run the canonical offline research workflow:
 
 ```bash
 python3 run_research.py
@@ -168,17 +331,23 @@ Outputs are written under `outputs/`:
 
 ## Main files
 
-- `config.py`: default simulator-first configuration
+- `config.py`: canonical offline research configuration
+- `config_moe.py`: canonical MoE research configuration
 - `config_gpu.py`: generic CUDA/PyTorch configuration with auto GPU profile selection
 - `config_4090.py`: CUDA/PyTorch configuration for RTX 4090-class hardware
-- `run_research.py`: main simulator entrypoint
+- `config_4090_universal.py`: explicit 4090-host universal-policy configuration
+- `run_research.py`: main offline research entrypoint
+- `run_moe_research.py`: canonical MoE research entrypoint
+- `run_4090_universal.py`: explicit 4090-host universal-policy entrypoint
 - `run_online_learning.py`: experimental online adaptation entrypoint
-- `run_pytorch_gpu.py`: main CUDA entrypoint with auto-detected GPU profile
-- `run_pytorch_4090.py`: main CUDA/4090 entrypoint
-- `scripts/run_4090_pipeline.sh`: one-command 4090 validation and pipeline runner
+- `run_pytorch_gpu.py`: secondary CUDA entrypoint with auto-detected GPU profile
+- `run_pytorch_4090.py`: primary fixed-profile CUDA/4090 entrypoint
+- `scripts/run_4090_pipeline.sh`: recommended one-command 4090 validation and pipeline runner
 - `adaptive_quant/research_pipeline.py`: shared RL experiment pipeline orchestration
 - `adaptive_quant/`: environment, policy, trainer, quantization, logging, benchmark, and preflight code
 - `analysis/`: hardware generalization, input adaptation, and quant-function analysis modules
+- `analysis/moe_expert_behavior.py`: MoE expert/variant usage analysis
+- `analysis/moe_cache_behavior.py`: MoE cache/swap analysis
 - `tests/`: standard-library unit tests
 
 ## Documentation
@@ -193,10 +362,22 @@ Outputs are written under `outputs/`:
 
 ## Common commands
 
-Simulator research run:
+Canonical offline research run:
 
 ```bash
 python3 run_research.py
+```
+
+Canonical MoE research run:
+
+```bash
+python3 run_moe_research.py
+```
+
+4090-host universal policy run:
+
+```bash
+python3 run_4090_universal.py
 ```
 
 Generic GPU run:
@@ -211,7 +392,7 @@ python3 run_pytorch_gpu.py
 python3 run_pytorch_4090.py
 ```
 
-One-command 4090 validation + run:
+Recommended 4090 validation + run:
 
 ```bash
 bash scripts/run_4090_pipeline.sh
@@ -237,3 +418,6 @@ python3 -m unittest discover -s tests -v
 - Benchmark runs use a smaller budget than the main GPU training run so they do not dominate runtime.
 - Prompt feature caching and buffered logging are enabled in the GPU configs to reduce CPU and I/O overhead.
 - The paper draft and headline benchmark results are based on the offline research paths, not the experimental online extension.
+- The simplest stable research story is: `run_research.py` first, `run_pytorch_4090.py` or `scripts/run_4090_pipeline.sh` second, `run_online_learning.py` only if you specifically want the experimental extension.
+- The MoE path adds packed expert variants, swap/cache-aware rewards, MoE benchmark baselines, and MoE-specific analysis figures through `config_moe.py` and `run_moe_research.py`.
+- `run_pytorch_4090.py` and `run_4090_universal.py` both train on a 4090 host while conditioning on multiple hardware targets; the latter just makes that framing explicit in config, reporting, and output names.

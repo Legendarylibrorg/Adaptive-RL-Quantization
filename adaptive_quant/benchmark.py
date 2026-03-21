@@ -21,6 +21,10 @@ class BenchmarkSuite:
             "static_vs_dynamic": self._static_vs_dynamic(),
             "discrete_vs_learned": self._discrete_vs_learned(),
         }
+        if self.config.moe_enabled:
+            results["dense_vs_moe"] = self._dense_vs_moe()
+            results["moe_packed_vs_single_variant"] = self._moe_packed_vs_single_variant()
+            results["moe_static_vs_rl"] = self._moe_static_vs_rl()
         write_json(f"{self.config.benchmark_dir}/{self.config.run_name}_benchmarks.json", results)
         return results
 
@@ -134,6 +138,89 @@ class BenchmarkSuite:
         finally:
             self._release_trainer(discrete_trainer)
             self._release_trainer(learned_trainer)
+
+    def _dense_vs_moe(self) -> dict[str, object]:
+        dense_config = self._benchmark_config(
+            run_name=f"{self.config.run_name}_dense_adaptive",
+            moe_enabled=False,
+        )
+        moe_config = self._benchmark_config(
+            run_name=f"{self.config.run_name}_moe_adaptive",
+            moe_enabled=True,
+        )
+        dense_trainer = build_trainer(dense_config)
+        moe_trainer = build_trainer(moe_config)
+        try:
+            dense_train = dense_trainer.train()
+            moe_train = moe_trainer.train()
+            dense_eval = dense_trainer.evaluate()
+            moe_eval = moe_trainer.evaluate()
+            return {
+                "train": {"dense": dense_train, "moe": moe_train},
+                "evaluation": {"dense": dense_eval, "moe": moe_eval},
+                "reward_delta": moe_eval["mean_reward"] - dense_eval["mean_reward"],
+                "swap_cost_delta": moe_eval["mean_swap_cost_ms"] - dense_eval["mean_swap_cost_ms"],
+            }
+        finally:
+            self._release_trainer(dense_trainer)
+            self._release_trainer(moe_trainer)
+
+    def _moe_packed_vs_single_variant(self) -> dict[str, object]:
+        single_variant_config = self._benchmark_config(
+            run_name=f"{self.config.run_name}_moe_single_variant",
+            moe_enabled=True,
+            moe_variant_names=("balanced",),
+            moe_fixed_variant="balanced",
+        )
+        packed_variant_config = self._benchmark_config(
+            run_name=f"{self.config.run_name}_moe_packed",
+            moe_enabled=True,
+            moe_variant_names=self.config.moe_variant_names,
+            moe_fixed_variant=None,
+        )
+        single_variant_trainer = build_trainer(single_variant_config)
+        packed_variant_trainer = build_trainer(packed_variant_config)
+        try:
+            single_train = single_variant_trainer.train()
+            packed_train = packed_variant_trainer.train()
+            single_eval = single_variant_trainer.evaluate()
+            packed_eval = packed_variant_trainer.evaluate()
+            return {
+                "train": {"single_variant": single_train, "packed_variant_bank": packed_train},
+                "evaluation": {"single_variant": single_eval, "packed_variant_bank": packed_eval},
+                "reward_delta": packed_eval["mean_reward"] - single_eval["mean_reward"],
+            }
+        finally:
+            self._release_trainer(single_variant_trainer)
+            self._release_trainer(packed_variant_trainer)
+
+    def _moe_static_vs_rl(self) -> dict[str, object]:
+        static_config = self._benchmark_config(
+            run_name=f"{self.config.run_name}_moe_static",
+            moe_enabled=True,
+            moe_fixed_variant="balanced",
+        )
+        rl_config = self._benchmark_config(
+            run_name=f"{self.config.run_name}_moe_rl",
+            moe_enabled=True,
+            moe_fixed_variant=None,
+        )
+        static_trainer = build_trainer(static_config)
+        rl_trainer = build_trainer(rl_config)
+        try:
+            static_train = static_trainer.train()
+            rl_train = rl_trainer.train()
+            static_eval = static_trainer.evaluate()
+            rl_eval = rl_trainer.evaluate()
+            return {
+                "train": {"static_policy": static_train, "rl_policy": rl_train},
+                "evaluation": {"static_policy": static_eval, "rl_policy": rl_eval},
+                "reward_delta": rl_eval["mean_reward"] - static_eval["mean_reward"],
+                "cache_miss_delta": rl_eval["mean_cache_miss_count"] - static_eval["mean_cache_miss_count"],
+            }
+        finally:
+            self._release_trainer(static_trainer)
+            self._release_trainer(rl_trainer)
 
     def _benchmark_config(self, **overrides: object) -> FrameworkConfig:
         benchmark_training = self.config.benchmark_training_episodes or self.config.training_episodes

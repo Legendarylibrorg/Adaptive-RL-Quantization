@@ -3,6 +3,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 
+from config_4090_universal import CONFIG_4090_UNIVERSAL
 from analysis.hardware_generalization import analyze as analyze_hardware
 from analysis.input_adaptation import analyze as analyze_inputs
 from analysis.online_learning import analyze as analyze_online
@@ -12,6 +13,7 @@ from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.gpu_profiles import apply_gpu_profile, infer_gpu_profile
 from adaptive_quant.online_learning import OnlineLearningLoop
+from adaptive_quant.policy import UniversalQuantizationPolicy
 from adaptive_quant.quantization import finalize_decision
 from adaptive_quant.research_pipeline import ResearchPipeline
 from adaptive_quant.trainer import Trainer, build_trainer
@@ -19,6 +21,11 @@ from adaptive_quant.types import HardwareType, OnlineRequest, QuantMode, Quantiz
 
 
 class FrameworkTests(unittest.TestCase):
+    def test_4090_universal_preset_is_multi_hardware(self) -> None:
+        self.assertEqual(CONFIG_4090_UNIVERSAL.training_host_label, "rtx4090")
+        self.assertTrue(CONFIG_4090_UNIVERSAL.multi_hardware)
+        self.assertEqual(CONFIG_4090_UNIVERSAL.hardware_modes, ("gpu", "cpu", "low_resource"))
+
     def test_state_contains_hardware_and_input_features(self) -> None:
         config = FrameworkConfig(training_episodes=4, evaluation_episodes=2, stability_probe_count=1, run_name="state_test")
         env = AdaptiveQuantizationEnv(config, log_path=f"{tempfile.gettempdir()}/state_test.jsonl")
@@ -100,6 +107,49 @@ class FrameworkTests(unittest.TestCase):
         self.assertEqual(state.prompt.prompt_id, "very_complex")
         self.assertEqual(result.metrics.stability_penalty, 0.0)
 
+    def test_moe_state_and_policy_attach_packed_variants(self) -> None:
+        config = FrameworkConfig(
+            training_episodes=2,
+            evaluation_episodes=1,
+            stability_probe_count=1,
+            run_name="moe_test",
+            moe_enabled=True,
+            moe_num_experts=12,
+            moe_top_k=2,
+        )
+        env = AdaptiveQuantizationEnv(config, log_path=f"{tempfile.gettempdir()}/moe_test.jsonl")
+        state = env.reset(forced_hardware=HardwareType.GPU, forced_prompt_id="very_complex")
+        self.assertIsNotNone(state.moe_context)
+        assert state.moe_context is not None
+        self.assertEqual(len(state.moe_context.experts), 2)
+        self.assertEqual(len(state.to_vector(config.ordered_hardware())), config.state_vector_dim())
+
+        policy = UniversalQuantizationPolicy(config)
+        decision, _trace = policy.act(state, deterministic=True)
+        finalized = finalize_decision(decision, state, config)
+        self.assertEqual(len(finalized.moe_variant_indices), 2)
+        self.assertEqual(len(finalized.moe_variant_names), 2)
+        self.assertTrue(all(name in config.moe_variant_names for name in finalized.moe_variant_names))
+        self.assertTrue(finalized.metadata["moe_enabled"])
+
+    def test_moe_backend_reports_swap_and_cache_penalties(self) -> None:
+        config = FrameworkConfig(
+            training_episodes=2,
+            evaluation_episodes=1,
+            stability_probe_count=1,
+            run_name="moe_metrics_test",
+            moe_enabled=True,
+            moe_num_experts=12,
+            moe_top_k=2,
+        )
+        env = AdaptiveQuantizationEnv(config, log_path=f"{tempfile.gettempdir()}/moe_metrics_test.jsonl")
+        state = env.reset(forced_hardware=HardwareType.LOW_RESOURCE, forced_prompt_id="very_complex")
+        decision = finalize_decision(QuantizationDecision(mode=QuantMode.DISCRETE, base_bit_width=4), state, config)
+        result = env.evaluate_current(decision)
+        self.assertGreaterEqual(result.metrics.swap_cost_ms, 0.0)
+        self.assertGreaterEqual(result.metrics.cache_miss_count, 0.0)
+        self.assertGreaterEqual(result.metrics.variant_churn, 0.0)
+
     def test_gpu_profile_inference_and_application(self) -> None:
         self.assertEqual(infer_gpu_profile("NVIDIA GeForce RTX 4090", 24.0), "rtx4090")
         self.assertEqual(infer_gpu_profile("NVIDIA A100-SXM4-80GB", 80.0), "a100_80gb")
@@ -175,6 +225,35 @@ class FrameworkTests(unittest.TestCase):
             self.assertIn("evaluation", summary)
             self.assertIn("benchmarks", summary)
             self.assertTrue(summary["artifacts"]["training_history"].endswith("_training_history.json"))
+            self.assertTrue(summary["artifacts"]["report"].endswith("_report.md"))
+
+    def test_moe_pipeline_writes_moe_benchmarks_and_analysis(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = FrameworkConfig(
+                training_episodes=10,
+                evaluation_episodes=4,
+                benchmark_training_episodes=4,
+                benchmark_evaluation_episodes=2,
+                stability_probe_count=1,
+                outputs_dir=temp_dir,
+                log_dir=f"{temp_dir}/logs",
+                benchmark_dir=f"{temp_dir}/benchmarks",
+                analysis_dir=f"{temp_dir}/analysis",
+                checkpoint_dir=f"{temp_dir}/checkpoints",
+                report_dir=f"{temp_dir}/reports",
+                run_name="moe_pipeline_suite_test",
+                moe_enabled=True,
+                moe_num_experts=12,
+                moe_top_k=2,
+                seed=19,
+            )
+            summary = ResearchPipeline(config).run()
+
+            self.assertIn("dense_vs_moe", summary["benchmarks"])
+            self.assertIn("moe_packed_vs_single_variant", summary["benchmarks"])
+            self.assertIn("moe_static_vs_rl", summary["benchmarks"])
+            self.assertIn("moe_experts", summary["analysis"])
+            self.assertIn("moe_cache", summary["analysis"])
             self.assertTrue(summary["artifacts"]["report"].endswith("_report.md"))
 
 

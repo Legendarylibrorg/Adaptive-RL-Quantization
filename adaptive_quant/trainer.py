@@ -56,6 +56,9 @@ class Trainer:
         throughputs: list[float] = []
         memories: list[float] = []
         stabilities: list[float] = []
+        swap_costs: list[float] = []
+        cache_misses: list[float] = []
+        variant_churns: list[float] = []
         previous_action = list(self.previous_action)
         for episode_index in range(episodes or self.config.evaluation_episodes):
             state = self.env.reset(previous_action=previous_action, forced_hardware=hardware)
@@ -72,6 +75,9 @@ class Trainer:
             throughputs.append(result.metrics.throughput_tps)
             memories.append(result.metrics.memory_mb)
             stabilities.append(result.metrics.stability_penalty)
+            swap_costs.append(result.metrics.swap_cost_ms)
+            cache_misses.append(result.metrics.cache_miss_count)
+            variant_churns.append(result.metrics.variant_churn)
 
         return {
             "mean_reward": mean(rewards),
@@ -80,6 +86,9 @@ class Trainer:
             "mean_throughput_tps": mean(throughputs),
             "mean_memory_mb": mean(memories),
             "mean_stability_penalty": mean(stabilities),
+            "mean_swap_cost_ms": mean(swap_costs),
+            "mean_cache_miss_count": mean(cache_misses),
+            "mean_variant_churn": mean(variant_churns),
         }
 
     def rollout(self, episodes: int) -> list[EpisodeResult]:

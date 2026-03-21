@@ -3,6 +3,7 @@ from adaptive_quant.configuration import FrameworkConfig
 
 CONFIG_4090 = FrameworkConfig(
     training_backend="pytorch",
+    training_host_label="rtx4090",
     multi_hardware=True,
     dynamic_quant=True,
     learned_quant=True,

@@ -114,6 +114,7 @@ def finalize_decision(decision: QuantizationDecision, state: EpisodeState, confi
     finalized.metadata = dict(finalized.metadata)
     finalized.metadata["average_bits"] = mean(finalized.effective_layer_bits)
     finalized.metadata["bit_variance"] = variance(finalized.effective_layer_bits)
+    _finalize_moe_selection(finalized, state, config)
 
     out_of_bounds = any(bit < min(config.discrete_bit_widths) or bit > max(config.discrete_bit_widths) for bit in finalized.effective_layer_bits)
     extremely_fragmented = variance(finalized.effective_layer_bits) > 4.0
@@ -126,6 +127,104 @@ def finalize_decision(decision: QuantizationDecision, state: EpisodeState, confi
         return fallback
 
     return finalized
+
+
+def _finalize_moe_selection(decision: QuantizationDecision, state: EpisodeState, config: FrameworkConfig) -> None:
+    if not config.moe_enabled or state.moe_context is None:
+        decision.moe_variant_indices = []
+        decision.moe_variant_names = []
+        return
+
+    default_index = config.default_moe_variant_index()
+    variant_count = config.moe_variant_count()
+    fixed_index = config.moe_variant_index(config.moe_fixed_variant) if config.moe_fixed_variant else None
+    if fixed_index is not None:
+        normalized_indices = [fixed_index] * len(state.moe_context.experts)
+    else:
+        normalized_indices = list(decision.moe_variant_indices[: len(state.moe_context.experts)])
+        while len(normalized_indices) < len(state.moe_context.experts):
+            normalized_indices.append(default_index)
+
+    names: list[str] = []
+    for slot, expert in enumerate(state.moe_context.experts):
+        index = max(0, min(variant_count - 1, int(normalized_indices[slot])))
+        if expert.available_variants_mask:
+            available = [mask > 0.0 for mask in expert.available_variants_mask]
+            if index >= len(available) or not available[index]:
+                valid_indices = [candidate for candidate, allowed in enumerate(available) if allowed]
+                index = default_index if default_index in valid_indices else (valid_indices[0] if valid_indices else default_index)
+        normalized_indices[slot] = index
+        names.append(config.moe_variant_names[index])
+
+    _apply_moe_safety(normalized_indices, state, config, default_index)
+    names = [config.moe_variant_names[index] for index in normalized_indices]
+
+    decision.moe_variant_indices = normalized_indices
+    decision.moe_variant_names = names
+    average_aggressiveness = mean(
+        [index / max(1, variant_count - 1) for index in normalized_indices]
+    ) if normalized_indices else 0.0
+    variant_churn = mean(
+        [abs(index - default_index) / max(1, variant_count - 1) for index in normalized_indices]
+    ) if normalized_indices else 0.0
+    decision.metadata["moe_enabled"] = True
+    decision.metadata["moe_selected_variants"] = names
+    decision.metadata["moe_average_aggressiveness"] = average_aggressiveness
+    decision.metadata["moe_variant_churn"] = variant_churn
+    decision.metadata["moe_fixed_variant"] = config.moe_fixed_variant
+
+
+def _apply_moe_safety(indices: list[int], state: EpisodeState, config: FrameworkConfig, default_index: int) -> None:
+    if not indices or state.moe_context is None:
+        return
+
+    aggressive_index = config.aggressive_moe_variant_index()
+    if aggressive_index is not None and config.moe_max_aggressive_experts >= 0 and aggressive_index < config.moe_variant_count():
+        aggressive_slots = [slot for slot, index in enumerate(indices) if index == aggressive_index]
+        if len(aggressive_slots) > config.moe_max_aggressive_experts:
+            ranked = sorted(
+                aggressive_slots,
+                key=lambda slot: state.moe_context.experts[slot].router_probability,
+                reverse=True,
+            )
+            keep = set(ranked[: config.moe_max_aggressive_experts])
+            for slot in aggressive_slots:
+                if slot not in keep:
+                    indices[slot] = default_index
+
+    while _predicted_moe_swap_cost(indices, state, config) > config.moe_max_swap_cost_ms:
+        adjusted = False
+        for slot, expert in sorted(
+            enumerate(state.moe_context.experts),
+            key=lambda item: (item[1].resident_on_device, item[1].router_probability),
+        ):
+            if indices[slot] > default_index and expert.resident_on_device < 0.5:
+                indices[slot] = default_index
+                adjusted = True
+                break
+        if adjusted:
+            continue
+        for slot, expert in sorted(
+            enumerate(state.moe_context.experts),
+            key=lambda item: item[1].router_probability,
+        ):
+            if indices[slot] != 0 and expert.resident_on_device < 0.5:
+                indices[slot] = 0
+                adjusted = True
+                break
+        if not adjusted:
+            break
+
+
+def _predicted_moe_swap_cost(indices: list[int], state: EpisodeState, config: FrameworkConfig) -> float:
+    if state.moe_context is None or not indices:
+        return 0.0
+    total = 0.0
+    for expert, index in zip(state.moe_context.experts, indices):
+        aggressiveness = index / max(1, config.moe_variant_count() - 1)
+        if expert.resident_on_device < 0.5:
+            total += (1.2 + 3.4 * aggressiveness) * (0.75 + expert.router_probability) * (1.10 - 0.35 * expert.hotness)
+    return total
 
 
 def quantize_values(values: list[float], decision: QuantizationDecision, config: FrameworkConfig) -> list[float]:

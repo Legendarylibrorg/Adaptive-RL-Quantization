@@ -20,11 +20,22 @@ class FrameworkConfig:
     multi_hardware: bool = True
     dynamic_quant: bool = True
     learned_quant: bool = True
+    moe_enabled: bool = False
     quant_mode: str = QuantMode.HYBRID.value
     hardware_modes: tuple[str, ...] = ("gpu", "cpu", "low_resource")
     discrete_bit_widths: tuple[int, ...] = (2, 4, 8)
     num_groups: int = 4
     num_layers: int = 8
+    moe_num_experts: int = 16
+    moe_top_k: int = 2
+    moe_variant_names: tuple[str, ...] = ("safe", "balanced", "aggressive")
+    moe_fixed_variant: str | None = None
+    moe_gpu_resident_experts: int = 8
+    moe_swap_penalty: float = 0.015
+    moe_cache_miss_penalty: float = 0.120
+    moe_variant_churn_penalty: float = 0.050
+    moe_max_aggressive_experts: int = 1
+    moe_max_swap_cost_ms: float = 7.5
     training_episodes: int = 240
     evaluation_episodes: int = 60
     benchmark_training_episodes: int | None = None
@@ -52,6 +63,7 @@ class FrameworkConfig:
     write_research_report: bool = True
     resume_from_checkpoint: str | None = None
     backend: str = "simulator"
+    training_host_label: str | None = None
     llama_cpp_binary: str | None = None
     llama_cpp_model: str | None = None
     llama_cpp_threads: int = 8
@@ -113,6 +125,34 @@ class FrameworkConfig:
         if self.learned_quant:
             modes.append(QuantMode.LEARNED)
         return modes
+
+    def moe_variant_count(self) -> int:
+        return len(self.moe_variant_names)
+
+    def default_moe_variant_index(self) -> int:
+        if not self.moe_variant_names:
+            return 0
+        if "balanced" in self.moe_variant_names:
+            return self.moe_variant_names.index("balanced")
+        return min(1, len(self.moe_variant_names) - 1)
+
+    def moe_variant_index(self, name: str) -> int | None:
+        if name in self.moe_variant_names:
+            return self.moe_variant_names.index(name)
+        return None
+
+    def aggressive_moe_variant_index(self) -> int | None:
+        if "aggressive" in self.moe_variant_names:
+            return self.moe_variant_names.index("aggressive")
+        return None
+
+    def moe_state_dim(self) -> int:
+        if not self.moe_enabled:
+            return 0
+        return 4 + self.moe_top_k * (5 + self.moe_variant_count())
+
+    def state_vector_dim(self) -> int:
+        return len(self.ordered_hardware()) + 5 + 2 + self.num_layers + 3 + self.moe_state_dim()
 
     def clone(self, **changes: object) -> "FrameworkConfig":
         return replace(self, **changes)
