@@ -19,13 +19,16 @@ def main() -> None:
     except ImportError as exc:
         raise SystemExit(str(exc)) from exc
     preflight_report = None
-    if config.torch_preflight:
-        preflight_report = run_torch_preflight(config, trainer.policy)
-        preflight_report["gpu_profile"] = gpu_profile_report
-        write_json(f"{config.benchmark_dir}/{config.run_name}_preflight.json", preflight_report)
-        print("Preflight summary:", preflight_report)
-    train_summary = trainer.train()
-    eval_summary = trainer.evaluate()
+    try:
+        if config.torch_preflight:
+            preflight_report = run_torch_preflight(config, trainer.policy)
+            preflight_report["gpu_profile"] = gpu_profile_report
+            write_json(f"{config.benchmark_dir}/{config.run_name}_preflight.json", preflight_report)
+            print("Preflight summary:", preflight_report)
+        train_summary = trainer.train()
+        eval_summary = trainer.evaluate()
+    finally:
+        trainer.close()
     benchmark_summary = BenchmarkSuite(config).run()
 
     analysis_root = f"{config.analysis_dir}/{config.run_name}"

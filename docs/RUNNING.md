@@ -30,7 +30,7 @@ python3 -m unittest discover -s tests -v
 
 ## What `run_research.py` does
 
-`run_research.py` uses [config.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/config.py) and:
+`run_research.py` uses [config.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config.py) and:
 
 1. trains the default policy
 2. evaluates it
@@ -45,7 +45,7 @@ This is the easiest path for:
 
 ## What `run_pytorch_gpu.py` does
 
-`run_pytorch_gpu.py` uses [config_gpu.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/config_gpu.py) and:
+`run_pytorch_gpu.py` uses [config_gpu.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_gpu.py) and:
 
 1. detects the current CUDA device
 2. selects a tuned GPU profile
@@ -60,7 +60,7 @@ This is the recommended path for most NVIDIA GPUs.
 
 ## What `run_pytorch_4090.py` does
 
-`run_pytorch_4090.py` uses [config_4090.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/config_4090.py) and:
+`run_pytorch_4090.py` uses [config_4090.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_4090.py) and:
 
 1. runs a CUDA preflight
 2. writes a preflight JSON report
@@ -122,7 +122,7 @@ After the run, inspect:
 
 Run with llama.cpp backend:
 
-Edit [config.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/config.py), [config_gpu.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/config_gpu.py), or [config_4090.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/config_4090.py):
+Edit [config.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config.py), [config_gpu.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_gpu.py), or [config_4090.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_4090.py):
 
 - set `backend="llama_cpp"`
 - set `llama_cpp_binary`

@@ -11,8 +11,11 @@ from adaptive_quant.trainer import build_trainer
 
 def main() -> None:
     trainer = build_trainer(CONFIG)
-    train_summary = trainer.train()
-    eval_summary = trainer.evaluate()
+    try:
+        train_summary = trainer.train()
+        eval_summary = trainer.evaluate()
+    finally:
+        trainer.close()
     benchmark_summary = BenchmarkSuite(CONFIG).run()
 
     analysis_root = f"{CONFIG.analysis_dir}/{CONFIG.run_name}"

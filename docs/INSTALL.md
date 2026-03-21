@@ -12,7 +12,7 @@ Create a virtual environment:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install --upgrade pip
+python3 -m pip install --upgrade pip setuptools
 ```
 
 Install the package:
@@ -79,7 +79,7 @@ If you want real `llama.cpp`-backed measurements instead of the simulator backen
 - a built `llama.cpp` CLI binary
 - a local model file
 
-Then set these config values in [config.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/config.py), [config_gpu.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/config_gpu.py), or [config_4090.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/config_4090.py):
+Then set these config values in [config.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config.py), [config_gpu.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_gpu.py), or [config_4090.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_4090.py):
 
 - `backend="llama_cpp"`
 - `llama_cpp_binary="/absolute/path/to/llama-cli-or-equivalent"`
@@ -106,7 +106,7 @@ Simulator only:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install --upgrade pip
+python3 -m pip install --upgrade pip setuptools
 python3 -m pip install -e .
 python3 run_research.py
 ```
@@ -116,7 +116,7 @@ CUDA GPU:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install --upgrade pip
+python3 -m pip install --upgrade pip setuptools
 python3 -m pip install -e .
 # install CUDA-enabled PyTorch for your host
 python3 run_pytorch_gpu.py
@@ -127,7 +127,7 @@ RTX 4090 preset:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install --upgrade pip
+python3 -m pip install --upgrade pip setuptools
 python3 -m pip install -e .
 # install CUDA-enabled PyTorch for your host
 python3 run_pytorch_4090.py

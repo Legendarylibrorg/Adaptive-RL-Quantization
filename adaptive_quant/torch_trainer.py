@@ -60,11 +60,17 @@ class TorchTrainer:
         throughputs: list[float] = []
         memories: list[float] = []
         stabilities: list[float] = []
+        previous_action = list(self.previous_action)
         for episode_index in range(episodes or self.config.evaluation_episodes):
-            state = self.env.reset(previous_action=self.previous_action, forced_hardware=hardware)
+            state = self.env.reset(previous_action=previous_action, forced_hardware=hardware)
             state_vector = state.to_vector(self.ordered_hardware)
             decision, _record = self.policy.act(state_vector, deterministic=True)
             result = self.env.evaluate_current(decision, episode_index=1_000_000 + episode_index)
+            previous_action = result.decision.feedback_vector(
+                max_bits=max(self.config.discrete_bit_widths),
+                scale_upper=self.config.scale_bounds[1],
+                clip_upper=self.config.clip_bounds[1],
+            )
             rewards.append(result.metrics.reward)
             perplexities.append(result.metrics.perplexity)
             latencies.append(result.metrics.latency_ms)
@@ -83,11 +89,17 @@ class TorchTrainer:
 
     def rollout(self, episodes: int) -> list[EpisodeResult]:
         results: list[EpisodeResult] = []
+        previous_action = list(self.previous_action)
         for episode_index in range(episodes):
-            state = self.env.reset(previous_action=self.previous_action)
+            state = self.env.reset(previous_action=previous_action)
             state_vector = state.to_vector(self.ordered_hardware)
             decision, _record = self.policy.act(state_vector, deterministic=True)
             result = self.env.evaluate_current(decision, episode_index=2_000_000 + episode_index)
+            previous_action = result.decision.feedback_vector(
+                max_bits=max(self.config.discrete_bit_widths),
+                scale_upper=self.config.scale_bounds[1],
+                clip_upper=self.config.clip_bounds[1],
+            )
             results.append(result)
         return results
 

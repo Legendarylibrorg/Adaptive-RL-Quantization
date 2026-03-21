@@ -9,5 +9,4 @@ description = "Adaptive, hardware-aware RL quantization research framework for l
 requires-python = ">=3.11"
 
 [tool.setuptools]
-packages = ["adaptive_quant"]
-
+packages = ["adaptive_quant", "analysis"]

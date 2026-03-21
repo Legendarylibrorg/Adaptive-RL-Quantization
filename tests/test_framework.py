@@ -74,6 +74,29 @@ class FrameworkTests(unittest.TestCase):
         trainer = build_trainer(config, log_path=f"{tempfile.gettempdir()}/factory_test.jsonl")
         self.assertIsInstance(trainer, Trainer)
 
+    def test_rollout_carries_previous_action_between_episodes(self) -> None:
+        config = FrameworkConfig(training_episodes=2, evaluation_episodes=2, stability_probe_count=1, run_name="rollout_test")
+        trainer = build_trainer(config, log_path=f"{tempfile.gettempdir()}/rollout_test.jsonl")
+        results = trainer.rollout(2)
+
+        self.assertEqual(len(results), 2)
+        expected_previous = results[0].decision.feedback_vector(
+            max_bits=max(config.discrete_bit_widths),
+            scale_upper=config.scale_bounds[1],
+            clip_upper=config.clip_bounds[1],
+        )
+        self.assertEqual(results[1].state.previous_action, expected_previous)
+
+    def test_single_probe_stability_short_circuits_to_zero(self) -> None:
+        config = FrameworkConfig(training_episodes=2, evaluation_episodes=1, stability_probe_count=1, run_name="stability_short_circuit")
+        env = AdaptiveQuantizationEnv(config, log_path=f"{tempfile.gettempdir()}/stability_short_circuit.jsonl")
+        state = env.reset(forced_hardware=HardwareType.GPU, forced_prompt_id="very_complex")
+        decision = QuantizationDecision(mode=QuantMode.DISCRETE, base_bit_width=4)
+        result = env.evaluate_current(decision)
+
+        self.assertEqual(state.prompt.prompt_id, "very_complex")
+        self.assertEqual(result.metrics.stability_penalty, 0.0)
+
     def test_gpu_profile_inference_and_application(self) -> None:
         self.assertEqual(infer_gpu_profile("NVIDIA GeForce RTX 4090", 24.0), "rtx4090")
         self.assertEqual(infer_gpu_profile("NVIDIA A100-SXM4-80GB", 80.0), "a100_80gb")

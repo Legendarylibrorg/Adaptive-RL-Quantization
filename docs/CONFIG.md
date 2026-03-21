@@ -2,10 +2,10 @@
 
 Configuration lives in:
 
-- [config.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/config.py)
-- [config_gpu.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/config_gpu.py)
-- [config_4090.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/config_4090.py)
-- [adaptive_quant/configuration.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/adaptive_quant/configuration.py)
+- [config.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config.py)
+- [config_gpu.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_gpu.py)
+- [config_4090.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_4090.py)
+- [adaptive_quant/configuration.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/adaptive_quant/configuration.py)
 
 ## Most important fields
 
@@ -75,14 +75,14 @@ Local laptop or quick CI-style validation:
 
 Auto-tuned GPU training:
 
-- use [config_gpu.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/config_gpu.py)
+- use [config_gpu.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_gpu.py)
 - keep `torch_gpu_profile="auto"` unless you want to force a profile
 - keep `cache_prompt_features=True`
 - keep `torch_preflight=True`
 
 RTX 4090 training:
 
-- use [config_4090.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/config_4090.py)
+- use [config_4090.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_4090.py)
 - keep `training_backend="pytorch"`
 - keep `cache_prompt_features=True`
 - keep `torch_preflight=True`

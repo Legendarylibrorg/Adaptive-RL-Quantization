@@ -36,7 +36,7 @@ Create and activate a virtual environment:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install --upgrade pip
+python3 -m pip install --upgrade pip setuptools
 ```
 
 Install the package in editable mode:
@@ -111,12 +111,12 @@ Outputs are written under `outputs/`:
 
 ## Documentation
 
-- [Installation Guide](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/docs/INSTALL.md)
-- [Running Guide](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/docs/RUNNING.md)
-- [Configuration Guide](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/docs/CONFIG.md)
-- [GPU Profiles Guide](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/docs/GPU_PROFILES.md)
-- [Paper Draft](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/docs/PAPER.md)
-- [Troubleshooting](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/docs/TROUBLESHOOTING.md)
+- [Installation Guide](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/docs/INSTALL.md)
+- [Running Guide](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/docs/RUNNING.md)
+- [Configuration Guide](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/docs/CONFIG.md)
+- [GPU Profiles Guide](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/docs/GPU_PROFILES.md)
+- [Paper Draft](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/docs/PAPER.md)
+- [Troubleshooting](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/docs/TROUBLESHOOTING.md)
 
 ## Common commands
 

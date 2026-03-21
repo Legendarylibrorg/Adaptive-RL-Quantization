@@ -112,6 +112,8 @@ class AdaptiveQuantizationEnv:
         )
 
     def _stability_penalty(self, decision: QuantizationDecision, state: EpisodeState) -> float:
+        if self.config.stability_probe_count <= 1:
+            return 0.0
         perplexities = []
         probes = self.prompt_library.probes(state.prompt, self.config.stability_probe_count, self.rng)
         for probe in probes:
