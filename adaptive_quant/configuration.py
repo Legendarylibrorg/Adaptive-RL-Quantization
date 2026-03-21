@@ -52,6 +52,7 @@ class FrameworkConfig:
     llama_cpp_threads: int = 8
     llama_cpp_context: int = 2048
     torch_device: str = "cuda"
+    torch_gpu_profile: str = "auto"
     torch_dtype: str = "bfloat16"
     torch_compile: bool = True
     torch_amp: bool = True

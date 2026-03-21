@@ -1,6 +1,6 @@
 # Troubleshooting
 
-## `run_pytorch_4090.py` says PyTorch is required
+## `run_pytorch_gpu.py` or `run_pytorch_4090.py` says PyTorch is required
 
 This means CUDA-enabled PyTorch is not installed in the active environment.
 
@@ -12,6 +12,12 @@ Fix:
 
 ```bash
 python3 -c "import torch; print(torch.__version__); print(torch.cuda.is_available())"
+python3 run_pytorch_gpu.py
+```
+
+or:
+
+```bash
 python3 run_pytorch_4090.py
 ```
 
@@ -49,7 +55,7 @@ Lower:
 
 Those exist specifically so the benchmark comparisons can be cheaper than the main training run.
 
-## The 4090 run exits during preflight
+## The GPU run exits during preflight
 
 Read:
 
@@ -82,4 +88,3 @@ Use the preflight plus:
 python3 -c "import torch; print(torch.cuda.is_available())"
 python3 -c "import torch; print(torch.cuda.get_device_name(0))"
 ```
-

@@ -3,7 +3,7 @@
 This project supports two installation targets:
 
 - simulator mode: no external ML libraries required
-- RTX 4090 mode: CUDA-enabled PyTorch required
+- CUDA GPU mode: CUDA-enabled PyTorch required
 
 ## 1. Base setup
 
@@ -37,9 +37,9 @@ python3 run_research.py
 python3 -m unittest discover -s tests -v
 ```
 
-## 3. RTX 4090 setup
+## 3. GPU setup
 
-Install CUDA-enabled PyTorch on the 4090 host. The exact command depends on:
+Install CUDA-enabled PyTorch on the target GPU host. The exact command depends on:
 
 - your driver version
 - your CUDA runtime
@@ -63,6 +63,12 @@ python3 -c "import torch; print(torch.cuda.get_device_name(0))"
 Then run:
 
 ```bash
+python3 run_pytorch_gpu.py
+```
+
+Or, if you want the explicit 4090 preset:
+
+```bash
 python3 run_pytorch_4090.py
 ```
 
@@ -73,7 +79,7 @@ If you want real `llama.cpp`-backed measurements instead of the simulator backen
 - a built `llama.cpp` CLI binary
 - a local model file
 
-Then set these config values in [config.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/config.py) or [config_4090.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/config_4090.py):
+Then set these config values in [config.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/config.py), [config_gpu.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/config_gpu.py), or [config_4090.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/config_4090.py):
 
 - `backend="llama_cpp"`
 - `llama_cpp_binary="/absolute/path/to/llama-cli-or-equivalent"`
@@ -105,7 +111,18 @@ python3 -m pip install -e .
 python3 run_research.py
 ```
 
-RTX 4090:
+CUDA GPU:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install --upgrade pip
+python3 -m pip install -e .
+# install CUDA-enabled PyTorch for your host
+python3 run_pytorch_gpu.py
+```
+
+RTX 4090 preset:
 
 ```bash
 python3 -m venv .venv
@@ -115,4 +132,3 @@ python3 -m pip install -e .
 # install CUDA-enabled PyTorch for your host
 python3 run_pytorch_4090.py
 ```
-

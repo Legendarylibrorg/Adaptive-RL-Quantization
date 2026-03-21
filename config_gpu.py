@@ -1,7 +1,7 @@
 from adaptive_quant.configuration import FrameworkConfig
 
 
-CONFIG_4090 = FrameworkConfig(
+CONFIG_GPU = FrameworkConfig(
     training_backend="pytorch",
     multi_hardware=True,
     dynamic_quant=True,
@@ -12,11 +12,11 @@ CONFIG_4090 = FrameworkConfig(
     evaluation_episodes=256,
     benchmark_training_episodes=1024,
     benchmark_evaluation_episodes=128,
-    run_name="adaptive_universal_policy_torch4090",
+    run_name="adaptive_universal_policy_torch_gpu",
     cache_prompt_features=True,
     log_every_n_episodes=8,
     torch_device="cuda",
-    torch_gpu_profile="rtx4090",
+    torch_gpu_profile="auto",
     torch_dtype="bfloat16",
     torch_compile=True,
     torch_amp=True,

@@ -41,7 +41,7 @@ def collect_torch_system_report(config: FrameworkConfig, policy: TorchPolicyAdap
     }
 
     if device.type != "cuda" or not torch.cuda.is_available():
-        warnings.append("CUDA is not available. The 4090 path will not run efficiently on this machine.")
+        warnings.append("CUDA is not available. The PyTorch GPU path will not run efficiently on this machine.")
         return report
 
     index = device.index if device.index is not None else torch.cuda.current_device()
@@ -74,7 +74,7 @@ def collect_torch_system_report(config: FrameworkConfig, policy: TorchPolicyAdap
     if config.torch_batch_episodes < config.torch_minibatch_size:
         warnings.append("`torch_batch_episodes` is smaller than `torch_minibatch_size`; this wastes update capacity.")
     if not config.torch_compile:
-        recommendations.append("Enable `torch_compile` for longer 4090 runs once the setup is stable.")
+        recommendations.append("Enable `torch_compile` for longer GPU runs once the setup is stable.")
     if not config.cache_prompt_features:
         recommendations.append("Enable `cache_prompt_features` to reduce CPU-side rollout overhead.")
     if not config.torch_fused_optimizer and fused_available:

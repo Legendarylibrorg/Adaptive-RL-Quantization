@@ -9,6 +9,7 @@ from analysis.quant_function_behavior import analyze as analyze_quant
 from adaptive_quant.benchmark import BenchmarkSuite
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
+from adaptive_quant.gpu_profiles import apply_gpu_profile, infer_gpu_profile
 from adaptive_quant.quantization import finalize_decision
 from adaptive_quant.trainer import Trainer, build_trainer
 from adaptive_quant.types import HardwareType, QuantMode, QuantizationDecision
@@ -72,6 +73,17 @@ class FrameworkTests(unittest.TestCase):
         config = FrameworkConfig(training_episodes=2, evaluation_episodes=1, stability_probe_count=1, run_name="factory_test")
         trainer = build_trainer(config, log_path=f"{tempfile.gettempdir()}/factory_test.jsonl")
         self.assertIsInstance(trainer, Trainer)
+
+    def test_gpu_profile_inference_and_application(self) -> None:
+        self.assertEqual(infer_gpu_profile("NVIDIA GeForce RTX 4090", 24.0), "rtx4090")
+        self.assertEqual(infer_gpu_profile("NVIDIA A100-SXM4-80GB", 80.0), "a100_80gb")
+        self.assertEqual(infer_gpu_profile("Generic 12GB GPU", 12.0), "rtx4070")
+
+        config = FrameworkConfig(training_backend="pytorch", torch_gpu_profile="auto", run_name="gpu_profile_test")
+        tuned, metadata = apply_gpu_profile(config, device_name="NVIDIA GeForce RTX 4080", total_memory_gb=16.0)
+        self.assertEqual(tuned.torch_gpu_profile, "rtx4080")
+        self.assertEqual(metadata["selected_gpu_profile"], "rtx4080")
+        self.assertGreaterEqual(tuned.torch_batch_episodes, tuned.torch_minibatch_size)
 
 
 if __name__ == "__main__":

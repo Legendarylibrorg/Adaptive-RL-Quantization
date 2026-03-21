@@ -15,7 +15,7 @@ class TorchTrainer:
         if torch is None:
             raise ImportError(
                 "PyTorch is required for `training_backend=\"pytorch\"`. "
-                "Install a CUDA-enabled PyTorch build on the 4090 host before running `run_pytorch_4090.py`."
+                "Install a CUDA-enabled PyTorch build on the target GPU host before running a PyTorch entrypoint."
             ) from TORCH_IMPORT_ERROR
         self.config = config
         self.env = AdaptiveQuantizationEnv(config, log_path=log_path)

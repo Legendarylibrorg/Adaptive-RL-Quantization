@@ -3,6 +3,7 @@
 Configuration lives in:
 
 - [config.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/config.py)
+- [config_gpu.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/config_gpu.py)
 - [config_4090.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/config_4090.py)
 - [adaptive_quant/configuration.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/adaptive_quant/configuration.py)
 
@@ -45,6 +46,7 @@ llama.cpp integration:
 PyTorch and 4090:
 
 - `torch_device`
+- `torch_gpu_profile`
 - `torch_dtype`
 - `torch_compile`
 - `torch_amp`
@@ -70,6 +72,13 @@ Local laptop or quick CI-style validation:
 - `training_backend="python"`
 - `backend="simulator"`
 - small `training_episodes`
+
+Auto-tuned GPU training:
+
+- use [config_gpu.py](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/config_gpu.py)
+- keep `torch_gpu_profile="auto"` unless you want to force a profile
+- keep `cache_prompt_features=True`
+- keep `torch_preflight=True`
 
 RTX 4090 training:
 
@@ -108,4 +117,3 @@ Increase benchmark fidelity:
 - raise `benchmark_training_episodes`
 - raise `benchmark_evaluation_episodes`
 - switch `backend` to `llama_cpp`
-
