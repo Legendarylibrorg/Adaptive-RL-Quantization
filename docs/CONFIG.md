@@ -15,6 +15,7 @@ General:
 - `training_backend`: `"python"` or `"pytorch"`
 - `backend`: `"simulator"` or `"llama_cpp"`
 - `run_name`: controls output filenames
+- `resume_from_checkpoint`: resume a PyTorch run from a saved checkpoint
 
 Adaptive behavior:
 
@@ -61,7 +62,7 @@ PyTorch and 4090:
 - `torch_fused_optimizer`
 - `torch_preflight`
 
-Online adaptation:
+Experimental online adaptation:
 
 - `online_learning`
 - `online_requests`
@@ -83,6 +84,8 @@ Efficiency-related:
 
 - `cache_prompt_features`
 - `log_every_n_episodes`
+- `write_training_history`
+- `write_research_report`
 
 ## Recommended presets
 
@@ -105,6 +108,8 @@ RTX 4090 training:
 - keep `training_backend="pytorch"`
 - keep `cache_prompt_features=True`
 - keep `torch_preflight=True`
+
+Experimental continual adaptation:
 
 - use [config_online.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_online.py) for continual adaptation experiments
 - keep `online_learning=True`

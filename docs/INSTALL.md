@@ -24,7 +24,6 @@ python3 -m pip install -e .
 This is enough for:
 
 - `python3 run_research.py`
-- `python3 run_online_learning.py`
 - `python3 -m unittest discover -s tests -v`
 
 ## 2. Simulator-only setup
@@ -35,7 +34,6 @@ Recommended verification:
 
 ```bash
 python3 run_research.py
-python3 run_online_learning.py
 python3 -m unittest discover -s tests -v
 ```
 
@@ -72,6 +70,12 @@ Or, if you want the explicit 4090 preset:
 
 ```bash
 python3 run_pytorch_4090.py
+```
+
+For a one-command 4090 validation and run:
+
+```bash
+bash scripts/run_4090_pipeline.sh
 ```
 
 ## 4. llama.cpp setup
@@ -111,6 +115,11 @@ source .venv/bin/activate
 python3 -m pip install --upgrade pip setuptools
 python3 -m pip install -e .
 python3 run_research.py
+```
+
+Optional experimental online extension:
+
+```bash
 python3 run_online_learning.py
 ```
 
@@ -134,4 +143,10 @@ python3 -m pip install --upgrade pip setuptools
 python3 -m pip install -e .
 # install CUDA-enabled PyTorch for your host
 python3 run_pytorch_4090.py
+```
+
+RTX 4090 preset with smoke tests:
+
+```bash
+bash scripts/run_4090_pipeline.sh
 ```

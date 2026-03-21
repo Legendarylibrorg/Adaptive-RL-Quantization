@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
+from adaptive_quant.logging_utils import write_json
 from adaptive_quant.math_utils import mean
 from adaptive_quant.policy import PolicyTrace, UniversalQuantizationPolicy
 from adaptive_quant.types import EpisodeResult, HardwareType
@@ -13,6 +16,7 @@ class Trainer:
         self.env = AdaptiveQuantizationEnv(config, log_path=log_path)
         self.policy = UniversalQuantizationPolicy(config)
         self.previous_action = [0.0, 0.0, 0.0]
+        self.training_history: list[dict[str, float]] = []
 
     def train(self) -> dict[str, float]:
         rewards: list[float] = []
@@ -27,12 +31,22 @@ class Trainer:
                 clip_upper=self.config.clip_bounds[1],
             )
             rewards.append(result.metrics.reward)
+            self.training_history.append(
+                {
+                    "step": float(episode_index),
+                    "reward": float(result.metrics.reward),
+                    "latency_ms": float(result.metrics.latency_ms),
+                    "throughput_tps": float(result.metrics.throughput_tps),
+                    "perplexity": float(result.metrics.perplexity),
+                }
+            )
 
         return {
             "episodes": float(len(rewards)),
             "mean_reward": mean(rewards),
             "best_reward": max(rewards) if rewards else 0.0,
             "final_reward": rewards[-1] if rewards else 0.0,
+            "updates": float(len(self.training_history)),
         }
 
     def evaluate(self, episodes: int | None = None, hardware: HardwareType | None = None) -> dict[str, float]:
@@ -104,6 +118,17 @@ class Trainer:
 
     def restore_policy(self, snapshot) -> None:
         self.policy.restore(snapshot)
+
+    def save_checkpoint(self, path: str) -> str:
+        target = Path(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "run_name": self.config.run_name,
+            "previous_action": self.previous_action,
+            "training_history": self.training_history,
+        }
+        write_json(str(target.with_suffix(".json")), payload)
+        return str(target.with_suffix(".json"))
 
 
 def build_trainer(config: FrameworkConfig, log_path: str | None = None) -> Trainer:

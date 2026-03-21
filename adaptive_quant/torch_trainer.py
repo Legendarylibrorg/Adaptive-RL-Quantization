@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import random
+from dataclasses import asdict
+from pathlib import Path
 from typing import Any
 
 from adaptive_quant.configuration import FrameworkConfig
@@ -24,7 +26,11 @@ class TorchTrainer:
         self.previous_action = [0.0, 0.0, 0.0]
         self.rng = random.Random(config.seed + 401)
         self.global_episode = 0
+        self.update_index = 0
         self.ordered_hardware = config.ordered_hardware()
+        self.training_history: list[dict[str, float]] = []
+        if config.resume_from_checkpoint:
+            self.load_checkpoint(config.resume_from_checkpoint)
 
     def _build_optimizer(self):
         kwargs = {
@@ -43,14 +49,23 @@ class TorchTrainer:
         while self.global_episode < self.config.training_episodes:
             batch_size = min(self.config.torch_batch_episodes, self.config.training_episodes - self.global_episode)
             batch_records, batch_rewards = self._collect_batch(batch_size)
-            self._update_policy(batch_records)
+            update_summary = self._update_policy(batch_records)
             rewards.extend(batch_rewards)
+            self.update_index += 1
+            history_row = {
+                "step": float(self.update_index),
+                "episode": float(self.global_episode),
+                "batch_reward": mean(batch_rewards),
+                **update_summary,
+            }
+            self.training_history.append(history_row)
 
         return {
             "episodes": float(len(rewards)),
             "mean_reward": mean(rewards),
             "best_reward": max(rewards) if rewards else 0.0,
             "final_reward": rewards[-1] if rewards else 0.0,
+            "updates": float(self.update_index),
         }
 
     def evaluate(self, episodes: int | None = None, hardware: HardwareType | None = None) -> dict[str, float]:
@@ -123,7 +138,7 @@ class TorchTrainer:
             rewards.append(float(result.metrics.reward))
         return records, rewards
 
-    def _update_policy(self, records: list[dict[str, Any]]) -> None:
+    def _update_policy(self, records: list[dict[str, Any]]) -> dict[str, float]:
         device = self.policy.device
         states = self.policy.state_tensor([record["state_vector"] for record in records])
         rewards = torch.tensor([record["reward"] for record in records], dtype=torch.float32, device=device)
@@ -133,6 +148,10 @@ class TorchTrainer:
         advantages = (advantages - advantages.mean()) / (advantages.std(unbiased=False) + 1e-6)
 
         indices = list(range(len(records)))
+        policy_losses: list[float] = []
+        value_losses: list[float] = []
+        entropies_seen: list[float] = []
+        ratio_means: list[float] = []
         for _ in range(self.config.torch_update_epochs):
             self.rng.shuffle(indices)
             for start in range(0, len(indices), self.config.torch_minibatch_size):
@@ -153,11 +172,22 @@ class TorchTrainer:
                 value_loss = torch.nn.functional.mse_loss(values.float(), reward_batch)
                 entropy_bonus = entropies.mean()
                 loss = policy_loss + self.config.torch_value_coef * value_loss - self.config.torch_entropy_coef * entropy_bonus
+                policy_losses.append(float(policy_loss.detach().item()))
+                value_losses.append(float(value_loss.detach().item()))
+                entropies_seen.append(float(entropy_bonus.detach().item()))
+                ratio_means.append(float(ratios.mean().detach().item()))
 
                 self.optimizer.zero_grad(set_to_none=True)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.policy.model.parameters(), self.config.torch_max_grad_norm)
                 self.optimizer.step()
+        return {
+            "policy_loss": mean(policy_losses),
+            "value_loss": mean(value_losses),
+            "entropy": mean(entropies_seen),
+            "ratio_mean": mean(ratio_means),
+            "advantage_std": float(advantages.std(unbiased=False).detach().item()),
+        }
 
     def close(self) -> None:
         self.env.logger.close()
@@ -186,3 +216,35 @@ class TorchTrainer:
 
     def restore_policy(self, snapshot) -> None:
         self.policy.restore(snapshot)
+
+    def save_checkpoint(self, path: str) -> str:
+        target = Path(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "run_name": self.config.run_name,
+            "config": asdict(self.config),
+            "model_state": self.policy.snapshot(),
+            "optimizer_state": self.optimizer.state_dict(),
+            "global_episode": self.global_episode,
+            "update_index": self.update_index,
+            "previous_action": self.previous_action,
+            "training_history": self.training_history,
+        }
+        torch.save(payload, target)
+        return str(target)
+
+    def load_checkpoint(self, path: str) -> None:
+        checkpoint = torch.load(path, map_location="cpu")
+        self.policy.restore(checkpoint["model_state"])
+        self.optimizer.load_state_dict(checkpoint["optimizer_state"])
+        self._optimizer_to_device()
+        self.global_episode = int(checkpoint.get("global_episode", 0))
+        self.update_index = int(checkpoint.get("update_index", 0))
+        self.previous_action = list(checkpoint.get("previous_action", [0.0, 0.0, 0.0]))
+        self.training_history = list(checkpoint.get("training_history", []))
+
+    def _optimizer_to_device(self) -> None:
+        for state in self.optimizer.state.values():
+            for key, value in state.items():
+                if torch.is_tensor(value):
+                    state[key] = value.to(self.policy.device)

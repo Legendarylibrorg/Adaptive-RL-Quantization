@@ -13,6 +13,7 @@ from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.gpu_profiles import apply_gpu_profile, infer_gpu_profile
 from adaptive_quant.online_learning import OnlineLearningLoop
 from adaptive_quant.quantization import finalize_decision
+from adaptive_quant.research_pipeline import ResearchPipeline
 from adaptive_quant.trainer import Trainer, build_trainer
 from adaptive_quant.types import HardwareType, OnlineRequest, QuantMode, QuantizationDecision
 
@@ -150,6 +151,31 @@ class FrameworkTests(unittest.TestCase):
             self.assertGreater(summary["total_updates"], 0)
             self.assertIn("candidate_accept_rate", analysis)
             self.assertIn("reward_by_hardware", analysis)
+
+    def test_research_pipeline_writes_summary_history_and_report(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = FrameworkConfig(
+                training_episodes=12,
+                evaluation_episodes=4,
+                benchmark_training_episodes=6,
+                benchmark_evaluation_episodes=3,
+                stability_probe_count=1,
+                outputs_dir=temp_dir,
+                log_dir=f"{temp_dir}/logs",
+                benchmark_dir=f"{temp_dir}/benchmarks",
+                analysis_dir=f"{temp_dir}/analysis",
+                checkpoint_dir=f"{temp_dir}/checkpoints",
+                report_dir=f"{temp_dir}/reports",
+                run_name="pipeline_test",
+                seed=5,
+            )
+            summary = ResearchPipeline(config).run()
+
+            self.assertIn("train", summary)
+            self.assertIn("evaluation", summary)
+            self.assertIn("benchmarks", summary)
+            self.assertTrue(summary["artifacts"]["training_history"].endswith("_training_history.json"))
+            self.assertTrue(summary["artifacts"]["report"].endswith("_report.md"))
 
 
 if __name__ == "__main__":

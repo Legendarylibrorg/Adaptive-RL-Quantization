@@ -17,13 +17,13 @@ Our framework contributes three ideas. First, we train a **universal policy** ov
 
 In the current simulator-backed benchmark, the universal multi-hardware policy reduces the generalization gap by **16.75 reward units** relative to a single-GPU policy. Dynamic quantization improves reward from **-7.31** to **-4.44** while substantially reducing instability from **0.0153** to **0.00229**, albeit with a modest perplexity tradeoff. Learned quantization functions improve reward from **-7.31** to **-2.53**, reduce latency from **210.83 ms** to **121.79 ms**, reduce memory from **1395.70 MB** to **877.09 MB**, and increase throughput from **136.49** to **178.88 tokens/s**, again with a modest quality tradeoff. These results suggest that adaptive quantization can outperform static baselines when the objective reflects deployment constraints rather than only raw quality.
 
-This draft is intentionally honest about scope: the quantitative results in the current repository are simulator-based, while the codebase also includes a real `llama.cpp` backend hook and a PyTorch/CUDA training path intended for future hardware-grounded evaluation.
+This draft is intentionally honest about scope: the quantitative results in the current repository are simulator-based and come from the **offline training and evaluation pipeline**. The codebase also includes a real `llama.cpp` backend hook, a PyTorch/CUDA training path intended for future hardware-grounded evaluation, and an optional experimental online adaptation module that is **not** part of the primary empirical claims in this paper.
 
 ### 1. Introduction
 
 Quantized inference sits at the center of practical language model deployment. The standard workflow is familiar: choose a quantization preset, export a model, and accept the resulting tradeoff between speed, memory, and quality. This works well when a system is deployed to a single target runtime and prompt distribution, but it becomes brittle once the deployment setting changes. A quantization plan tuned for one GPU may be suboptimal on CPU. A highly compressed preset that works well for short factual prompts may degrade badly on more complex reasoning or generation tasks. A fixed menu of presets also limits the search space itself: the deployment system can only select among choices a human anticipated in advance.
 
-This paper argues for a different framing. Instead of treating quantization as a static export-time transformation, we treat it as a **policy-learning problem**. At inference time, a policy observes the hardware context, prompt-derived features, and sensitivity estimates, then selects or parameterizes a quantization strategy. Under this framing, quantization is not a one-time compression step; it is an adaptive control mechanism that trades off latency, throughput, memory, quality, and stability.
+This paper argues for a different framing. Instead of treating quantization as a static export-time transformation, we treat it as a **policy-learning problem**. In the primary research setting studied here, a policy is trained offline in a controlled simulator and then evaluated under held-out hardware and prompt conditions. At inference time, the learned policy observes the hardware context, prompt-derived features, and sensitivity estimates, then selects or parameterizes a quantization strategy. Under this framing, quantization is not a one-time compression step; it is an adaptive control mechanism that trades off latency, throughput, memory, quality, and stability.
 
 The resulting problem is challenging for three reasons. First, the policy must generalize across heterogeneous deployment targets. Second, it must respond to prompt complexity rather than assuming a single average case. Third, it should learn continuous quantization behavior where appropriate, not only choose among a handful of fixed presets. The Adaptive RL Quantization framework in this repository is designed to address those three challenges in one system.
 
@@ -109,7 +109,7 @@ This is important because different layers and different prompts do not require 
 
 ### 5. Experimental Setup
 
-The current repository reports simulator-backed results using the benchmark summary produced by:
+The current repository reports simulator-backed results using the offline benchmark summary produced by:
 
 - `outputs/benchmarks/adaptive_universal_policy_summary.json`
 
@@ -128,7 +128,7 @@ The evaluation reports:
 - mean perplexity,
 - mean stability penalty.
 
-The simulator is best understood as a structured research harness rather than a claim of final production performance. It is designed to preserve the directional incentives faced by a real deployment system while enabling fast iteration on state design, reward shaping, and policy parameterization.
+The simulator is best understood as a structured research harness rather than a claim of final production performance. It is designed to preserve the directional incentives faced by a real deployment system while enabling fast iteration on state design, reward shaping, and policy parameterization. This matters for research quality: the headline results are meant to come from a reproducible offline setup rather than an online system whose behavior changes during collection.
 
 ### 6. Results
 
@@ -188,7 +188,7 @@ This draft has important limitations.
 4. The current system uses lightweight proxy features rather than a full online representation of model uncertainty or calibration error.
 5. The policy is trained in a one-step episodic setting; a richer sequential formulation may expose additional gains.
 
-These limitations are not hidden by the codebase: the framework is explicitly simulator-first for fast iteration, with real-backend hooks for future experiments.
+These limitations are not hidden by the codebase: the framework is explicitly simulator-first for fast iteration, with real-backend hooks for future experiments. The repository does contain an experimental online adaptation module, but it is best understood as follow-on systems work rather than part of the stable empirical core presented here.
 
 ### 9. Future Work
 
@@ -221,7 +221,7 @@ The continuous action head can be extended from scalar control to structured lea
 
 #### 9.4 Offline-to-Online Transfer
 
-An appealing deployment strategy is to pretrain a policy in simulation, then fine-tune it online against real latency and quality measurements from the serving stack.
+An appealing deployment strategy is to pretrain a policy in simulation, then fine-tune it online against real latency and quality measurements from the serving stack. The repository now includes an experimental prototype of this idea, but it is intentionally separated from the paper’s main evaluation path.
 
 #### 9.5 Joint Policy and Quantizer Learning
 
@@ -229,11 +229,15 @@ The current learned mode exposes a compact continuous parameterization. A natura
 
 ### 10. Conclusion
 
-Adaptive RL Quantization reframes quantization as an online policy-learning problem rather than a fixed preset selection problem. The resulting system is hardware-aware, input-aware, and capable of learned quantization behavior through continuous control. In the current simulator-backed benchmark, universal hardware conditioning reduces generalization gap, dynamic quantization substantially improves deployment reward and stability, and learned quantization functions outperform discrete baselines under a realistic multi-objective reward.
+Adaptive RL Quantization reframes quantization as a learned control problem rather than a fixed preset selection problem. The resulting system is hardware-aware, input-aware, and capable of learned quantization behavior through continuous control. In the current simulator-backed offline benchmark, universal hardware conditioning reduces generalization gap, dynamic quantization substantially improves deployment reward and stability, and learned quantization functions outperform discrete baselines under a realistic multi-objective reward.
 
-The repository therefore serves two roles at once: it is already a functioning adaptive quantization framework, and it is also a scaffold for more rigorous future evaluation on real `llama.cpp` hardware backends.
+The repository therefore serves two roles at once: it is already a functioning adaptive quantization framework for controlled offline research, and it is also a scaffold for more rigorous future evaluation on real `llama.cpp` hardware backends.
 
 For a GitHub research project, this is a strong foundation: the ideas are concrete, the implementation is runnable, and the claims are scoped honestly to the current evidence. The next milestone is to replace simulator-backed headline numbers with end-to-end measurements on real `llama.cpp` deployments across diverse GPU and CPU environments.
+
+### Appendix C. Experimental Online Extension
+
+The repository includes an optional online adaptation module for replay-based continual improvement with canaries and rollback safeguards. This component is intentionally not part of the primary empirical narrative in this paper. It is better viewed as exploratory systems work that could support future offline-to-online transfer studies once the offline benchmark is fully matured and validated on real `llama.cpp` hardware.
 
 ### Appendix A. Implementation Artifacts
 

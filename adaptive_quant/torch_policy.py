@@ -109,6 +109,7 @@ class TorchPolicyAdapter:
     def _configure_cuda(self) -> None:
         if self.device.type != "cuda":
             return
+        torch.backends.cudnn.benchmark = True
         if self.config.torch_tf32:
             torch.set_float32_matmul_precision("high")
             torch.backends.cuda.matmul.allow_tf32 = True

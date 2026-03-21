@@ -43,9 +43,14 @@ class FrameworkConfig:
     log_dir: str = "outputs/logs"
     benchmark_dir: str = "outputs/benchmarks"
     analysis_dir: str = "outputs/analysis"
+    checkpoint_dir: str = "outputs/checkpoints"
+    report_dir: str = "outputs/reports"
     run_name: str = "adaptive_universal_policy"
     cache_prompt_features: bool = True
     log_every_n_episodes: int = 1
+    write_training_history: bool = True
+    write_research_report: bool = True
+    resume_from_checkpoint: str | None = None
     backend: str = "simulator"
     llama_cpp_binary: str | None = None
     llama_cpp_model: str | None = None
@@ -117,3 +122,12 @@ class FrameworkConfig:
 
     def online_replay_path(self) -> str:
         return f"{self.log_dir}/{self.run_name}_online_replay.jsonl"
+
+    def training_history_path(self) -> str:
+        return f"{self.benchmark_dir}/{self.run_name}_training_history.json"
+
+    def final_checkpoint_path(self) -> str:
+        return f"{self.checkpoint_dir}/{self.run_name}_final.pt"
+
+    def report_path(self) -> str:
+        return f"{self.report_dir}/{self.run_name}_report.md"

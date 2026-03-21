@@ -10,12 +10,6 @@ Simulator research run:
 python3 run_research.py
 ```
 
-Continual online adaptation run:
-
-```bash
-python3 run_online_learning.py
-```
-
 Generic GPU PyTorch run:
 
 ```bash
@@ -26,6 +20,18 @@ RTX 4090 PyTorch run:
 
 ```bash
 python3 run_pytorch_4090.py
+```
+
+One-command 4090 validation + run:
+
+```bash
+bash scripts/run_4090_pipeline.sh
+```
+
+Experimental online adaptation run:
+
+```bash
+python3 run_online_learning.py
 ```
 
 Tests:
@@ -48,6 +54,7 @@ This is the easiest path for:
 - checking that the project works
 - iterating on logic without CUDA
 - validating the simulator pipeline
+- reproducing the core research setup
 
 ## What `run_online_learning.py` does
 
@@ -61,7 +68,7 @@ This is the easiest path for:
 6. rolls back to the best recent policy snapshot if live reward drifts too far
 7. writes an online analysis summary
 
-This is the recommended path for validating continual self-improvement behavior.
+This is an optional systems extension for continual-improvement experiments. It is not the main path for the paper’s offline research claims.
 
 ## What `run_pytorch_gpu.py` does
 
@@ -91,6 +98,12 @@ This is the recommended path for most NVIDIA GPUs.
 
 This is the path intended for a fixed RTX 4090 preset.
 
+The shared research pipeline also writes:
+
+- a training-history JSON file
+- a final checkpoint
+- a markdown experiment report
+
 ## Where outputs go
 
 Logs:
@@ -103,6 +116,8 @@ Benchmarks and summaries:
 - `outputs/benchmarks/*_summary.json`
 - `outputs/benchmarks/*_preflight.json`
 - `outputs/benchmarks/*_online_summary.json`
+- `outputs/checkpoints/*`
+- `outputs/reports/*`
 
 Analysis:
 
@@ -118,7 +133,6 @@ Validate the repository quickly:
 ```bash
 python3 -m unittest discover -s tests -v
 python3 run_research.py
-python3 run_online_learning.py
 ```
 
 Run the full generic GPU path:
@@ -142,6 +156,9 @@ After the run, inspect:
 
 - `outputs/benchmarks/adaptive_universal_policy_torch4090_preflight.json`
 - `outputs/benchmarks/adaptive_universal_policy_torch4090_summary.json`
+- `outputs/benchmarks/adaptive_universal_policy_torch4090_training_history.json`
+- `outputs/checkpoints/adaptive_universal_policy_torch4090_final.pt`
+- `outputs/reports/adaptive_universal_policy_torch4090_report.md`
 
 Run the continual online path:
 
@@ -170,3 +187,4 @@ Then rerun the same entrypoint you want.
 - The simulator path is deterministic enough for development and tests.
 - The GPU path is optimized for throughput, but the environment rollout itself still happens in Python because the task is simulator- and decision-heavy.
 - Benchmarks intentionally use a smaller training budget than the main GPU run so the comparison suite stays practical.
+- If you care most about stable, meaningful research results, prefer `run_research.py` and the PyTorch GPU entrypoints over the experimental online loop.
