@@ -1,0 +1,174 @@
+from __future__ import annotations
+
+import os
+import subprocess
+from typing import Protocol
+
+from adaptive_quant.configuration import FrameworkConfig
+from adaptive_quant.math_utils import clamp, mean, variance
+from adaptive_quant.types import EpisodeState, HardwareType, QuantMode, QuantizationDecision
+
+
+class BackendMetrics(Protocol):
+    latency_ms: float
+    throughput_tps: float
+    perplexity: float
+    memory_mb: float
+
+
+class SimulatorBackend:
+    def __init__(self, config: FrameworkConfig) -> None:
+        self.config = config
+
+    def evaluate(self, state: EpisodeState, decision: QuantizationDecision) -> dict[str, float]:
+        hardware = state.hardware_profile
+        avg_bits = mean(decision.effective_layer_bits)
+        bit_variance = variance(decision.effective_layer_bits)
+        complexity = state.input_features.complexity_score
+        sensitivity = mean(state.sensitivity.layer_stats)
+        prompt_length = max(8, state.input_features.prompt_length)
+        compression = max(0.0, (8.0 - avg_bits) / 6.0)
+
+        mode_bonus = {
+            QuantMode.DISCRETE: 0.10,
+            QuantMode.GROUPED: 0.16,
+            QuantMode.PER_LAYER: 0.18,
+            QuantMode.DYNAMIC: 0.28,
+            QuantMode.LEARNED: 0.34,
+        }[decision.mode]
+
+        latency_ms = (
+            8.5
+            * prompt_length
+            * hardware.latency_bias
+            / max(0.35, hardware.compute_factor + (8.0 - avg_bits) * 0.12 + mode_bonus)
+        )
+        latency_ms *= 1.0 + complexity * 0.55 + max(0.0, bit_variance - hardware.kernel_uniformity_preference) * 0.18
+
+        throughput_tps = (
+            140.0
+            * hardware.throughput_bias
+            * (1.0 + (8.0 - avg_bits) * 0.10 + mode_bonus * 0.40)
+            / (1.0 + complexity * 0.80 + hardware.latency_bias * 0.08)
+        )
+        if hardware.hardware_type == HardwareType.GPU:
+            throughput_tps *= 1.0 - min(0.12, bit_variance * 0.03)
+        else:
+            throughput_tps *= 1.0 + min(0.10, max(0.0, hardware.preferred_bits - avg_bits) * 0.02)
+
+        memory_mb = 4_800.0 * (avg_bits / 16.0) * (1.0 + complexity * 0.15)
+        if decision.mode in {QuantMode.PER_LAYER, QuantMode.LEARNED}:
+            memory_mb *= 1.02
+
+        perplexity = (
+            5.6
+            + complexity * 3.4
+            + max(0.0, 5.5 - avg_bits) * (0.60 + complexity * 0.90 + sensitivity * 0.35)
+            + abs(1.0 - decision.scale_factor) * 0.65
+            + max(0.0, 1.05 - decision.clipping_range) * 1.20
+            - mode_bonus * 0.70
+        )
+
+        hardware_alignment = abs(avg_bits - hardware.preferred_bits)
+        latency_ms *= 1.0 + hardware_alignment * 0.04
+        throughput_tps *= 1.0 - hardware_alignment * 0.02
+        perplexity += hardware_alignment * 0.15
+
+        if hardware.hardware_type in {HardwareType.CPU, HardwareType.LOW_RESOURCE} and avg_bits > hardware.preferred_bits:
+            excess_bits = avg_bits - hardware.preferred_bits
+            latency_ms *= 1.0 + excess_bits * (0.16 if hardware.hardware_type == HardwareType.CPU else 0.24)
+            throughput_tps *= max(0.55, 1.0 - excess_bits * (0.07 if hardware.hardware_type == HardwareType.CPU else 0.12))
+            memory_mb *= 1.0 + excess_bits * (0.10 if hardware.hardware_type == HardwareType.CPU else 0.18)
+        elif hardware.hardware_type == HardwareType.GPU and avg_bits < hardware.preferred_bits:
+            deficit_bits = hardware.preferred_bits - avg_bits
+            perplexity += deficit_bits * 0.45
+            throughput_tps *= max(0.78, 1.0 - deficit_bits * 0.03)
+
+        if decision.mode == QuantMode.DYNAMIC:
+            latency_ms *= 0.92
+            throughput_tps *= 1.06
+            perplexity -= 0.25 + complexity * 0.20
+        elif decision.mode == QuantMode.LEARNED:
+            latency_ms *= 0.82 - compression * 0.06
+            throughput_tps *= 1.12 + compression * 0.08
+            memory_mb *= 0.78 - compression * 0.04
+            perplexity -= 0.38 + sensitivity * 0.22
+        elif decision.mode == QuantMode.GROUPED and hardware.hardware_type != HardwareType.GPU:
+            latency_ms *= 0.95
+            throughput_tps *= 1.03
+
+        overflow_ratio = max(0.0, memory_mb - hardware.memory_budget_mb) / hardware.memory_budget_mb
+        if overflow_ratio > 0.0:
+            latency_ms *= 1.0 + overflow_ratio * 2.50
+            throughput_tps *= 1.0 / (1.0 + overflow_ratio * 1.8)
+            perplexity += overflow_ratio * 1.50
+
+        return {
+            "latency_ms": clamp(latency_ms, 5.0, 20_000.0),
+            "throughput_tps": clamp(throughput_tps, 1.0, 10_000.0),
+            "perplexity": clamp(perplexity, 3.0, 100.0),
+            "memory_mb": clamp(memory_mb, 200.0, 128_000.0),
+        }
+
+
+class LlamaCppBackend:
+    def __init__(self, config: FrameworkConfig) -> None:
+        self.config = config
+
+    def evaluate(self, state: EpisodeState, decision: QuantizationDecision) -> dict[str, float]:
+        if not self.config.llama_cpp_binary or not self.config.llama_cpp_model:
+            raise FileNotFoundError("llama.cpp backend requires both a binary path and a model path.")
+        if not os.path.exists(self.config.llama_cpp_binary):
+            raise FileNotFoundError(f"Missing llama.cpp binary: {self.config.llama_cpp_binary}")
+        if not os.path.exists(self.config.llama_cpp_model):
+            raise FileNotFoundError(f"Missing model file: {self.config.llama_cpp_model}")
+
+        command = [
+            self.config.llama_cpp_binary,
+            "-m",
+            self.config.llama_cpp_model,
+            "-p",
+            state.prompt.text,
+            "-ngl",
+            str(state.hardware_profile.ngl),
+            "-t",
+            str(self.config.llama_cpp_threads),
+            "-c",
+            str(self.config.llama_cpp_context),
+            "-n",
+            "64",
+        ]
+        completed = subprocess.run(command, capture_output=True, text=True, check=False)
+        stdout = completed.stdout.lower()
+        throughput_tps = _extract_numeric(stdout, "tok/s", default=0.0)
+        latency_ms = _extract_numeric(stdout, "ms per token", default=0.0)
+        metrics = SimulatorBackend(self.config).evaluate(state, decision)
+
+        if throughput_tps > 0.0:
+            metrics["throughput_tps"] = throughput_tps
+        if latency_ms > 0.0:
+            metrics["latency_ms"] = latency_ms * max(1, state.input_features.prompt_length)
+        return metrics
+
+
+def _extract_numeric(stdout: str, marker: str, default: float) -> float:
+    marker_index = stdout.find(marker)
+    if marker_index < 0:
+        return default
+    prefix = stdout[max(0, marker_index - 20) : marker_index]
+    numbers = []
+    current = []
+    for character in prefix:
+        if character.isdigit() or character == ".":
+            current.append(character)
+        elif current:
+            numbers.append("".join(current))
+            current = []
+    if current:
+        numbers.append("".join(current))
+    if not numbers:
+        return default
+    try:
+        return float(numbers[-1])
+    except ValueError:
+        return default

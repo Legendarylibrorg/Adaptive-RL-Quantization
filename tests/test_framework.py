@@ -1,0 +1,78 @@
+from __future__ import annotations
+
+import tempfile
+import unittest
+
+from analysis.hardware_generalization import analyze as analyze_hardware
+from analysis.input_adaptation import analyze as analyze_inputs
+from analysis.quant_function_behavior import analyze as analyze_quant
+from adaptive_quant.benchmark import BenchmarkSuite
+from adaptive_quant.configuration import FrameworkConfig
+from adaptive_quant.environment import AdaptiveQuantizationEnv
+from adaptive_quant.quantization import finalize_decision
+from adaptive_quant.trainer import Trainer, build_trainer
+from adaptive_quant.types import HardwareType, QuantMode, QuantizationDecision
+
+
+class FrameworkTests(unittest.TestCase):
+    def test_state_contains_hardware_and_input_features(self) -> None:
+        config = FrameworkConfig(training_episodes=4, evaluation_episodes=2, stability_probe_count=1, run_name="state_test")
+        env = AdaptiveQuantizationEnv(config, log_path=f"{tempfile.gettempdir()}/state_test.jsonl")
+        state = env.reset(forced_hardware=HardwareType.GPU, forced_prompt_id="very_complex")
+        vector = state.to_vector(config.ordered_hardware())
+
+        self.assertGreater(len(vector), config.num_layers)
+        self.assertEqual(vector[0], 1.0)
+        self.assertGreater(state.input_features.complexity_score, 0.0)
+
+    def test_learned_quantization_is_clamped(self) -> None:
+        config = FrameworkConfig(training_episodes=4, evaluation_episodes=2, stability_probe_count=1, run_name="clamp_test")
+        env = AdaptiveQuantizationEnv(config, log_path=f"{tempfile.gettempdir()}/clamp_test.jsonl")
+        state = env.reset(forced_hardware=HardwareType.CPU, forced_prompt_id="very_complex")
+        decision = QuantizationDecision(
+            mode=QuantMode.LEARNED,
+            scale_factor=9.0,
+            clipping_range=0.01,
+            precision_level=4.5,
+        )
+        finalized = finalize_decision(decision, state, config)
+
+        self.assertTrue(all(min(config.discrete_bit_widths) <= bit <= max(config.discrete_bit_widths) for bit in finalized.effective_layer_bits))
+        self.assertGreaterEqual(finalized.scale_factor, config.scale_bounds[0])
+        self.assertLessEqual(finalized.scale_factor, config.scale_bounds[1])
+
+    def test_benchmark_and_analysis_outputs_exist(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = FrameworkConfig(
+                training_episodes=10,
+                evaluation_episodes=4,
+                stability_probe_count=1,
+                outputs_dir=temp_dir,
+                log_dir=f"{temp_dir}/logs",
+                benchmark_dir=f"{temp_dir}/benchmarks",
+                analysis_dir=f"{temp_dir}/analysis",
+                run_name="bench_test",
+                seed=7,
+            )
+            results = BenchmarkSuite(config).run()
+            self.assertIn("single_vs_multi", results)
+            self.assertIn("static_vs_dynamic", results)
+            self.assertIn("discrete_vs_learned", results)
+
+            log_path = f"{config.log_dir}/{config.run_name}_learned.jsonl"
+            hardware = analyze_hardware(log_path, f"{config.analysis_dir}/hardware")
+            inputs = analyze_inputs(log_path, f"{config.analysis_dir}/inputs")
+            quant = analyze_quant(log_path, f"{config.analysis_dir}/quant")
+
+            self.assertIn("reward_by_hardware", hardware)
+            self.assertIn("by_complexity", inputs)
+            self.assertIn("learned_episode_count", quant)
+
+    def test_build_trainer_uses_python_backend_by_default(self) -> None:
+        config = FrameworkConfig(training_episodes=2, evaluation_episodes=1, stability_probe_count=1, run_name="factory_test")
+        trainer = build_trainer(config, log_path=f"{tempfile.gettempdir()}/factory_test.jsonl")
+        self.assertIsInstance(trainer, Trainer)
+
+
+if __name__ == "__main__":
+    unittest.main()

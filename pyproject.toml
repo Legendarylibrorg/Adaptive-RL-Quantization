@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "adaptive-rl-quant"
+version = "0.1.0"
+description = "Adaptive, hardware-aware RL quantization research framework for llama.cpp-style backends."
+requires-python = ">=3.11"
+
+[tool.setuptools]
+packages = ["adaptive_quant"]
+
