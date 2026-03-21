@@ -115,6 +115,7 @@ Outputs are written under `outputs/`:
 - [Running Guide](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/docs/RUNNING.md)
 - [Configuration Guide](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/docs/CONFIG.md)
 - [GPU Profiles Guide](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/docs/GPU_PROFILES.md)
+- [Paper Draft](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/docs/PAPER.md)
 - [Troubleshooting](/Users/devcomputer/Downloads/unsloth-main/rl%20quant/docs/TROUBLESHOOTING.md)
 
 ## Common commands
