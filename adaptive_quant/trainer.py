@@ -2,25 +2,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from adaptive_quant.base_trainer import TrainerBase
 from adaptive_quant.configuration import FrameworkConfig
-from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.logging_utils import write_json
-from adaptive_quant.math_utils import mean
 from adaptive_quant.policy import PolicyTrace, UniversalQuantizationPolicy
-from adaptive_quant.trainer_utils import EvaluationAccumulator, feedback_vector, training_row
-from adaptive_quant.types import EpisodeResult, HardwareType
+from adaptive_quant.trainer_utils import online_update_summary, reward_summary, training_row
 
 
-class Trainer:
+class Trainer(TrainerBase):
     def __init__(self, config: FrameworkConfig, log_path: str | None = None) -> None:
-        self.config = config
-        self.env = AdaptiveQuantizationEnv(config, log_path=log_path)
+        super().__init__(config, log_path=log_path)
         self.policy = UniversalQuantizationPolicy(config)
-        self.previous_action = [0.0, 0.0, 0.0]
-        self.training_history: list[dict[str, float]] = []
-        self._max_bits = max(config.discrete_bit_widths)
-        self._scale_upper = config.scale_bounds[1]
-        self._clip_upper = config.clip_bounds[1]
 
     def train(self) -> dict[str, float]:
         rewards: list[float] = []
@@ -33,58 +25,14 @@ class Trainer:
             rewards.append(result.metrics.reward)
             self.training_history.append(training_row(float(episode_index), result))
 
-        return {
-            "episodes": float(len(rewards)),
-            "mean_reward": mean(rewards),
-            "best_reward": max(rewards) if rewards else 0.0,
-            "final_reward": rewards[-1] if rewards else 0.0,
-            "updates": float(len(self.training_history)),
-        }
-
-    def evaluate(self, episodes: int | None = None, hardware: HardwareType | None = None) -> dict[str, float]:
-        accumulator = EvaluationAccumulator()
-        previous_action = list(self.previous_action)
-        for episode_index in range(episodes or self.config.evaluation_episodes):
-            state = self.env.reset(previous_action=previous_action, forced_hardware=hardware)
-            decision, _trace = self.policy.act(state, deterministic=True)
-            result = self.env.evaluate_current(decision, episode_index=1_000_000 + episode_index)
-            previous_action = self._feedback_vector(result.decision)
-            accumulator.add_metrics(result.metrics)
-
-        return accumulator.summary()
-
-    def rollout(self, episodes: int) -> list[EpisodeResult]:
-        results: list[EpisodeResult] = []
-        previous_action = list(self.previous_action)
-        for episode_index in range(episodes):
-            state = self.env.reset(previous_action=previous_action)
-            decision, _trace = self.policy.act(state, deterministic=True)
-            result = self.env.evaluate_current(decision, episode_index=2_000_000 + episode_index)
-            previous_action = self._feedback_vector(result.decision)
-            results.append(result)
-        return results
-
-    def close(self) -> None:
-        self.env.logger.close()
-
-    def act_online(self, state, deterministic: bool = False):
-        return self.policy.act(state, deterministic=deterministic)
+        return reward_summary(rewards, updates=len(self.training_history))
 
     def update_online(self, updates: list[tuple[PolicyTrace, float]]) -> dict[str, float]:
         rewards: list[float] = []
         for trace, reward in updates:
             self.policy.update(trace, reward)
             rewards.append(reward)
-        return {
-            "batch_size": float(len(rewards)),
-            "mean_reward": mean(rewards),
-        }
-
-    def snapshot_policy(self):
-        return self.policy.snapshot()
-
-    def restore_policy(self, snapshot) -> None:
-        self.policy.restore(snapshot)
+        return online_update_summary(rewards)
 
     def save_checkpoint(self, path: str) -> str:
         target = Path(path)
@@ -96,14 +44,6 @@ class Trainer:
         }
         write_json(str(target.with_suffix(".json")), payload)
         return str(target.with_suffix(".json"))
-
-    def _feedback_vector(self, decision) -> list[float]:
-        return feedback_vector(
-            decision,
-            max_bits=self._max_bits,
-            scale_upper=self._scale_upper,
-            clip_upper=self._clip_upper,
-        )
 
 
 def build_trainer(config: FrameworkConfig, log_path: str | None = None) -> Trainer:

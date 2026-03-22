@@ -1,12 +1,7 @@
-from adaptive_quant.configuration import FrameworkConfig
+from config import CONFIG
 
 
-CONFIG_ONLINE = FrameworkConfig(
-    multi_hardware=True,
-    dynamic_quant=True,
-    learned_quant=True,
-    quant_mode="hybrid",
-    hardware_modes=("gpu", "cpu", "low_resource"),
+CONFIG_ONLINE = CONFIG.clone(
     training_episodes=160,
     evaluation_episodes=48,
     run_name="adaptive_online_policy",

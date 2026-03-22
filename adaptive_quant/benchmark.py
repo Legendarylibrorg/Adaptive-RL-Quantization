@@ -3,7 +3,6 @@ from __future__ import annotations
 import gc
 
 from adaptive_quant.configuration import FrameworkConfig
-from adaptive_quant.hardware import default_hardware_profiles
 from adaptive_quant.logging_utils import write_json
 from adaptive_quant.torch_policy import torch
 from adaptive_quant.trainer import build_trainer
@@ -13,7 +12,6 @@ from adaptive_quant.types import HardwareType, QuantMode
 class BenchmarkSuite:
     def __init__(self, config: FrameworkConfig) -> None:
         self.config = config
-        self.hardware_profiles = default_hardware_profiles()
 
     def run(self) -> dict[str, object]:
         results = {
@@ -29,198 +27,127 @@ class BenchmarkSuite:
         return results
 
     def _single_vs_multi_hardware(self) -> dict[str, object]:
-        gpu_only_config = self._benchmark_config(
-            run_name=f"{self.config.run_name}_single_gpu",
-            multi_hardware=False,
-            hardware_modes=("gpu",),
-            quant_mode=QuantMode.HYBRID.value,
+        train, per_hardware = self._run_variants(
+            {
+                "single_gpu_policy": self._variant(
+                    "single_gpu",
+                    multi_hardware=False,
+                    hardware_modes=("gpu",),
+                    quant_mode=QuantMode.HYBRID.value,
+                ),
+                "multi_hardware_policy": self._variant(
+                    "multi_hw",
+                    multi_hardware=True,
+                    hardware_modes=("gpu", "cpu", "low_resource"),
+                    quant_mode=QuantMode.HYBRID.value,
+                ),
+            },
+            per_hardware=(HardwareType.GPU, HardwareType.CPU, HardwareType.LOW_RESOURCE),
         )
-        multi_config = self._benchmark_config(
-            run_name=f"{self.config.run_name}_multi_hw",
-            multi_hardware=True,
-            hardware_modes=("gpu", "cpu", "low_resource"),
-            quant_mode=QuantMode.HYBRID.value,
-        )
-        gpu_only = build_trainer(gpu_only_config)
-        multi = build_trainer(multi_config)
-        try:
-            gpu_only_train = gpu_only.train()
-            multi_train = multi.train()
-
-            per_hardware = {}
-            for hardware in (HardwareType.GPU, HardwareType.CPU, HardwareType.LOW_RESOURCE):
-                per_hardware[hardware.value] = {
-                    "single_gpu_policy": gpu_only.evaluate(hardware=hardware),
-                    "multi_hardware_policy": multi.evaluate(hardware=hardware),
-                }
-
-            single_seen = per_hardware["gpu"]["single_gpu_policy"]["mean_reward"]
-            single_unseen = (
-                per_hardware["cpu"]["single_gpu_policy"]["mean_reward"]
-                + per_hardware["low_resource"]["single_gpu_policy"]["mean_reward"]
-            ) / 2.0
-            multi_seen = per_hardware["gpu"]["multi_hardware_policy"]["mean_reward"]
-            multi_unseen = (
-                per_hardware["cpu"]["multi_hardware_policy"]["mean_reward"]
-                + per_hardware["low_resource"]["multi_hardware_policy"]["mean_reward"]
-            ) / 2.0
-            return {
-                "train": {"single_gpu_policy": gpu_only_train, "multi_hardware_policy": multi_train},
-                "per_hardware": per_hardware,
-                "single_policy_gap": single_seen - single_unseen,
-                "multi_policy_gap": multi_seen - multi_unseen,
-                "generalization_gap_improvement": (single_seen - single_unseen) - (multi_seen - multi_unseen),
-            }
-        finally:
-            self._release_trainer(gpu_only)
-            self._release_trainer(multi)
+        single_policy_gap = self._generalization_gap(per_hardware, "single_gpu_policy")
+        multi_policy_gap = self._generalization_gap(per_hardware, "multi_hardware_policy")
+        return {
+            "train": train,
+            "per_hardware": per_hardware,
+            "single_policy_gap": single_policy_gap,
+            "multi_policy_gap": multi_policy_gap,
+            "generalization_gap_improvement": single_policy_gap - multi_policy_gap,
+        }
 
     def _static_vs_dynamic(self) -> dict[str, object]:
-        static_config = self._benchmark_config(
-            run_name=f"{self.config.run_name}_static",
-            dynamic_quant=False,
-            learned_quant=False,
-            quant_mode=QuantMode.DISCRETE.value,
+        return self._compare_variants(
+            {
+                "static": self._variant(
+                    "static",
+                    dynamic_quant=False,
+                    learned_quant=False,
+                    quant_mode=QuantMode.DISCRETE.value,
+                ),
+                "dynamic": self._variant(
+                    "dynamic",
+                    dynamic_quant=True,
+                    learned_quant=False,
+                    quant_mode=QuantMode.DYNAMIC.value,
+                ),
+            },
+            deltas={"quality_variance_delta": ("mean_stability_penalty", "static", "dynamic")},
         )
-        dynamic_config = self._benchmark_config(
-            run_name=f"{self.config.run_name}_dynamic",
-            dynamic_quant=True,
-            learned_quant=False,
-            quant_mode=QuantMode.DYNAMIC.value,
-        )
-        static_trainer = build_trainer(static_config)
-        dynamic_trainer = build_trainer(dynamic_config)
-        try:
-            static_train = static_trainer.train()
-            dynamic_train = dynamic_trainer.train()
-            static_eval = static_trainer.evaluate()
-            dynamic_eval = dynamic_trainer.evaluate()
-            return {
-                "train": {"static": static_train, "dynamic": dynamic_train},
-                "evaluation": {
-                    "static": static_eval,
-                    "dynamic": dynamic_eval,
-                },
-                "quality_variance_delta": dynamic_eval["mean_stability_penalty"] - static_eval["mean_stability_penalty"],
-            }
-        finally:
-            self._release_trainer(static_trainer)
-            self._release_trainer(dynamic_trainer)
 
     def _discrete_vs_learned(self) -> dict[str, object]:
-        discrete_config = self._benchmark_config(
-            run_name=f"{self.config.run_name}_discrete",
-            dynamic_quant=False,
-            learned_quant=False,
-            quant_mode=QuantMode.PER_LAYER.value,
+        return self._compare_variants(
+            {
+                "discrete": self._variant(
+                    "discrete",
+                    dynamic_quant=False,
+                    learned_quant=False,
+                    quant_mode=QuantMode.PER_LAYER.value,
+                ),
+                "learned": self._variant(
+                    "learned",
+                    dynamic_quant=True,
+                    learned_quant=True,
+                    quant_mode=QuantMode.LEARNED.value,
+                ),
+            },
+            deltas={"reward_delta": ("mean_reward", "discrete", "learned")},
         )
-        learned_config = self._benchmark_config(
-            run_name=f"{self.config.run_name}_learned",
-            dynamic_quant=True,
-            learned_quant=True,
-            quant_mode=QuantMode.LEARNED.value,
-        )
-        discrete_trainer = build_trainer(discrete_config)
-        learned_trainer = build_trainer(learned_config)
-        try:
-            discrete_train = discrete_trainer.train()
-            learned_train = learned_trainer.train()
-            discrete_eval = discrete_trainer.evaluate()
-            learned_eval = learned_trainer.evaluate()
-            return {
-                "train": {"discrete": discrete_train, "learned": learned_train},
-                "evaluation": {
-                    "discrete": discrete_eval,
-                    "learned": learned_eval,
-                },
-                "reward_delta": learned_eval["mean_reward"] - discrete_eval["mean_reward"],
-            }
-        finally:
-            self._release_trainer(discrete_trainer)
-            self._release_trainer(learned_trainer)
 
     def _dense_vs_moe(self) -> dict[str, object]:
-        dense_config = self._benchmark_config(
-            run_name=f"{self.config.run_name}_dense_adaptive",
-            moe_enabled=False,
+        return self._compare_variants(
+            {
+                "dense": self._variant(
+                    "dense_adaptive",
+                    moe_enabled=False,
+                ),
+                "moe": self._variant(
+                    "moe_adaptive",
+                    moe_enabled=True,
+                ),
+            },
+            deltas={
+                "reward_delta": ("mean_reward", "dense", "moe"),
+                "swap_cost_delta": ("mean_swap_cost_ms", "dense", "moe"),
+            },
         )
-        moe_config = self._benchmark_config(
-            run_name=f"{self.config.run_name}_moe_adaptive",
-            moe_enabled=True,
-        )
-        dense_trainer = build_trainer(dense_config)
-        moe_trainer = build_trainer(moe_config)
-        try:
-            dense_train = dense_trainer.train()
-            moe_train = moe_trainer.train()
-            dense_eval = dense_trainer.evaluate()
-            moe_eval = moe_trainer.evaluate()
-            return {
-                "train": {"dense": dense_train, "moe": moe_train},
-                "evaluation": {"dense": dense_eval, "moe": moe_eval},
-                "reward_delta": moe_eval["mean_reward"] - dense_eval["mean_reward"],
-                "swap_cost_delta": moe_eval["mean_swap_cost_ms"] - dense_eval["mean_swap_cost_ms"],
-            }
-        finally:
-            self._release_trainer(dense_trainer)
-            self._release_trainer(moe_trainer)
 
     def _moe_packed_vs_single_variant(self) -> dict[str, object]:
-        single_variant_config = self._benchmark_config(
-            run_name=f"{self.config.run_name}_moe_single_variant",
-            moe_enabled=True,
-            moe_variant_names=("balanced",),
-            moe_fixed_variant="balanced",
+        return self._compare_variants(
+            {
+                "single_variant": self._variant(
+                    "moe_single_variant",
+                    moe_enabled=True,
+                    moe_variant_names=("balanced",),
+                    moe_fixed_variant="balanced",
+                ),
+                "packed_variant_bank": self._variant(
+                    "moe_packed",
+                    moe_enabled=True,
+                    moe_variant_names=self.config.moe_variant_names,
+                    moe_fixed_variant=None,
+                ),
+            },
+            deltas={"reward_delta": ("mean_reward", "single_variant", "packed_variant_bank")},
         )
-        packed_variant_config = self._benchmark_config(
-            run_name=f"{self.config.run_name}_moe_packed",
-            moe_enabled=True,
-            moe_variant_names=self.config.moe_variant_names,
-            moe_fixed_variant=None,
-        )
-        single_variant_trainer = build_trainer(single_variant_config)
-        packed_variant_trainer = build_trainer(packed_variant_config)
-        try:
-            single_train = single_variant_trainer.train()
-            packed_train = packed_variant_trainer.train()
-            single_eval = single_variant_trainer.evaluate()
-            packed_eval = packed_variant_trainer.evaluate()
-            return {
-                "train": {"single_variant": single_train, "packed_variant_bank": packed_train},
-                "evaluation": {"single_variant": single_eval, "packed_variant_bank": packed_eval},
-                "reward_delta": packed_eval["mean_reward"] - single_eval["mean_reward"],
-            }
-        finally:
-            self._release_trainer(single_variant_trainer)
-            self._release_trainer(packed_variant_trainer)
 
     def _moe_static_vs_rl(self) -> dict[str, object]:
-        static_config = self._benchmark_config(
-            run_name=f"{self.config.run_name}_moe_static",
-            moe_enabled=True,
-            moe_fixed_variant="balanced",
+        return self._compare_variants(
+            {
+                "static_policy": self._variant(
+                    "moe_static",
+                    moe_enabled=True,
+                    moe_fixed_variant="balanced",
+                ),
+                "rl_policy": self._variant(
+                    "moe_rl",
+                    moe_enabled=True,
+                    moe_fixed_variant=None,
+                ),
+            },
+            deltas={
+                "reward_delta": ("mean_reward", "static_policy", "rl_policy"),
+                "cache_miss_delta": ("mean_cache_miss_count", "static_policy", "rl_policy"),
+            },
         )
-        rl_config = self._benchmark_config(
-            run_name=f"{self.config.run_name}_moe_rl",
-            moe_enabled=True,
-            moe_fixed_variant=None,
-        )
-        static_trainer = build_trainer(static_config)
-        rl_trainer = build_trainer(rl_config)
-        try:
-            static_train = static_trainer.train()
-            rl_train = rl_trainer.train()
-            static_eval = static_trainer.evaluate()
-            rl_eval = rl_trainer.evaluate()
-            return {
-                "train": {"static_policy": static_train, "rl_policy": rl_train},
-                "evaluation": {"static_policy": static_eval, "rl_policy": rl_eval},
-                "reward_delta": rl_eval["mean_reward"] - static_eval["mean_reward"],
-                "cache_miss_delta": rl_eval["mean_cache_miss_count"] - static_eval["mean_cache_miss_count"],
-            }
-        finally:
-            self._release_trainer(static_trainer)
-            self._release_trainer(rl_trainer)
 
     def _benchmark_config(self, **overrides: object) -> FrameworkConfig:
         benchmark_training = self.config.benchmark_training_episodes or self.config.training_episodes
@@ -231,6 +158,9 @@ class BenchmarkSuite:
             **overrides,
         )
 
+    def _variant(self, suffix: str, **overrides: object) -> FrameworkConfig:
+        return self._benchmark_config(run_name=f"{self.config.run_name}_{suffix}", **overrides)
+
     def _release_trainer(self, trainer) -> None:
         close = getattr(trainer, "close", None)
         if callable(close):
@@ -238,3 +168,45 @@ class BenchmarkSuite:
         gc.collect()
         if torch is not None and torch.cuda.is_available():
             torch.cuda.empty_cache()
+
+    def _run_variants(
+        self,
+        variants: dict[str, FrameworkConfig],
+        *,
+        per_hardware: tuple[HardwareType, ...] | None = None,
+    ) -> tuple[dict[str, dict[str, object]], dict[str, object]]:
+        trainers = {name: build_trainer(config) for name, config in variants.items()}
+        try:
+            train = {name: trainer.train() for name, trainer in trainers.items()}
+            if per_hardware is None:
+                evaluation: dict[str, object] = {name: trainer.evaluate() for name, trainer in trainers.items()}
+            else:
+                evaluation = {
+                    hardware.value: {name: trainer.evaluate(hardware=hardware) for name, trainer in trainers.items()}
+                    for hardware in per_hardware
+                }
+            return train, evaluation
+        finally:
+            for trainer in trainers.values():
+                self._release_trainer(trainer)
+
+    def _compare_variants(
+        self,
+        variants: dict[str, FrameworkConfig],
+        *,
+        deltas: dict[str, tuple[str, str, str]],
+    ) -> dict[str, object]:
+        train, evaluation = self._run_variants(variants)
+        result: dict[str, object] = {"train": train, "evaluation": evaluation}
+        for name, (metric, left, right) in deltas.items():
+            result[name] = evaluation[right][metric] - evaluation[left][metric]
+        return result
+
+    @staticmethod
+    def _generalization_gap(per_hardware: dict[str, object], policy_name: str) -> float:
+        gpu_reward = per_hardware[HardwareType.GPU.value][policy_name]["mean_reward"]
+        unseen_reward = (
+            per_hardware[HardwareType.CPU.value][policy_name]["mean_reward"]
+            + per_hardware[HardwareType.LOW_RESOURCE.value][policy_name]["mean_reward"]
+        ) / 2.0
+        return gpu_reward - unseen_reward

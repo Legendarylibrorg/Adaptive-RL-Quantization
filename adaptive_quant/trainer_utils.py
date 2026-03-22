@@ -1,46 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from typing import Callable, TypeVar
 
 from adaptive_quant.math_utils import mean
-from adaptive_quant.types import EpisodeMetrics, EpisodeResult, QuantizationDecision
+from adaptive_quant.types import EpisodeResult, HardwareType, QuantizationDecision
 
-
-@dataclass
-class EvaluationAccumulator:
-    rewards: list[float] = field(default_factory=list)
-    perplexities: list[float] = field(default_factory=list)
-    latencies: list[float] = field(default_factory=list)
-    throughputs: list[float] = field(default_factory=list)
-    memories: list[float] = field(default_factory=list)
-    stabilities: list[float] = field(default_factory=list)
-    swap_costs: list[float] = field(default_factory=list)
-    cache_misses: list[float] = field(default_factory=list)
-    variant_churns: list[float] = field(default_factory=list)
-
-    def add_metrics(self, metrics: EpisodeMetrics) -> None:
-        self.rewards.append(float(metrics.reward))
-        self.perplexities.append(float(metrics.perplexity))
-        self.latencies.append(float(metrics.latency_ms))
-        self.throughputs.append(float(metrics.throughput_tps))
-        self.memories.append(float(metrics.memory_mb))
-        self.stabilities.append(float(metrics.stability_penalty))
-        self.swap_costs.append(float(metrics.swap_cost_ms))
-        self.cache_misses.append(float(metrics.cache_miss_count))
-        self.variant_churns.append(float(metrics.variant_churn))
-
-    def summary(self) -> dict[str, float]:
-        return {
-            "mean_reward": mean(self.rewards),
-            "mean_perplexity": mean(self.perplexities),
-            "mean_latency_ms": mean(self.latencies),
-            "mean_throughput_tps": mean(self.throughputs),
-            "mean_memory_mb": mean(self.memories),
-            "mean_stability_penalty": mean(self.stabilities),
-            "mean_swap_cost_ms": mean(self.swap_costs),
-            "mean_cache_miss_count": mean(self.cache_misses),
-            "mean_variant_churn": mean(self.variant_churns),
-        }
+StateT = TypeVar("StateT")
 
 
 def feedback_vector(
@@ -64,4 +29,57 @@ def training_row(step: float, result: EpisodeResult) -> dict[str, float]:
         "latency_ms": float(result.metrics.latency_ms),
         "throughput_tps": float(result.metrics.throughput_tps),
         "perplexity": float(result.metrics.perplexity),
+    }
+
+
+def collect_episode_results(
+    episodes: int,
+    *,
+    initial_previous_action: list[float],
+    reset: Callable[..., StateT],
+    act: Callable[[StateT], QuantizationDecision],
+    evaluate_current: Callable[[QuantizationDecision, int], EpisodeResult],
+    feedback: Callable[[QuantizationDecision], list[float]],
+    episode_offset: int = 0,
+    hardware: HardwareType | None = None,
+) -> list[EpisodeResult]:
+    results: list[EpisodeResult] = []
+    previous_action = list(initial_previous_action)
+    for episode_index in range(episodes):
+        state = reset(previous_action=previous_action, forced_hardware=hardware)
+        decision = act(state)
+        result = evaluate_current(decision, episode_offset + episode_index)
+        previous_action = feedback(result.decision)
+        results.append(result)
+    return results
+
+
+def summarize_episode_results(results: list[EpisodeResult]) -> dict[str, float]:
+    return {
+        "mean_reward": mean([float(result.metrics.reward) for result in results]),
+        "mean_perplexity": mean([float(result.metrics.perplexity) for result in results]),
+        "mean_latency_ms": mean([float(result.metrics.latency_ms) for result in results]),
+        "mean_throughput_tps": mean([float(result.metrics.throughput_tps) for result in results]),
+        "mean_memory_mb": mean([float(result.metrics.memory_mb) for result in results]),
+        "mean_stability_penalty": mean([float(result.metrics.stability_penalty) for result in results]),
+        "mean_swap_cost_ms": mean([float(result.metrics.swap_cost_ms) for result in results]),
+        "mean_cache_miss_count": mean([float(result.metrics.cache_miss_count) for result in results]),
+        "mean_variant_churn": mean([float(result.metrics.variant_churn) for result in results]),
+    }
+
+
+def reward_summary(rewards: list[float], *, updates: int) -> dict[str, float]:
+    return {
+        "episodes": float(len(rewards)),
+        "mean_reward": mean(rewards),
+        "best_reward": max(rewards) if rewards else 0.0,
+        "final_reward": rewards[-1] if rewards else 0.0,
+        "updates": float(updates),
+    }
+
+
+def online_update_summary(rewards: list[float]) -> dict[str, float]:
+    return {
+        "batch_size": float(len(rewards)),
+        "mean_reward": mean(rewards),
     }

@@ -1,13 +1,8 @@
-from adaptive_quant.configuration import FrameworkConfig
+from config import CONFIG
 
 
-CONFIG_MOE = FrameworkConfig(
-    multi_hardware=True,
-    dynamic_quant=True,
-    learned_quant=True,
+CONFIG_MOE = CONFIG.clone(
     moe_enabled=True,
-    quant_mode="hybrid",
-    hardware_modes=("gpu", "cpu", "low_resource"),
     moe_num_experts=16,
     moe_top_k=2,
     moe_variant_names=("safe", "balanced", "aggressive"),

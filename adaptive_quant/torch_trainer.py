@@ -5,34 +5,27 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+from adaptive_quant.base_trainer import TrainerBase
 from adaptive_quant.configuration import FrameworkConfig
-from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.math_utils import mean
+from adaptive_quant.trainer_utils import online_update_summary, reward_summary
 from adaptive_quant.torch_policy import TORCH_IMPORT_ERROR, TorchPolicyAdapter, torch
-from adaptive_quant.trainer_utils import EvaluationAccumulator, feedback_vector
-from adaptive_quant.types import EpisodeResult, HardwareType
 
 
-class TorchTrainer:
+class TorchTrainer(TrainerBase):
     def __init__(self, config: FrameworkConfig, log_path: str | None = None) -> None:
         if torch is None:
             raise ImportError(
                 "PyTorch is required for `training_backend=\"pytorch\"`. "
                 "Install a CUDA-enabled PyTorch build on the target GPU host before running a PyTorch entrypoint."
             ) from TORCH_IMPORT_ERROR
-        self.config = config
-        self.env = AdaptiveQuantizationEnv(config, log_path=log_path)
+        super().__init__(config, log_path=log_path)
         self.policy = TorchPolicyAdapter(config)
         self.optimizer = self._build_optimizer()
-        self.previous_action = [0.0, 0.0, 0.0]
         self.rng = random.Random(config.seed + 401)
         self.global_episode = 0
         self.update_index = 0
         self.ordered_hardware = config.ordered_hardware()
-        self.training_history: list[dict[str, float]] = []
-        self._max_bits = max(config.discrete_bit_widths)
-        self._scale_upper = config.scale_bounds[1]
-        self._clip_upper = config.clip_bounds[1]
         if config.resume_from_checkpoint:
             self.load_checkpoint(config.resume_from_checkpoint)
 
@@ -64,38 +57,7 @@ class TorchTrainer:
             }
             self.training_history.append(history_row)
 
-        return {
-            "episodes": float(len(rewards)),
-            "mean_reward": mean(rewards),
-            "best_reward": max(rewards) if rewards else 0.0,
-            "final_reward": rewards[-1] if rewards else 0.0,
-            "updates": float(self.update_index),
-        }
-
-    def evaluate(self, episodes: int | None = None, hardware: HardwareType | None = None) -> dict[str, float]:
-        accumulator = EvaluationAccumulator()
-        previous_action = list(self.previous_action)
-        for episode_index in range(episodes or self.config.evaluation_episodes):
-            state = self.env.reset(previous_action=previous_action, forced_hardware=hardware)
-            state_vector = state.to_vector(self.ordered_hardware)
-            decision, _record = self.policy.act(state_vector, deterministic=True)
-            result = self.env.evaluate_current(decision, episode_index=1_000_000 + episode_index)
-            previous_action = self._feedback_vector(result.decision)
-            accumulator.add_metrics(result.metrics)
-
-        return accumulator.summary()
-
-    def rollout(self, episodes: int) -> list[EpisodeResult]:
-        results: list[EpisodeResult] = []
-        previous_action = list(self.previous_action)
-        for episode_index in range(episodes):
-            state = self.env.reset(previous_action=previous_action)
-            state_vector = state.to_vector(self.ordered_hardware)
-            decision, _record = self.policy.act(state_vector, deterministic=True)
-            result = self.env.evaluate_current(decision, episode_index=2_000_000 + episode_index)
-            previous_action = self._feedback_vector(result.decision)
-            results.append(result)
-        return results
+        return reward_summary(rewards, updates=self.update_index)
 
     def _collect_batch(self, batch_size: int) -> tuple[list[dict[str, Any]], list[float]]:
         records: list[dict[str, Any]] = []
@@ -164,13 +126,6 @@ class TorchTrainer:
             "advantage_std": float(advantages.std(unbiased=False).detach().item()),
         }
 
-    def close(self) -> None:
-        self.env.logger.close()
-
-    def act_online(self, state, deterministic: bool = False):
-        state_vector = state.to_vector(self.ordered_hardware)
-        return self.policy.act(state_vector, deterministic=deterministic)
-
     def update_online(self, updates: list[tuple[dict[str, Any], float]]) -> dict[str, float]:
         records: list[dict[str, Any]] = []
         rewards: list[float] = []
@@ -181,16 +136,7 @@ class TorchTrainer:
             rewards.append(float(reward))
         if records:
             self._update_policy(records)
-        return {
-            "batch_size": float(len(records)),
-            "mean_reward": mean(rewards),
-        }
-
-    def snapshot_policy(self):
-        return self.policy.snapshot()
-
-    def restore_policy(self, snapshot) -> None:
-        self.policy.restore(snapshot)
+        return online_update_summary(rewards)
 
     def save_checkpoint(self, path: str) -> str:
         target = Path(path)
@@ -224,10 +170,5 @@ class TorchTrainer:
                 if torch.is_tensor(value):
                     state[key] = value.to(self.policy.device)
 
-    def _feedback_vector(self, decision) -> list[float]:
-        return feedback_vector(
-            decision,
-            max_bits=self._max_bits,
-            scale_upper=self._scale_upper,
-            clip_upper=self._clip_upper,
-        )
+    def _policy_input(self, state):
+        return state.to_vector(self.ordered_hardware)

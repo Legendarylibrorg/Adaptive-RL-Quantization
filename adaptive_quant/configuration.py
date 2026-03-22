@@ -155,7 +155,8 @@ class FrameworkConfig:
         return len(self.ordered_hardware()) + 5 + 2 + self.num_layers + 3 + self.moe_state_dim()
 
     def clone(self, **changes: object) -> "FrameworkConfig":
-        return replace(self, **changes)
+        reward_weights = changes.pop("reward_weights", replace(self.reward_weights))
+        return replace(self, reward_weights=reward_weights, **changes)
 
     def online_telemetry_path(self) -> str:
         return f"{self.log_dir}/{self.run_name}_online_telemetry.jsonl"

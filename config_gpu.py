@@ -1,13 +1,8 @@
-from adaptive_quant.configuration import FrameworkConfig
+from config import CONFIG
 
 
-CONFIG_GPU = FrameworkConfig(
+CONFIG_GPU = CONFIG.clone(
     training_backend="pytorch",
-    multi_hardware=True,
-    dynamic_quant=True,
-    learned_quant=True,
-    quant_mode="hybrid",
-    hardware_modes=("gpu", "cpu", "low_resource"),
     training_episodes=4096,
     evaluation_episodes=256,
     benchmark_training_episodes=1024,
