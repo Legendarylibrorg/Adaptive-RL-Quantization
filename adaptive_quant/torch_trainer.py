@@ -9,6 +9,7 @@ from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.math_utils import mean
 from adaptive_quant.torch_policy import TORCH_IMPORT_ERROR, TorchPolicyAdapter, torch
+from adaptive_quant.trainer_utils import EvaluationAccumulator, feedback_vector
 from adaptive_quant.types import EpisodeResult, HardwareType
 
 
@@ -29,6 +30,9 @@ class TorchTrainer:
         self.update_index = 0
         self.ordered_hardware = config.ordered_hardware()
         self.training_history: list[dict[str, float]] = []
+        self._max_bits = max(config.discrete_bit_widths)
+        self._scale_upper = config.scale_bounds[1]
+        self._clip_upper = config.clip_bounds[1]
         if config.resume_from_checkpoint:
             self.load_checkpoint(config.resume_from_checkpoint)
 
@@ -69,47 +73,17 @@ class TorchTrainer:
         }
 
     def evaluate(self, episodes: int | None = None, hardware: HardwareType | None = None) -> dict[str, float]:
-        rewards: list[float] = []
-        perplexities: list[float] = []
-        latencies: list[float] = []
-        throughputs: list[float] = []
-        memories: list[float] = []
-        stabilities: list[float] = []
-        swap_costs: list[float] = []
-        cache_misses: list[float] = []
-        variant_churns: list[float] = []
+        accumulator = EvaluationAccumulator()
         previous_action = list(self.previous_action)
         for episode_index in range(episodes or self.config.evaluation_episodes):
             state = self.env.reset(previous_action=previous_action, forced_hardware=hardware)
             state_vector = state.to_vector(self.ordered_hardware)
             decision, _record = self.policy.act(state_vector, deterministic=True)
             result = self.env.evaluate_current(decision, episode_index=1_000_000 + episode_index)
-            previous_action = result.decision.feedback_vector(
-                max_bits=max(self.config.discrete_bit_widths),
-                scale_upper=self.config.scale_bounds[1],
-                clip_upper=self.config.clip_bounds[1],
-            )
-            rewards.append(result.metrics.reward)
-            perplexities.append(result.metrics.perplexity)
-            latencies.append(result.metrics.latency_ms)
-            throughputs.append(result.metrics.throughput_tps)
-            memories.append(result.metrics.memory_mb)
-            stabilities.append(result.metrics.stability_penalty)
-            swap_costs.append(result.metrics.swap_cost_ms)
-            cache_misses.append(result.metrics.cache_miss_count)
-            variant_churns.append(result.metrics.variant_churn)
+            previous_action = self._feedback_vector(result.decision)
+            accumulator.add_metrics(result.metrics)
 
-        return {
-            "mean_reward": mean(rewards),
-            "mean_perplexity": mean(perplexities),
-            "mean_latency_ms": mean(latencies),
-            "mean_throughput_tps": mean(throughputs),
-            "mean_memory_mb": mean(memories),
-            "mean_stability_penalty": mean(stabilities),
-            "mean_swap_cost_ms": mean(swap_costs),
-            "mean_cache_miss_count": mean(cache_misses),
-            "mean_variant_churn": mean(variant_churns),
-        }
+        return accumulator.summary()
 
     def rollout(self, episodes: int) -> list[EpisodeResult]:
         results: list[EpisodeResult] = []
@@ -119,11 +93,7 @@ class TorchTrainer:
             state_vector = state.to_vector(self.ordered_hardware)
             decision, _record = self.policy.act(state_vector, deterministic=True)
             result = self.env.evaluate_current(decision, episode_index=2_000_000 + episode_index)
-            previous_action = result.decision.feedback_vector(
-                max_bits=max(self.config.discrete_bit_widths),
-                scale_upper=self.config.scale_bounds[1],
-                clip_upper=self.config.clip_bounds[1],
-            )
+            previous_action = self._feedback_vector(result.decision)
             results.append(result)
         return results
 
@@ -136,11 +106,7 @@ class TorchTrainer:
             decision, record = self.policy.act(state_vector, deterministic=False)
             result = self.env.evaluate_current(decision, episode_index=self.global_episode)
             self.global_episode += 1
-            self.previous_action = result.decision.feedback_vector(
-                max_bits=max(self.config.discrete_bit_widths),
-                scale_upper=self.config.scale_bounds[1],
-                clip_upper=self.config.clip_bounds[1],
-            )
+            self.previous_action = self._feedback_vector(result.decision)
             record["state_vector"] = state_vector
             record["reward"] = float(result.metrics.reward)
             records.append(record)
@@ -257,3 +223,11 @@ class TorchTrainer:
             for key, value in state.items():
                 if torch.is_tensor(value):
                     state[key] = value.to(self.policy.device)
+
+    def _feedback_vector(self, decision) -> list[float]:
+        return feedback_vector(
+            decision,
+            max_bits=self._max_bits,
+            scale_upper=self._scale_upper,
+            clip_upper=self._clip_upper,
+        )

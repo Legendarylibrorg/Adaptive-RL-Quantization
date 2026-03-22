@@ -26,6 +26,7 @@ class ResearchPipeline:
 
     def run(self) -> dict[str, object]:
         config, gpu_profile_report = self._resolve_config()
+        git_commit = _git_commit()
         trainer = self._build_trainer(config)
         preflight_report = None
         try:
@@ -45,6 +46,7 @@ class ResearchPipeline:
         analysis = self._run_analysis(config, history_path)
         report_path = self._write_report(
             config,
+            git_commit=git_commit,
             train_summary=train_summary,
             eval_summary=eval_summary,
             benchmark_summary=benchmark_summary,
@@ -56,7 +58,7 @@ class ResearchPipeline:
         )
         summary = {
             "config": asdict(config),
-            "git_commit": _git_commit(),
+            "git_commit": git_commit,
             "gpu_profile": gpu_profile_report,
             "preflight": preflight_report,
             "train": train_summary,
@@ -136,6 +138,7 @@ class ResearchPipeline:
         self,
         config: FrameworkConfig,
         *,
+        git_commit: str | None,
         train_summary: dict[str, object],
         eval_summary: dict[str, object],
         benchmark_summary: dict[str, object],
@@ -158,7 +161,7 @@ class ResearchPipeline:
             f"- quant_mode: `{config.quant_mode}`",
             f"- moe_enabled: `{config.moe_enabled}`",
             f"- hardware_modes: `{', '.join(config.hardware_modes)}`",
-            f"- git_commit: `{_git_commit() or 'unknown'}`",
+            f"- git_commit: `{git_commit or 'unknown'}`",
             "",
             "## Training",
             f"- train summary: `{train_summary}`",

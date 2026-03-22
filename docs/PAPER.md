@@ -1,86 +1,75 @@
-# Adaptive RL Quantization for llama.cpp:
-## Universal Hardware-Aware, Input-Adaptive, and Learned Quantization Policies
-
-### Contributions
-
-This paper makes three concrete contributions:
-
-1. It formulates quantization as a **universal policy-learning problem** over heterogeneous hardware targets rather than a device-specific export rule.
-2. It introduces **input-adaptive quantization** driven by prompt-level complexity features, allowing the quantization policy to vary across requests.
-3. It extends fixed-preset quantization into **learned quantization functions** with continuous control over scale, clipping, and effective precision.
+# Adaptive RL Quantization for llama.cpp
+## Universal Hardware-Aware, Input-Adaptive, Learned, and MoE-Aware Policies
 
 ### Abstract
 
-Quantization is one of the most effective ways to reduce the cost of large language model inference, but most existing deployment strategies still rely on static rules: fixed bit-width presets, hardware-specific heuristics, or offline calibration pipelines that do not adapt to the prompt being served. This work presents **Adaptive RL Quantization**, a simulator-first and deployment-oriented framework for learning quantization policies that are simultaneously **hardware-aware**, **input-aware**, and **functionally learned** rather than restricted to a small set of hand-written bit-width rules. The system targets `llama.cpp`-style execution and supports both a pure-Python research simulator and a CUDA/PyTorch training path for modern NVIDIA GPUs.
+Quantization is one of the most effective tools for reducing the cost of large language model inference, but most deployments still rely on static rules: a fixed preset, a hand-written hardware heuristic, or an offline calibration pass that does not adapt to the prompt being served. This paper presents **Adaptive RL Quantization**, a simulator-first research framework for learning quantization and execution policies that are simultaneously **hardware-aware**, **input-aware**, and **learned** rather than limited to a small menu of fixed bit-width rules. The framework targets `llama.cpp`-style inference, supports a pure-Python offline research loop, includes a CUDA/PyTorch path for NVIDIA GPUs, and now extends to **Mixture-of-Experts (MoE)** models through a packed-expert-bank formulation.
 
-Our framework contributes three ideas. First, we train a **universal policy** over multiple hardware modes rather than learning one policy per device. The policy conditions on a hardware encoding and is optimized across GPU, CPU, and low-resource settings. Second, we enable **dynamic per-input quantization**, where decisions depend on prompt complexity features such as length, entropy, token variance, and embedding statistics. Third, we introduce **learned quantization functions** with continuous control over scale, clipping, and precision, allowing the policy to learn quantization behavior rather than only select among discrete presets. The framework also includes a hybrid action interface that unifies discrete, grouped, per-layer, dynamic, and learned modes under one experimental surface.
+The system contributes four ideas. First, it learns **one universal policy** across multiple hardware targets instead of one policy per device. Second, it allows quantization behavior to depend on **input complexity**. Third, it replaces purely discrete presets with **learned quantization functions** that control scale, clipping, and effective precision. Fourth, it introduces **MoE-aware packed expert selection**, where the policy chooses among prepacked expert variants while accounting for swap cost, cache misses, and expert sensitivity.
 
-In the current simulator-backed benchmark, the universal multi-hardware policy reduces the generalization gap by **16.75 reward units** relative to a single-GPU policy. Dynamic quantization improves reward from **-7.31** to **-4.44** while substantially reducing instability from **0.0153** to **0.00229**, albeit with a modest perplexity tradeoff. Learned quantization functions improve reward from **-7.31** to **-2.53**, reduce latency from **210.83 ms** to **121.79 ms**, reduce memory from **1395.70 MB** to **877.09 MB**, and increase throughput from **136.49** to **178.88 tokens/s**, again with a modest quality tradeoff. These results suggest that adaptive quantization can outperform static baselines when the objective reflects deployment constraints rather than only raw quality.
+In the current offline simulator-backed benchmark, the universal dense policy reduces the hardware generalization gap by **16.55 reward units** relative to a GPU-only policy. Dynamic quantization improves reward from **-7.31** to **-4.44** while reducing instability from **0.0153** to **0.00229**. Learned quantization improves reward from **-7.31** to **-2.53**, reducing latency from **210.83 ms** to **121.79 ms** and memory from **1395.70 MB** to **877.09 MB**. On the MoE path, the packed-expert-bank policy improves reward over the dense adaptive baseline by **2.43** reward units, and improves reward over a single-variant MoE baseline by **2.23** reward units. However, in the current short-budget MoE benchmark, a strong static balanced-variant baseline still slightly outperforms the RL-controlled MoE variant selector by **0.38** reward units, highlighting that the MoE extension is promising but not yet fully optimized.
 
-This draft is intentionally honest about scope: the quantitative results in the current repository are simulator-based and come from the **offline training and evaluation pipeline**. The codebase also includes a real `llama.cpp` backend hook, a PyTorch/CUDA training path intended for future hardware-grounded evaluation, and an optional experimental online adaptation module that is **not** part of the primary empirical claims in this paper.
+This paper is intentionally honest about scope. The headline numbers are currently **offline and simulator-backed**. The repository includes an explicit **RTX 4090 host universal-policy training path**, but the primary quantitative claims here still come from the reproducible offline benchmark rather than from fully hardware-grounded multi-device measurements.
 
 ### 1. Introduction
 
-Quantized inference sits at the center of practical language model deployment. The standard workflow is familiar: choose a quantization preset, export a model, and accept the resulting tradeoff between speed, memory, and quality. This works well when a system is deployed to a single target runtime and prompt distribution, but it becomes brittle once the deployment setting changes. A quantization plan tuned for one GPU may be suboptimal on CPU. A highly compressed preset that works well for short factual prompts may degrade badly on more complex reasoning or generation tasks. A fixed menu of presets also limits the search space itself: the deployment system can only select among choices a human anticipated in advance.
+Practical large language model deployment is constrained by a simple tension: the strongest models are expensive, while the cheapest deployments are often too slow, too memory-hungry, or too degraded in quality. Quantization is one of the main ways practitioners navigate that tradeoff. In most systems, however, quantization is still treated as a static artifact. A model is exported at a chosen precision, served on a specific device, and left there.
 
-This paper argues for a different framing. Instead of treating quantization as a static export-time transformation, we treat it as a **policy-learning problem**. In the primary research setting studied here, a policy is trained offline in a controlled simulator and then evaluated under held-out hardware and prompt conditions. At inference time, the learned policy observes the hardware context, prompt-derived features, and sensitivity estimates, then selects or parameterizes a quantization strategy. Under this framing, quantization is not a one-time compression step; it is an adaptive control mechanism that trades off latency, throughput, memory, quality, and stability.
+That workflow breaks down once the deployment setting changes. A quantization choice that works well on one GPU may be suboptimal on CPU. A compression level that is acceptable for short factual prompts may degrade badly on more complex prompts. In MoE models, the problem becomes even more structured: different experts have different sensitivity, different routing frequency, and different residency costs.
 
-The resulting problem is challenging for three reasons. First, the policy must generalize across heterogeneous deployment targets. Second, it must respond to prompt complexity rather than assuming a single average case. Third, it should learn continuous quantization behavior where appropriate, not only choose among a handful of fixed presets. The Adaptive RL Quantization framework in this repository is designed to address those three challenges in one system.
+This paper argues for a different framing. Instead of treating quantization as a one-time compression choice, we treat it as a **learned control problem**. A policy observes hardware context, prompt-level features, sensitivity estimates, and optionally MoE expert state, then selects a quantization or packed-expert strategy that trades off latency, throughput, memory, quality, and stability.
 
-### 2. Problem Formulation
+The repository now supports this framing in three increasingly expressive regimes:
 
-We consider an inference-time controller for a `llama.cpp`-style backend. For each episode, the environment samples a hardware target and an input prompt. The agent observes a state vector
+1. dense adaptive quantization across hardware and inputs,
+2. learned quantization functions with continuous control,
+3. MoE-aware packed expert variant selection.
+
+The core experimental story remains offline-first and reproducible. The project includes a CUDA path tuned for RTX 4090-class hardware and an explicit `run_4090_universal.py` entrypoint for “train on a 4090, learn a universal policy,” but the stable evidence base is still the simulator-backed offline benchmark.
+
+### 2. Contributions
+
+This version of the system makes four concrete contributions:
+
+1. It formulates quantization as a **universal policy-learning problem** over multiple hardware targets rather than a device-specific export rule.
+2. It introduces **input-adaptive quantization**, where prompt complexity changes the chosen precision behavior.
+3. It extends fixed presets into **learned quantization functions** with continuous control over scale, clipping, and effective precision.
+4. It adds an **MoE packed-expert-bank extension** in which RL chooses among prepacked expert variants under cache and swap constraints.
+
+### 3. Problem Formulation
+
+We consider an inference-time controller for a `llama.cpp`-style backend. For each episode, the environment samples a hardware target and a prompt. The dense-policy state is:
 
 \[
-s = [h, x, \sigma, a_{t-1}],
+s = [h, x, \sigma, a_{t-1}]
 \]
 
 where:
 
-- \(h\) is a hardware encoding for GPU, CPU, or low-resource mode,
-- \(x\) contains prompt-derived features,
-- \(\sigma\) contains sensitivity estimates,
+- \(h\) is a hardware encoding,
+- \(x\) is a prompt feature vector,
+- \(\sigma\) is a sensitivity summary,
 - \(a_{t-1}\) is a compact encoding of the previous action.
 
-Prompt features include prompt length, approximate token entropy, token variance, and embedding norm. Sensitivity features summarize attention sensitivity, feed-forward sensitivity, and per-layer statistics.
+Prompt features include prompt length, approximate token entropy, token variance, embedding norm, and a derived complexity score. Sensitivity features summarize attention sensitivity, FFN sensitivity, and per-layer statistics.
 
-The action space is hybrid. Depending on the experimental mode, the agent may:
-
-- choose a single discrete bit-width,
-- choose grouped bit-widths,
-- choose per-layer bit-widths,
-- make a dynamic input-conditioned discrete decision,
-- output continuous quantization parameters \((\text{scale}, \text{clip}, \text{precision})\).
-
-The reward is a deployment-oriented scalar objective:
+When MoE is enabled, the state is extended with expert-routing context:
 
 \[
-r = -\alpha \cdot \text{latency} + \beta \cdot \text{throughput} - \gamma \cdot \text{perplexity} - \delta \cdot \text{memory} - \epsilon \cdot \text{instability}.
+s_{\text{moe}} = [h, x, \sigma, a_{t-1}, m]
 \]
 
-The instability term is estimated as perplexity variance across probe prompts, which encourages not only fast and cheap policies, but also stable ones.
+where \(m\) includes:
 
-This formulation is intentionally deployment-centered. The objective is not to maximize model quality in isolation, but to optimize a weighted utility that reflects real serving tradeoffs. In practice, the coefficients \(\alpha, \beta, \gamma, \delta, \epsilon\) can be retuned for different deployment priorities, such as memory-constrained edge inference, latency-sensitive interactive serving, or throughput-heavy batch generation.
+- router entropy,
+- active expert count,
+- cache pressure,
+- estimated swap cost,
+- top-k expert descriptors including sensitivity, hotness, residency, and available packed variants.
 
-### 3. System Overview
+### 4. Action Space
 
-The implementation exposes a clean separation between environment, quantization logic, policy, trainer, benchmark suite, and analysis.
-
-#### 3.1 Environment and Backend
-
-The environment samples prompts from a small prompt library and hardware profiles from a fixed catalog. It supports:
-
-- GPU mode,
-- CPU mode,
-- low-resource mode,
-- a simulator backend,
-- a `llama.cpp` backend hook.
-
-The simulator backend is intentionally structured to reflect deployment tradeoffs: aggressive compression improves throughput and memory use but hurts perplexity; hardware mismatch induces latency and throughput penalties; and dynamic or learned modes can exploit more favorable tradeoff surfaces than static modes.
-
-#### 3.2 Quantization Modes
-
-The framework supports:
+The framework supports the following dense-model action modes:
 
 - `discrete`
 - `grouped`
@@ -89,188 +78,279 @@ The framework supports:
 - `learned`
 - `hybrid`
 
-Dynamic mode uses prompt complexity and sensitivity to adapt effective layer precision even when the policy’s top-level decision is discrete. Learned mode maps continuous outputs into quantization behavior using bounded scale, clipping, and precision parameters with safety guards and fallback logic.
+In learned mode, the policy emits continuous parameters:
 
-#### 3.3 Universal Policy Learning
+\[
+q = [\text{scale}, \text{clip}, \text{precision}]
+\]
 
-The baseline trainer is simulator-first and pure Python. The repository also includes a PyTorch actor-critic path with PPO-style updates for GPU training. In both cases, the policy conditions on hardware, input features, sensitivity, and previous action feedback. The CUDA path includes preflight checks, fused optimizer support, buffered logging, prompt-feature caching, and auto-tuned GPU profiles for cards beyond the RTX 4090.
+which are clamped to safe ranges and mapped into effective layer precision.
 
-### 4. Learned Quantization Functions
+In the MoE extension, the action space is augmented with:
 
-The central departure from a fixed-preset system is the learned action parameterization. In learned mode, the policy outputs continuous values for:
+- packed variant choice per active expert,
+- optional residual variation induced by the base quantization mode,
+- safety fallback to balanced or safe variants when swap or aggressiveness constraints are exceeded.
 
-- scale factor,
-- clipping range,
-- precision level.
+The current packed-expert bank uses the variants:
 
-These parameters are clamped to safe ranges, then transformed into effective per-layer precision as a function of sensitivity and prompt complexity. The result is not merely “pick 2-bit or 4-bit”; it is “learn how aggressively to compress and where.”
+- `safe`
+- `balanced`
+- `aggressive`
 
-This is important because different layers and different prompts do not require the same precision. A sensitive deeper layer on a difficult prompt may need much higher effective precision than a shallow layer on a short factual query. Learned mode provides that flexibility while still exposing explicit safety bounds.
+This design is deliberate. Fully continuous expert repacking is not practical at runtime, while a small prepacked variant bank preserves the benefits of learning with realistic systems constraints.
 
-### 5. Experimental Setup
+### 5. Reward
 
-The current repository reports simulator-backed results using the offline benchmark summary produced by:
+The dense reward is:
+
+\[
+r = -\alpha \cdot \text{latency} + \beta \cdot \text{throughput} - \gamma \cdot \text{perplexity} - \delta \cdot \text{memory} - \epsilon \cdot \text{instability}
+\]
+
+where instability is measured as perplexity variance across probe prompts.
+
+In the MoE path, this is extended with explicit systems penalties:
+
+\[
+r_{\text{moe}} = r - \eta \cdot \text{swap\_cost} - \zeta \cdot \text{cache\_misses} - \xi \cdot \text{variant\_churn}
+\]
+
+This matters because in sparse MoE serving, memory traffic and expert movement can dominate the operational cost surface.
+
+### 6. System Overview
+
+The repository separates:
+
+- environment
+- backend
+- quantization logic
+- policy
+- trainer
+- benchmark suite
+- analysis
+
+The main research entrypoints are:
+
+- `run_research.py`: canonical dense offline baseline
+- `run_moe_research.py`: canonical MoE offline baseline
+- `run_4090_universal.py`: explicit 4090-host universal-policy training path
+
+The PyTorch/CUDA path exists to accelerate policy learning on a strong local device, especially an RTX 4090, while still conditioning on multiple target hardware profiles. In that sense, the 4090 is the **training host**, not the only intended deployment target.
+
+### 7. Experimental Setup
+
+The current results come from the offline benchmark artifacts produced by:
 
 - `outputs/benchmarks/adaptive_universal_policy_summary.json`
+- `outputs/benchmarks/adaptive_moe_policy_summary.json`
 
-The experiments compare:
+The dense benchmark compares:
 
-1. single-hardware versus multi-hardware universal policy learning,
-2. static versus dynamic quantization,
-3. discrete versus learned quantization functions.
+1. single-hardware vs multi-hardware training,
+2. static vs dynamic quantization,
+3. discrete vs learned quantization.
 
-The evaluation reports:
+The MoE benchmark adds:
 
-- mean reward,
-- mean latency,
-- mean throughput,
-- mean memory,
-- mean perplexity,
-- mean stability penalty.
+1. dense adaptive vs MoE adaptive,
+2. single packed variant vs packed-expert bank,
+3. static MoE policy vs RL MoE policy.
 
-The simulator is best understood as a structured research harness rather than a claim of final production performance. It is designed to preserve the directional incentives faced by a real deployment system while enabling fast iteration on state design, reward shaping, and policy parameterization. This matters for research quality: the headline results are meant to come from a reproducible offline setup rather than an online system whose behavior changes during collection.
+All headline numbers in this paper are simulator-backed. The simulator is not presented as a substitute for real deployment measurements; it is a structured research harness that preserves the directional tradeoffs of serving while allowing fast, reproducible iteration.
 
-### 6. Results
+### 8. Results
 
-#### 6.1 Universal Multi-Hardware Policy
+#### 8.1 Universal Dense Policy
 
-The multi-hardware policy improves the generalization gap by **16.75 reward units** relative to the single-GPU policy. Concretely:
+The dense universal policy improves cross-hardware robustness substantially. Relative to a GPU-only policy:
 
-- single-policy gap: **29.42**
-- multi-policy gap: **12.67**
-- improvement: **16.75**
+- single-policy gap: **29.22**
+- multi-hardware gap: **12.67**
+- improvement: **16.55**
 
-This is the clearest evidence that a single policy can internalize hardware context instead of merely overfitting to one device. The single-GPU policy performs well on GPU, but degrades sharply on CPU and low-resource settings. The universal policy sacrifices some GPU-only specialization in exchange for far better cross-hardware robustness.
+This result supports the central framing: training one policy over hardware-conditioned state is meaningfully different from training one policy per device or overfitting to a single GPU regime.
 
-#### 6.2 Static versus Dynamic Quantization
+#### 8.2 Dynamic and Learned Quantization
 
-Dynamic quantization improves deployment reward and strongly improves stability:
+Dynamic quantization improves reward and stability:
 
 | Mode | Reward | Latency (ms) | Throughput (tok/s) | Memory (MB) | Perplexity | Stability |
 |---|---:|---:|---:|---:|---:|---:|
 | Static | -7.31 | 210.83 | 136.49 | 1395.70 | 9.98 | 0.01530 |
 | Dynamic | -4.44 | 134.24 | 164.16 | 869.36 | 11.61 | 0.00229 |
 
-Dynamic mode trades some quality for substantially better deployment characteristics. The most striking reduction is in instability: the stability penalty drops by **0.0130**. This suggests that prompt-aware policies can better match quantization aggressiveness to input complexity than fixed settings.
-
-#### 6.3 Discrete versus Learned Quantization Functions
-
-Learned quantization functions outperform the discrete baseline under the composite reward:
+Learned quantization functions further improve the deployment objective:
 
 | Mode | Reward | Latency (ms) | Throughput (tok/s) | Memory (MB) | Perplexity | Stability |
 |---|---:|---:|---:|---:|---:|---:|
 | Discrete | -7.31 | 210.83 | 136.49 | 1395.70 | 9.98 | 0.01530 |
 | Learned | -2.53 | 121.79 | 178.88 | 877.09 | 10.66 | 0.01310 |
 
-The learned policy improves reward by **4.79**, cuts latency by roughly **42%**, reduces memory by roughly **37%**, and raises throughput by roughly **31%**. As with dynamic mode, these gains come with a moderate perplexity cost. The result is still meaningful because the target objective is deployment-oriented rather than quality-only.
+These dense results justify the first half of the framework: adaptive, learned policies can improve the composite deployment objective even when they do not optimize perplexity alone.
 
-### 7. Discussion
+#### 8.3 MoE Packed-Expert Policies
 
-The results support three takeaways.
+The MoE extension improves over the dense adaptive baseline under the current composite reward:
 
-First, **hardware conditioning matters**. A universal policy trained across heterogeneous hardware can meaningfully reduce the gap between specialized and generalized deployment.
+| Mode | Reward | Latency (ms) | Throughput (tok/s) | Memory (MB) | Perplexity | Swap Cost (ms) |
+|---|---:|---:|---:|---:|---:|---:|
+| Dense adaptive | -6.18 | 204.47 | 154.88 | 1378.72 | 10.14 | 0.00 |
+| MoE adaptive | -3.75 | 136.15 | 186.07 | 868.03 | 12.04 | 2.58 |
 
-Second, **input adaptation matters**. Prompt-aware quantization behaves more like a serving policy than an export preset. This is a better match for real systems, where prompt difficulty varies widely.
+The MoE packed-expert-bank policy also improves over a single-variant MoE baseline:
 
-Third, **continuous quantization control matters**. Learned quantization functions recover better reward than purely discrete decisions because they can shape compression more smoothly.
+| Mode | Reward | Latency (ms) | Throughput (tok/s) | Memory (MB) | Perplexity | Variant Churn |
+|---|---:|---:|---:|---:|---:|---:|
+| Single balanced variant | -5.98 | 198.83 | 162.46 | 1306.88 | 10.48 | 0.00 |
+| Packed expert bank | -3.75 | 136.15 | 186.07 | 868.03 | 12.04 | 0.25 |
 
-At the same time, the tradeoffs are real. Dynamic and learned modes improve the deployment objective while tolerating some quality degradation. This is exactly why the reward must be explicit. If a system optimizes perplexity alone, static or conservative quantization may appear best; if it optimizes operational utility, adaptive policies become far more attractive.
+This is an encouraging result. It suggests that the packed expert bank is adding meaningful systems flexibility rather than just complexity.
 
-One useful way to interpret the results is as evidence that quantization should be treated as a systems policy rather than a one-time compression artifact. Under that view, the policy is not replacing quantization algorithms; it is deciding how aggressively and where to apply them under changing hardware and workload conditions.
+#### 8.4 A Useful Negative Result
 
-### 8. Limitations
+The current RL MoE variant selector does **not yet** beat the strongest static balanced-variant baseline:
+
+- static MoE reward: **-3.38**
+- RL MoE reward: **-3.75**
+- delta: **-0.38**
+
+This is important. It means the MoE extension is not yet a clean “RL wins everywhere” result. What it does show is:
+
+- MoE modeling itself is valuable,
+- packed expert banks are valuable,
+- the current RL credit assignment for MoE still has room to improve.
+
+That is exactly the kind of result a serious systems paper should report honestly.
+
+#### 8.5 MoE Behavior Analysis
+
+In the current logged MoE run:
+
+- mean router entropy is **0.999**
+- mean aggressiveness is **0.252**
+- variant usage is heavily concentrated in `safe` and `balanced`
+- `aggressive` is selected only once
+
+This is consistent with the safety caps in the current implementation. The policy is learning conservatively under swap and aggressiveness constraints, which is sensible in a low-risk offline benchmark, but may also be one reason the RL MoE policy has not yet surpassed the strongest static baseline.
+
+### 9. Discussion
+
+Three conclusions are stable across the current results.
+
+First, **hardware conditioning matters**. Universal policies clearly outperform hardware-specialized policies when evaluated across multiple target regimes.
+
+Second, **input adaptation matters**. Dynamic policies reduce instability and improve the multi-objective reward relative to static quantization.
+
+Third, **MoE adds a richer control surface**. Once expert routing, residency, and swap behavior are exposed to the policy, the problem becomes more realistic and more interesting.
+
+At the same time, the MoE results are mixed in a useful way. The packed-expert-bank idea is strong, but the current RL controller is not yet fully extracting its value. That suggests the right next step is not to abandon RL, but to improve the MoE policy parameterization, horizon, and reward shaping.
+
+### 10. Why the RTX 4090 Matters
+
+The repository now makes a specific workflow explicit: **train on a 4090, learn a universal policy**.
+
+This is an important systems point. The 4090 is not presented here as the only target device. Instead, it is a strong and practical **training host** for:
+
+- larger PPO batches,
+- faster offline iteration,
+- prompt-feature caching,
+- CUDA preflight validation,
+- repeated reproducible training runs.
+
+The learned policy itself is still conditioned on multiple hardware targets. In other words, the system is designed to use a 4090 as the machine that performs learning, not as the only environment the learned behavior should understand.
+
+### 11. Limitations
 
 This draft has important limitations.
 
-1. The reported quantitative results are currently simulator-backed.
-2. The benchmark is small and synthetic relative to production prompt distributions.
-3. The `llama.cpp` backend path exists but is not yet the source of the primary reported numbers in this draft.
-4. The current system uses lightweight proxy features rather than a full online representation of model uncertainty or calibration error.
-5. The policy is trained in a one-step episodic setting; a richer sequential formulation may expose additional gains.
+1. The reported numbers are simulator-backed rather than fully hardware-grounded.
+2. The prompt set is small and synthetic relative to a real production traffic distribution.
+3. The current `llama.cpp` hook exists, but it is not yet the primary source of the headline metrics.
+4. The MoE extension is still short-horizon and uses a compact packed-variant abstraction rather than a full real runtime integration.
+5. The RL MoE policy does not yet outperform the strongest static MoE baseline in the current benchmark.
+6. The 4090-host universal-policy path exists in code, but this paper does not claim broad real-hardware transfer without additional validation.
 
-These limitations are not hidden by the codebase: the framework is explicitly simulator-first for fast iteration, with real-backend hooks for future experiments. The repository does contain an experimental online adaptation module, but it is best understood as follow-on systems work rather than part of the stable empirical core presented here.
+### 12. Future Work
 
-### 9. Future Work
+The next steps are clear.
 
-Several directions are immediate.
+#### 12.1 Real Hardware Calibration
 
-#### 9.1 Real Hardware Evaluation
+The most important next step is to calibrate the simulator and benchmark against:
 
-The most important next step is to run the same benchmark suite against a true `llama.cpp` backend across:
+- real `llama.cpp` measurements,
+- real CPU runs,
+- real non-4090 GPU runs,
+- real low-memory settings.
 
-- consumer GPUs,
-- CPU-only settings,
-- low-memory deployment targets.
+#### 12.2 Better MoE Credit Assignment
 
-#### 9.2 Better Input Features
+The MoE negative result suggests several concrete upgrades:
 
-The current prompt features are intentionally simple. Better complexity signals could come from:
+- longer-horizon credit assignment,
+- better expert-specific embeddings,
+- stronger cache-residency modeling,
+- richer expert-routing traces,
+- improved safety-aware exploration.
 
-- prompt syntax structure,
-- retrieval statistics,
-- uncertainty estimates,
-- hidden-state difficulty predictors.
+#### 12.3 VRAM-Budgeted Model Selection
 
-#### 9.3 Richer Learned Quantizers
+A natural extension is to move from “best quantization policy for a chosen model” to:
 
-The continuous action head can be extended from scalar control to structured learned quantization modules that output:
+- model selection,
+- quantization selection,
+- placement selection,
+- expert residency scheduling,
 
-- per-layer clipping schedules,
-- mixed group sizes,
-- layer-specific precision priors.
+all under an explicit VRAM budget.
 
-#### 9.4 Offline-to-Online Transfer
+#### 12.4 Hardware-Conditioned Transfer
 
-An appealing deployment strategy is to pretrain a policy in simulation, then fine-tune it online against real latency and quality measurements from the serving stack. The repository now includes an experimental prototype of this idea, but it is intentionally separated from the paper’s main evaluation path.
+The dedicated `run_4090_universal.py` path should eventually be paired with held-out real hardware evaluation so the project can make stronger claims about universal transfer.
 
-#### 9.5 Joint Policy and Quantizer Learning
+### 13. Conclusion
 
-The current learned mode exposes a compact continuous parameterization. A natural extension is to jointly train a small quantization network together with the control policy, so that the system learns not only *when* to compress aggressively, but also *how* to reshape quantization behavior for different layer families and hardware regimes.
+Adaptive RL Quantization reframes quantization as a learned control problem rather than a fixed preset choice. In its current form, the framework supports:
 
-### 10. Conclusion
+- universal hardware-aware policies,
+- input-adaptive quantization,
+- learned quantization functions,
+- MoE-aware packed expert selection,
+- explicit 4090-host universal-policy training.
 
-Adaptive RL Quantization reframes quantization as a learned control problem rather than a fixed preset selection problem. The resulting system is hardware-aware, input-aware, and capable of learned quantization behavior through continuous control. In the current simulator-backed offline benchmark, universal hardware conditioning reduces generalization gap, dynamic quantization substantially improves deployment reward and stability, and learned quantization functions outperform discrete baselines under a realistic multi-objective reward.
+The dense results are strong: universal policies generalize better, dynamic quantization improves stability, and learned quantization improves the deployment objective. The MoE results are promising but more nuanced: packed expert banks are clearly useful, while the current RL MoE controller still trails a strong static baseline in the present benchmark. That combination of positive and negative results makes the project stronger, not weaker. It means the system is already interesting, but it still has meaningful headroom for real ML systems research.
 
-The repository therefore serves two roles at once: it is already a functioning adaptive quantization framework for controlled offline research, and it is also a scaffold for more rigorous future evaluation on real `llama.cpp` hardware backends.
+### Appendix A. Reproducibility
 
-For a GitHub research project, this is a strong foundation: the ideas are concrete, the implementation is runnable, and the claims are scoped honestly to the current evidence. The next milestone is to replace simulator-backed headline numbers with end-to-end measurements on real `llama.cpp` deployments across diverse GPU and CPU environments.
-
-### Appendix C. Experimental Online Extension
-
-The repository includes an optional online adaptation module for replay-based continual improvement with canaries and rollback safeguards. This component is intentionally not part of the primary empirical narrative in this paper. It is better viewed as exploratory systems work that could support future offline-to-online transfer studies once the offline benchmark is fully matured and validated on real `llama.cpp` hardware.
-
-### Appendix A. Implementation Artifacts
-
-Relevant implementation files include:
-
-- `adaptive_quant/environment.py`
-- `adaptive_quant/quantization.py`
-- `adaptive_quant/policy.py`
-- `adaptive_quant/torch_policy.py`
-- `adaptive_quant/torch_trainer.py`
-- `adaptive_quant/benchmark.py`
-- `analysis/hardware_generalization.py`
-- `analysis/input_adaptation.py`
-- `analysis/quant_function_behavior.py`
-
-### Appendix B. Reproducibility Notes
-
-Baseline simulator run:
+Canonical dense offline run:
 
 ```bash
 python3 run_research.py
 ```
 
-Generic GPU run:
+Canonical MoE offline run:
 
 ```bash
-python3 run_pytorch_gpu.py
+python3 run_moe_research.py
 ```
 
-Fixed RTX 4090 run:
+Explicit 4090-host universal-policy run:
+
+```bash
+python3 run_4090_universal.py
+```
+
+Fixed 4090 CUDA run:
 
 ```bash
 python3 run_pytorch_4090.py
+```
+
+Linux 4090 validation wrapper:
+
+```bash
+bash scripts/run_4090_pipeline.sh
 ```
 
 Tests:
@@ -278,3 +358,18 @@ Tests:
 ```bash
 python3 -m unittest discover -s tests -v
 ```
+
+### Appendix B. Main Implementation Files
+
+- `adaptive_quant/environment.py`
+- `adaptive_quant/quantization.py`
+- `adaptive_quant/policy.py`
+- `adaptive_quant/torch_policy.py`
+- `adaptive_quant/torch_trainer.py`
+- `adaptive_quant/moe.py`
+- `adaptive_quant/benchmark.py`
+- `analysis/hardware_generalization.py`
+- `analysis/input_adaptation.py`
+- `analysis/quant_function_behavior.py`
+- `analysis/moe_expert_behavior.py`
+- `analysis/moe_cache_behavior.py`
