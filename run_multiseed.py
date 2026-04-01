@@ -11,6 +11,7 @@ from typing import Any, Iterable
 from adaptive_quant.entrypoints import run_pipeline_entrypoint
 from adaptive_quant.logging_utils import write_json
 from adaptive_quant.md_utils import md_table
+from adaptive_quant.stats_utils import fmt_float, sample_std
 
 from config import CONFIG as CONFIG_DENSE
 from config_moe import CONFIG_MOE
@@ -32,12 +33,6 @@ def _is_number(value: object) -> bool:
 
 def _to_float(value: Number) -> float:
     return float(value)
-
-
-def _std(values: list[float]) -> float:
-    if len(values) < 2:
-        return 0.0
-    return float(statistics.stdev(values))
 
 
 def _flatten_numeric(
@@ -103,14 +98,8 @@ def _aggregate_numeric_maps(maps: list[dict[str, float]]) -> dict[str, Aggregate
         values = [m[key] for m in maps if key in m and math.isfinite(m[key])]
         if not values:
             continue
-        aggregated[key] = AggregateStat(mean=float(statistics.fmean(values)), std=_std(values), n=len(values))
+        aggregated[key] = AggregateStat(mean=float(statistics.fmean(values)), std=sample_std(values), n=len(values))
     return aggregated
-
-
-def _fmt(x: float, *, digits: int = 2) -> str:
-    if not math.isfinite(x):
-        return "nan"
-    return f"{x:.{digits}f}"
 
 
 def _write_multiseed_report(
@@ -141,7 +130,7 @@ def _write_multiseed_report(
         stat = aggregated.get(k)
         if stat is None:
             continue
-        headline_rows.append([k, _fmt(stat.mean), _fmt(stat.std), str(stat.n)])
+        headline_rows.append([k, fmt_float(stat.mean), fmt_float(stat.std), str(stat.n)])
 
     per_seed_rows: list[list[object]] = []
     for seed, summary_path in zip(seeds, per_seed_paths, strict=True):
@@ -171,7 +160,7 @@ def _write_multiseed_report(
 
     # Include a broader (but still filtered) table of aggregates.
     filtered = {k: v for k, v in aggregated.items() if _default_key_filter(k)}
-    broad_rows: list[list[object]] = [[k, _fmt(v.mean), _fmt(v.std), str(v.n)] for k, v in filtered.items()]
+    broad_rows: list[list[object]] = [[k, fmt_float(v.mean), fmt_float(v.std), str(v.n)] for k, v in filtered.items()]
     lines.extend(
         [
             "## Aggregate metrics (filtered)",

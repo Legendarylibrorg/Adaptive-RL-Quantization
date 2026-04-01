@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import math
 from pathlib import Path
 import random
 import subprocess
@@ -11,14 +10,8 @@ from adaptive_quant.backend import SimulatorBackend, _extract_numeric, require_l
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.logging_utils import write_json
-from adaptive_quant.math_utils import mean
+from adaptive_quant.stats_utils import ratio_mean
 from adaptive_quant.types import HardwareType, QuantMode, QuantizationDecision
-
-
-def _safe_ratio(numer: float, denom: float) -> float | None:
-    if not math.isfinite(numer) or not math.isfinite(denom) or denom <= 0:
-        return None
-    return numer / denom
 
 
 def _run_llama_cpp_once(
@@ -71,14 +64,7 @@ def _run_llama_cpp_once(
 
 
 def _fit_multiplier(observed: list[float], simulated: list[float]) -> float:
-    ratios: list[float] = []
-    for o, s in zip(observed, simulated, strict=True):
-        r = _safe_ratio(o, s)
-        if r is not None and 0.01 < r < 100.0:
-            ratios.append(r)
-    if not ratios:
-        return 1.0
-    return mean(ratios)
+    return ratio_mean(observed, simulated)
 
 
 def main(argv: Iterable[str] | None = None) -> None:
