@@ -179,6 +179,15 @@ python3 run_multiseed.py --preset moe --seeds 13,17,23
 
 Those write `outputs/reports/<run_name>_multiseed_report.md` plus per-seed reports and figures.
 
+To reduce simulator/domain mismatch, you can calibrate simulator coefficients against real `llama.cpp` measurements:
+
+```bash
+# requires backend="llama_cpp" and valid llama_cpp_binary/llama_cpp_model paths
+python3 run_calibrate_llama_cpp.py
+```
+
+This writes a calibration JSON with per-hardware multipliers that can be copied into `sim_calibration` in your chosen config preset.
+
 ### 8. Results
 
 #### 8.1 Universal Dense Policy

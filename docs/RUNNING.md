@@ -8,6 +8,7 @@ This guide explains the supported entrypoints and what each one does.
 | --- | --- | --- |
 | Reproduce the main offline research path | `python3 run_research.py` | Canonical baseline and best default starting point. |
 | Reproduce the canonical MoE research path | `python3 run_moe_research.py` | Enables packed expert variants and MoE benchmark comparisons. |
+| Calibrate simulator against llama.cpp | `python3 run_calibrate_llama_cpp.py` | Fits simulator multipliers from measured latency/throughput (requires llama.cpp binary + model). |
 | Train on a 4090 and learn a universal policy | `python3 run_4090_universal.py` | Explicit 4090-host universal-policy preset. |
 | Run the optimized Linux RTX 4090 path | `bash scripts/run_4090_pipeline.sh` | Linux NVIDIA host (recommended). |
 | Run CUDA training on another NVIDIA GPU | `python3 run_pytorch_gpu.py` | Auto-detects a GPU profile. |

@@ -32,6 +32,7 @@ class TrainerBase:
             feedback=self._feedback_vector,
             episode_offset=1_000_000,
             hardware=hardware,
+            phase="eval",
         )
         return summarize_episode_results(results)
 

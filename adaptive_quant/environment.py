@@ -20,6 +20,14 @@ class AdaptiveQuantizationEnv:
         self.config = config
         self.rng = random.Random(config.seed)
         self.prompt_library = PromptLibrary()
+        self._prompt_split_rng = random.Random(config.prompt_split_seed)
+        self.train_prompt_ids: set[str] | None = None
+        self.eval_prompt_ids: set[str] | None = None
+        if config.prompt_split_enabled:
+            self.train_prompt_ids, self.eval_prompt_ids = self.prompt_library.split_ids(
+                rng=self._prompt_split_rng,
+                train_fraction=config.prompt_train_fraction,
+            )
         self.hardware_profiles = default_hardware_profiles()
         self.backend = LlamaCppBackend(config) if config.backend == "llama_cpp" else SimulatorBackend(config)
         self.expert_bank = ExpertBank(config) if config.moe_enabled else None
@@ -36,9 +44,10 @@ class AdaptiveQuantizationEnv:
         forced_hardware: HardwareType | None = None,
         forced_prompt_id: str | None = None,
         forced_prompt: PromptSample | None = None,
+        phase: str = "train",
     ) -> EpisodeState:
         hardware = forced_hardware or self._sample_hardware()
-        prompt = self._sample_prompt(forced_prompt_id, forced_prompt)
+        prompt = self._sample_prompt(forced_prompt_id, forced_prompt, phase=phase)
         previous = previous_action or [0.0, 0.0, 0.0]
         input_features, sensitivity = self._get_prompt_context(prompt)
         hardware_profile = self.hardware_profiles[hardware]
@@ -97,11 +106,23 @@ class AdaptiveQuantizationEnv:
             return hardware_modes[0]
         return hardware_modes[self.rng.randrange(len(hardware_modes))]
 
-    def _sample_prompt(self, forced_prompt_id: str | None = None, forced_prompt: PromptSample | None = None):
+    def _sample_prompt(
+        self,
+        forced_prompt_id: str | None = None,
+        forced_prompt: PromptSample | None = None,
+        *,
+        phase: str = "train",
+    ):
         if forced_prompt is not None:
             return forced_prompt
         if forced_prompt_id is None:
-            return self.prompt_library.sample(self.rng)
+            if not self.config.prompt_split_enabled:
+                return self.prompt_library.sample(self.rng)
+            allowed = self.train_prompt_ids if phase == "train" else self.eval_prompt_ids
+            if not allowed:
+                return self.prompt_library.sample(self.rng)
+            prompt_id = list(allowed)[self.rng.randrange(len(allowed))]
+            return self.prompt_library.by_id(prompt_id)
         return self.prompt_library.by_id(forced_prompt_id)
 
     def _get_prompt_context(self, prompt):
@@ -134,7 +155,14 @@ class AdaptiveQuantizationEnv:
         if self.config.stability_probe_count <= 1:
             return 0.0
         perplexities = []
-        probes = self.prompt_library.probes(state.prompt, self.config.stability_probe_count, self.rng)
+        allowed = None
+        if self.config.prompt_split_enabled:
+            # Keep probes within the same split as the active prompt.
+            if self.eval_prompt_ids is not None and state.prompt.prompt_id in self.eval_prompt_ids:
+                allowed = self.eval_prompt_ids
+            elif self.train_prompt_ids is not None:
+                allowed = self.train_prompt_ids
+        probes = self.prompt_library.probes(state.prompt, self.config.stability_probe_count, self.rng, allowed_ids=allowed)
         for probe in probes:
             probe_features, probe_sensitivity = self._get_prompt_context(probe)
             probe_state = replace(

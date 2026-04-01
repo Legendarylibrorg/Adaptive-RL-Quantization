@@ -64,12 +64,16 @@ class FrameworkConfig:
     resume_from_checkpoint: str | None = None
     backend: str = "simulator"
     training_host_label: str | None = None
+    prompt_split_enabled: bool = False
+    prompt_split_seed: int = 2027
+    prompt_train_fraction: float = 0.8
     llama_cpp_binary: str | None = None
     llama_cpp_model: str | None = None
     llama_cpp_threads: int = 8
     llama_cpp_context: int = 2048
     llama_cpp_timeout_s: float = 30.0
     llama_cpp_max_prompt_chars: int = 4096
+    sim_calibration: dict[str, dict[str, float]] = field(default_factory=dict)
     torch_device: str = "cuda"
     torch_gpu_profile: str = "auto"
     torch_dtype: str = "bfloat16"

@@ -30,16 +30,43 @@ class PromptLibrary:
     def sample(self, rng: random.Random) -> PromptSample:
         return self.prompts[rng.randrange(len(self.prompts))]
 
+    def split_ids(self, *, rng: random.Random, train_fraction: float) -> tuple[set[str], set[str]]:
+        train_fraction = max(0.0, min(1.0, float(train_fraction)))
+        ids = [prompt.prompt_id for prompt in self.prompts]
+        rng.shuffle(ids)
+        cutoff = int(round(len(ids) * train_fraction))
+        train_ids = set(ids[:cutoff])
+        eval_ids = set(ids[cutoff:])
+        if not eval_ids and ids:
+            # Ensure eval is non-empty when possible.
+            eval_ids.add(ids[-1])
+            train_ids.discard(ids[-1])
+        if not train_ids and ids:
+            train_ids.add(ids[0])
+            eval_ids.discard(ids[0])
+        return train_ids, eval_ids
+
     def by_id(self, prompt_id: str) -> PromptSample:
         try:
             return self._by_id[prompt_id]
         except KeyError as exc:
             raise KeyError(f"Unknown prompt id: {prompt_id}") from exc
 
-    def probes(self, prompt: PromptSample, count: int, rng: random.Random) -> list[PromptSample]:
+    def probes(
+        self,
+        prompt: PromptSample,
+        count: int,
+        rng: random.Random,
+        *,
+        allowed_ids: set[str] | None = None,
+    ) -> list[PromptSample]:
         if count <= 0:
             return []
-        candidates = [candidate for candidate in self.prompts if candidate.prompt_id != prompt.prompt_id]
+        candidates = [
+            candidate
+            for candidate in self.prompts
+            if candidate.prompt_id != prompt.prompt_id and (allowed_ids is None or candidate.prompt_id in allowed_ids)
+        ]
         if not candidates:
             return []
         result: list[PromptSample] = []

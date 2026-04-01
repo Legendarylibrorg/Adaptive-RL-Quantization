@@ -29,6 +29,9 @@ Adaptive behavior:
 - `learned_quant`
 - `moe_enabled`
 - `quant_mode`
+- `prompt_split_enabled`: if true, sample different prompt subsets for training vs evaluation
+- `prompt_split_seed`: RNG seed for the prompt split
+- `prompt_train_fraction`: fraction of prompts assigned to the training split
 
 Episode budget:
 
@@ -52,6 +55,12 @@ llama.cpp integration:
 - `llama_cpp_context`
 - `llama_cpp_timeout_s`: subprocess timeout when invoking the llama.cpp binary (prevents hangs)
 - `llama_cpp_max_prompt_chars`: clamp prompt length passed to llama.cpp (reduces argv/resource risk)
+
+Simulator calibration:
+
+- `sim_calibration`: optional per-hardware multipliers applied to simulator metrics
+  - keys: `gpu`, `cpu`, `low_resource`
+  - fields: `latency_multiplier`, `throughput_multiplier`, `memory_multiplier`
 
 PyTorch and 4090:
 

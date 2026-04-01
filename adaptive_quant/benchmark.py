@@ -3,10 +3,14 @@ from __future__ import annotations
 import gc
 
 from adaptive_quant.configuration import FrameworkConfig
+from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.logging_utils import write_json
+from adaptive_quant.quantization import finalize_decision
 from adaptive_quant.torch_policy import torch
 from adaptive_quant.trainer import build_trainer
+from adaptive_quant.trainer_utils import feedback_vector, summarize_episode_results
 from adaptive_quant.types import HardwareType, QuantMode
+from adaptive_quant.types import QuantizationDecision
 
 
 class BenchmarkSuite:
@@ -18,6 +22,7 @@ class BenchmarkSuite:
             "single_vs_multi": self._single_vs_multi_hardware(),
             "static_vs_dynamic": self._static_vs_dynamic(),
             "discrete_vs_learned": self._discrete_vs_learned(),
+            "static_baselines": self._static_baselines(),
         }
         if self.config.moe_enabled:
             results["dense_vs_moe"] = self._dense_vs_moe()
@@ -25,6 +30,72 @@ class BenchmarkSuite:
             results["moe_static_vs_rl"] = self._moe_static_vs_rl()
         write_json(f"{self.config.benchmark_dir}/{self.config.run_name}_benchmarks.json", results)
         return results
+
+    def _static_baselines(self) -> dict[str, object]:
+        """
+        Non-RL baselines evaluated without training (simple heuristics).
+        These are useful for sanity checks and for more credible comparisons.
+        """
+        config = self._benchmark_config()
+
+        def nearest_allowed(bits: float) -> int:
+            allowed = list(config.discrete_bit_widths)
+            return min(allowed, key=lambda b: abs(float(b) - float(bits)))
+
+        def always_safe(_state) -> QuantizationDecision:
+            return QuantizationDecision(mode=QuantMode.DISCRETE, base_bit_width=int(config.safe_default_bits))
+
+        def hardware_preferred(state) -> QuantizationDecision:
+            return QuantizationDecision(
+                mode=QuantMode.DISCRETE,
+                base_bit_width=nearest_allowed(state.hardware_profile.preferred_bits),
+            )
+
+        def complexity_aware(state) -> QuantizationDecision:
+            # Lower bits for low complexity, higher bits for high complexity.
+            score = float(state.input_features.complexity_score)
+            if score < 0.35:
+                bits = min(config.discrete_bit_widths)
+            elif score < 0.85:
+                bits = nearest_allowed(4.0)
+            else:
+                bits = max(config.discrete_bit_widths)
+            return QuantizationDecision(mode=QuantMode.DISCRETE, base_bit_width=int(bits))
+
+        baselines = {
+            "always_safe": always_safe,
+            "hardware_preferred": hardware_preferred,
+            "complexity_aware": complexity_aware,
+        }
+
+        per_baseline: dict[str, object] = {}
+        for name, act_fn in baselines.items():
+            per_baseline[name] = self._evaluate_heuristic(config, act_fn)
+        return per_baseline
+
+    def _evaluate_heuristic(self, config: FrameworkConfig, act_fn) -> dict[str, float]:
+        env = AdaptiveQuantizationEnv(config, log_path=f"{config.log_dir}/{config.run_name}_heuristic.jsonl")
+        try:
+            results = []
+            previous_action = [0.0, 0.0, 0.0]
+            max_bits = max(config.discrete_bit_widths)
+            scale_upper = config.scale_bounds[1]
+            clip_upper = config.clip_bounds[1]
+            for episode_index in range(config.evaluation_episodes):
+                state = env.reset(previous_action=previous_action, phase="eval")
+                decision = act_fn(state)
+                finalized = finalize_decision(decision, state, config)
+                result = env.evaluate_current(finalized, episode_index=3_000_000 + episode_index)
+                previous_action = feedback_vector(
+                    result.decision,
+                    max_bits=max_bits,
+                    scale_upper=scale_upper,
+                    clip_upper=clip_upper,
+                )
+                results.append(result)
+            return summarize_episode_results(results)
+        finally:
+            env.logger.close()
 
     def _single_vs_multi_hardware(self) -> dict[str, object]:
         train, per_hardware = self._run_variants(

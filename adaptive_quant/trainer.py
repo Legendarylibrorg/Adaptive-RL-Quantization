@@ -17,7 +17,7 @@ class Trainer(TrainerBase):
     def train(self) -> dict[str, float]:
         rewards: list[float] = []
         for episode_index in range(self.config.training_episodes):
-            state = self.env.reset(previous_action=self.previous_action)
+            state = self.env.reset(previous_action=self.previous_action, phase="train")
             decision, trace = self.policy.act(state, deterministic=False)
             result = self.env.evaluate_current(decision, episode_index=episode_index)
             self.policy.update(trace, result.metrics.reward)

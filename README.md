@@ -26,6 +26,7 @@ Use this as the quick decision guide:
 | --- | --- | --- |
 | Reproduce the main offline research path | `python3 run_research.py` | Canonical baseline. No CUDA required. Best default starting point. |
 | Run the canonical MoE research path | `python3 run_moe_research.py` | Enables packed expert variants, MoE benchmarks, and MoE analysis outputs. |
+| Calibrate simulator against llama.cpp | `python3 run_calibrate_llama_cpp.py` | Fits simulator multipliers from measured latency/throughput (requires `backend="llama_cpp"` config fields). |
 | Train on a 4090 and learn a universal policy | `python3 run_4090_universal.py` | Explicit 4090-host preset for multi-hardware policy learning. |
 | Run the optimized fixed 4090 pipeline | `bash scripts/run_4090_pipeline.sh` | Best path for a Linux RTX 4090 host. Includes validation and preflight. |
 | Run CUDA training on a non-4090 NVIDIA GPU | `python3 run_pytorch_gpu.py` | Auto-detects a GPU profile and uses the shared research pipeline. |

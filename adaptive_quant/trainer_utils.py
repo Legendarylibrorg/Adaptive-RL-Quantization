@@ -42,11 +42,12 @@ def collect_episode_results(
     feedback: Callable[[QuantizationDecision], list[float]],
     episode_offset: int = 0,
     hardware: HardwareType | None = None,
+    phase: str = "train",
 ) -> list[EpisodeResult]:
     results: list[EpisodeResult] = []
     previous_action = list(initial_previous_action)
     for episode_index in range(episodes):
-        state = reset(previous_action=previous_action, forced_hardware=hardware)
+        state = reset(previous_action=previous_action, forced_hardware=hardware, phase=phase)
         decision = act(state)
         result = evaluate_current(decision, episode_offset + episode_index)
         previous_action = feedback(result.decision)

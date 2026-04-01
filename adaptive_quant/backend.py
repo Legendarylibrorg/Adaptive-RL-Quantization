@@ -118,7 +118,7 @@ class SimulatorBackend:
                 memory_mb,
             )
 
-        return {
+        metrics = {
             "latency_ms": clamp(latency_ms, 5.0, 20_000.0),
             "throughput_tps": clamp(throughput_tps, 1.0, 10_000.0),
             "perplexity": clamp(perplexity, 3.0, 100.0),
@@ -127,6 +127,20 @@ class SimulatorBackend:
             "cache_miss_count": cache_miss_count,
             "variant_churn": variant_churn,
         }
+        calibration = getattr(self.config, "sim_calibration", None)
+        if isinstance(calibration, dict):
+            hw_key = state.hardware_profile.hardware_type.value
+            hw_cal = calibration.get(hw_key, {}) if isinstance(calibration.get(hw_key, {}), dict) else {}
+            latency_mul = float(hw_cal.get("latency_multiplier", 1.0))
+            throughput_mul = float(hw_cal.get("throughput_multiplier", 1.0))
+            memory_mul = float(hw_cal.get("memory_multiplier", 1.0))
+            if latency_mul > 0:
+                metrics["latency_ms"] = clamp(metrics["latency_ms"] * latency_mul, 1.0, 60_000.0)
+            if throughput_mul > 0:
+                metrics["throughput_tps"] = clamp(metrics["throughput_tps"] * throughput_mul, 0.1, 100_000.0)
+            if memory_mul > 0:
+                metrics["memory_mb"] = clamp(metrics["memory_mb"] * memory_mul, 50.0, 512_000.0)
+        return metrics
 
     def _apply_moe_adjustments(
         self,
