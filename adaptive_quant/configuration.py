@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
+import re
 
 from adaptive_quant.types import HardwareType, QuantMode
 
@@ -115,6 +116,10 @@ class FrameworkConfig:
     reward_weights: RewardWeights = field(default_factory=RewardWeights)
     seed: int = 13
 
+    def __post_init__(self) -> None:
+        _validate_run_name(self.run_name)
+
+
     def resolved_quant_mode(self) -> QuantMode:
         return QuantMode(self.quant_mode)
 
@@ -178,3 +183,23 @@ class FrameworkConfig:
 
     def report_path(self) -> str:
         return f"{self.report_dir}/{self.run_name}_report.md"
+
+
+_RUN_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+
+
+def _validate_run_name(run_name: str) -> None:
+    """
+    Prevent path traversal / odd filesystem behavior.
+
+    - No path separators or '..'
+    - ASCII-ish slug for stable filenames
+    """
+    if not isinstance(run_name, str):
+        raise TypeError("run_name must be a string")
+    if "/" in run_name or "\\" in run_name or "\x00" in run_name or ".." in run_name:
+        raise ValueError(f"Invalid run_name {run_name!r}: must not contain path separators, NUL, or '..'")
+    if not _RUN_NAME_RE.match(run_name):
+        raise ValueError(
+            f"Invalid run_name {run_name!r}: expected /^[A-Za-z0-9][A-Za-z0-9._-]{{0,127}}$/"
+        )

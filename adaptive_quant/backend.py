@@ -184,7 +184,7 @@ class LlamaCppBackend:
     def evaluate(self, state: EpisodeState, decision: QuantizationDecision) -> dict[str, float]:
         if not self.config.llama_cpp_binary or not self.config.llama_cpp_model:
             raise FileNotFoundError("llama.cpp backend requires both a binary path and a model path.")
-        if not os.path.exists(self.config.llama_cpp_binary):
+        if not os.path.isfile(self.config.llama_cpp_binary) or not os.access(self.config.llama_cpp_binary, os.X_OK):
             raise FileNotFoundError(f"Missing llama.cpp binary: {self.config.llama_cpp_binary}")
         if not os.path.exists(self.config.llama_cpp_model):
             raise FileNotFoundError(f"Missing model file: {self.config.llama_cpp_model}")

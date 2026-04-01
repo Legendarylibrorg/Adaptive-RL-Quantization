@@ -98,7 +98,7 @@ def main(argv: Iterable[str] | None = None) -> None:
     config = BASE.clone(backend="llama_cpp", prompt_split_enabled=False)
     if not config.llama_cpp_binary or not config.llama_cpp_model:
         raise SystemExit("Calibration requires llama_cpp_binary and llama_cpp_model set in the chosen config preset.")
-    if not os.path.exists(config.llama_cpp_binary):
+    if not os.path.isfile(config.llama_cpp_binary) or not os.access(config.llama_cpp_binary, os.X_OK):
         raise SystemExit(f"Missing llama.cpp binary: {config.llama_cpp_binary}")
     if not os.path.exists(config.llama_cpp_model):
         raise SystemExit(f"Missing model file: {config.llama_cpp_model}")

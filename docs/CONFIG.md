@@ -20,6 +20,7 @@ General:
 - `backend`: `"simulator"` or `"llama_cpp"`
 - `training_host_label`: optional label for the machine used to train the policy
 - `run_name`: controls output filenames
+- `run_name` must be a filename-safe slug (letters/digits plus `._-`, no spaces, no path separators).
 - `resume_from_checkpoint`: resume a PyTorch run from a saved checkpoint
 
 Adaptive behavior:
