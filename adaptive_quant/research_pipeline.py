@@ -38,6 +38,7 @@ class ResearchPipeline:
                 write_json(f"{config.benchmark_dir}/{config.run_name}_preflight.json", preflight_report)
 
             train_summary = trainer.train()
+            vram_report = self._collect_vram_report(trainer)
             eval_summary = trainer.evaluate()
             history_path = self._write_training_history(config, trainer)
             checkpoint_path = self._maybe_save_final_checkpoint(config, trainer)
@@ -54,6 +55,7 @@ class ResearchPipeline:
             benchmark_summary=benchmark_summary,
             gpu_profile_report=gpu_profile_report,
             preflight_report=preflight_report,
+            vram_report=vram_report,
             analysis=analysis,
             history_path=history_path,
             checkpoint_path=checkpoint_path,
@@ -63,6 +65,7 @@ class ResearchPipeline:
             "git_commit": git_commit,
             "gpu_profile": gpu_profile_report,
             "preflight": preflight_report,
+            "vram": vram_report,
             "train": train_summary,
             "evaluation": eval_summary,
             "benchmarks": benchmark_summary,
@@ -116,6 +119,18 @@ class ResearchPipeline:
         write_json(path, history)
         return path
 
+    def _collect_vram_report(self, trainer) -> dict[str, object] | None:
+        vram_fn = getattr(trainer, "_vram_stats", None)
+        if not callable(vram_fn):
+            return None
+        stats = vram_fn()
+        if not stats:
+            return None
+        replay = getattr(trainer, "replay_buffer", None)
+        if replay is not None:
+            stats["replay_buffer_entries"] = float(replay.size)
+        return stats
+
     def _maybe_save_final_checkpoint(self, config: FrameworkConfig, trainer) -> str | None:
         save_checkpoint = getattr(trainer, "save_checkpoint", None)
         if not callable(save_checkpoint):
@@ -146,6 +161,7 @@ class ResearchPipeline:
         benchmark_summary: dict[str, object],
         gpu_profile_report: dict[str, object] | None,
         preflight_report: dict[str, object] | None,
+        vram_report: dict[str, object] | None,
         analysis: dict[str, object],
         history_path: str | None,
         checkpoint_path: str | None,
@@ -278,9 +294,22 @@ class ResearchPipeline:
             "### Discrete vs learned",
             _md_code_json(discrete_vs_learned) if discrete_vs_learned is not None else "_not run_",
             "",
-            "## GPU / Preflight",
+            "## GPU / VRAM / Preflight",
             f"- gpu profile: `{gpu_profile_report or 'n/a'}`",
             f"- preflight: `{preflight_report or 'n/a'}`",
+            f"- continuous_training: `{config.continuous_training}`",
+            f"- max_training_episodes: `{config.max_training_episodes:,}`",
+            f"- replay_buffer_capacity: `{config.replay_buffer_capacity:,}`",
+            *(
+                [
+                    f"- vram_allocated_mb: `{vram_report.get('vram_allocated_mb', 'n/a')}`",
+                    f"- vram_reserved_mb: `{vram_report.get('vram_reserved_mb', 'n/a')}`",
+                    f"- replay_buffer_mb: `{vram_report.get('replay_buffer_mb', 'n/a')}`",
+                    f"- replay_buffer_entries: `{vram_report.get('replay_buffer_entries', 'n/a')}`",
+                ]
+                if vram_report
+                else ["- vram: `n/a (cpu backend)`"]
+            ),
             "",
             "## Analysis",
             "### Figures",

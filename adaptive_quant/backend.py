@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 from typing import Protocol
 
@@ -211,15 +212,14 @@ class LlamaCppBackend:
             check=False,
             timeout=float(getattr(self.config, "llama_cpp_timeout_s", 30.0)),
         )
-        stdout = completed.stdout.lower()
-        throughput_tps = _extract_numeric(stdout, "tok/s", default=0.0)
-        latency_ms = _extract_numeric(stdout, "ms per token", default=0.0)
+        combined = ((completed.stdout or "") + "\n" + (completed.stderr or "")).lower()
+        parsed = parse_llama_cpp_metrics(combined)
         metrics = SimulatorBackend(self.config).evaluate(state, decision)
 
-        if throughput_tps > 0.0:
-            metrics["throughput_tps"] = throughput_tps
-        if latency_ms > 0.0:
-            metrics["latency_ms"] = latency_ms * max(1, state.input_features.prompt_length)
+        if parsed.get("throughput_tps", 0.0) > 0.0:
+            metrics["throughput_tps"] = float(parsed["throughput_tps"])
+        if parsed.get("latency_ms_per_token", 0.0) > 0.0:
+            metrics["latency_ms"] = float(parsed["latency_ms_per_token"]) * max(1, state.input_features.prompt_length)
         return metrics
 
 
@@ -235,24 +235,49 @@ def require_llama_cpp_paths(config: FrameworkConfig) -> tuple[str, str]:
     return str(binary), str(model)
 
 
-def _extract_numeric(stdout: str, marker: str, default: float) -> float:
-    marker_index = stdout.find(marker)
-    if marker_index < 0:
+_NUMBER_RE = r"-?\d+(?:\.\d+)?"
+
+
+def _extract_numeric(text: str, marker: str, default: float) -> float:
+    """
+    Extract the last float that appears immediately before a marker.
+
+    Example markers: "tok/s", "ms per token", "mb".
+    """
+    if not text or not marker:
         return default
-    prefix = stdout[max(0, marker_index - 20) : marker_index]
-    numbers = []
-    current = []
-    for character in prefix:
-        if character.isdigit() or character == ".":
-            current.append(character)
-        elif current:
-            numbers.append("".join(current))
-            current = []
-    if current:
-        numbers.append("".join(current))
-    if not numbers:
+    escaped = re.escape(marker)
+    # Support both "12.3 tok/s" and "tok/s 12.3" styles.
+    pattern = re.compile(
+        rf"(?:(?P<num_before>{_NUMBER_RE})\s*{escaped}|{escaped}\s*(?P<num_after>{_NUMBER_RE}))"
+    )
+    matches = list(pattern.finditer(text))
+    if not matches:
         return default
     try:
-        return float(numbers[-1])
+        last = matches[-1]
+        value = last.group("num_before") or last.group("num_after")
+        return float(value) if value is not None else default
     except ValueError:
         return default
+
+
+def parse_llama_cpp_metrics(text: str) -> dict[str, float]:
+    """
+    Best-effort parser for common llama.cpp CLI output.
+    Returns keys when found:
+      - latency_ms_per_token
+      - throughput_tps
+      - memory_mb (best-effort; may be absent)
+    """
+    throughput_tps = _extract_numeric(text, "tok/s", default=0.0)
+    latency_ms_per_token = _extract_numeric(text, "ms per token", default=0.0)
+    memory_mb = _extract_numeric(text, "mb", default=0.0)
+    result: dict[str, float] = {}
+    if throughput_tps > 0.0:
+        result["throughput_tps"] = throughput_tps
+    if latency_ms_per_token > 0.0:
+        result["latency_ms_per_token"] = latency_ms_per_token
+    if memory_mb > 0.0:
+        result["memory_mb"] = memory_mb
+    return result

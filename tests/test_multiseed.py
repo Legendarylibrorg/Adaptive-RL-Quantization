@@ -10,7 +10,7 @@ class MultiSeedRunnerTests(unittest.TestCase):
         from run_multiseed import main
 
         # Use 2 seeds to keep the test very fast.
-        main(["--preset", "dense", "--seeds", "1,2", "--run-name", "test_multiseed"])
+        main(["--preset", "dense", "--seeds", "1,2", "--run-name", "test_multiseed", "--episodes", "240"])
 
         summary_path = Path("outputs/benchmarks/test_multiseed_multiseed_summary.json")
         report_path = Path("outputs/reports/test_multiseed_multiseed_report.md")

@@ -6,7 +6,7 @@ import random
 import subprocess
 from typing import Any, Iterable
 
-from adaptive_quant.backend import SimulatorBackend, _extract_numeric, require_llama_cpp_paths
+from adaptive_quant.backend import SimulatorBackend, parse_llama_cpp_metrics, require_llama_cpp_paths
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.logging_utils import write_json
@@ -48,13 +48,10 @@ def _run_llama_cpp_once(
         timeout=float(getattr(config, "llama_cpp_timeout_s", 30.0)),
     )
     combined = ((completed.stdout or "") + "\n" + (completed.stderr or "")).lower()
-
-    throughput_tps = _extract_numeric(combined, "tok/s", default=0.0)
-    latency_ms_per_token = _extract_numeric(combined, "ms per token", default=0.0)
-
-    # Best-effort memory extraction (llama.cpp outputs vary).
-    # We look for nearby "mb" markers and take the most recent number.
-    memory_mb = _extract_numeric(combined, "mb", default=0.0)
+    parsed = parse_llama_cpp_metrics(combined)
+    throughput_tps = float(parsed.get("throughput_tps", 0.0))
+    latency_ms_per_token = float(parsed.get("latency_ms_per_token", 0.0))
+    memory_mb = float(parsed.get("memory_mb", 0.0))
 
     return (
         latency_ms_per_token if latency_ms_per_token > 0 else None,

@@ -14,6 +14,12 @@ The repository has two main research paths:
 - `simulator` mode: pure-Python, no ML dependencies, works anywhere with Python 3.11+
 - `pytorch` mode: optimized for CUDA GPUs, with auto-tuned profiles for cards like RTX 4070/4080/4090, RTX 3090, L4, A100, H100, and similar VRAM classes
 
+Key training features:
+
+- **Continuous learning**: trains for up to 100,000 episodes with periodic evaluation and checkpointing
+- **GPU replay buffer**: 50,000-entry experience buffer stored in VRAM for improved sample efficiency
+- **VRAM tracking**: allocated/reserved GPU memory and replay buffer usage logged in training history and reports
+
 There is also an optional experimental extension:
 
 - `online` mode: simulator-first continual adaptation loop with live telemetry, replay, canary checks, and rollback guards. This is useful for systems exploration, but the main research story and paper draft are centered on offline, reproducible training and evaluation.

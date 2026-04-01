@@ -37,10 +37,14 @@ class FrameworkConfig:
     moe_variant_churn_penalty: float = 0.050
     moe_max_aggressive_experts: int = 1
     moe_max_swap_cost_ms: float = 7.5
-    training_episodes: int = 240
-    evaluation_episodes: int = 60
+    training_episodes: int = 10_000
+    evaluation_episodes: int = 500
     benchmark_training_episodes: int | None = None
     benchmark_evaluation_episodes: int | None = None
+    continuous_training: bool = False
+    eval_interval: int = 1_000
+    checkpoint_interval: int = 5_000
+    max_training_episodes: int = 100_000
     learning_rate: float = 0.035
     value_learning_rate: float = 0.020
     continuous_stddev: float = 0.18
@@ -102,6 +106,8 @@ class FrameworkConfig:
     online_requests: int = 256
     online_exploration_rate: float = 0.12
     online_canary_ratio: float = 0.50
+    replay_buffer_capacity: int = 50_000
+    replay_buffer_on_gpu: bool = True
     online_replay_capacity: int = 2048
     online_min_replay_size: int = 64
     online_update_interval: int = 32

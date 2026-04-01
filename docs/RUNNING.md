@@ -6,12 +6,12 @@ This guide explains the supported entrypoints and what each one does.
 
 | Goal | Recommended command | Notes |
 | --- | --- | --- |
-| Reproduce the main offline research path | `python3 run_research.py` | Canonical baseline and best default starting point. |
+| Reproduce the main offline research path | `python3 run_research.py` | Canonical baseline with 10k episodes, continuous learning, and GPU replay. |
 | Reproduce the canonical MoE research path | `python3 run_moe_research.py` | Enables packed expert variants and MoE benchmark comparisons. |
 | Calibrate simulator against llama.cpp | `python3 run_calibrate_llama_cpp.py` | Fits simulator multipliers from measured latency/throughput (requires llama.cpp binary + model). |
-| Train on a 4090 and learn a universal policy | `python3 run_4090_universal.py` | Explicit 4090-host universal-policy preset. |
+| Train on a 4090 with continuous learning | `python3 run_4090_universal.py` | 4090-host, VRAM replay buffer, periodic eval/checkpoint. |
 | Run the optimized Linux RTX 4090 path | `bash scripts/run_4090_pipeline.sh` | Linux NVIDIA host (recommended). |
-| Run CUDA training on another NVIDIA GPU | `python3 run_pytorch_gpu.py` | Auto-detects a GPU profile. |
+| Run CUDA training on another NVIDIA GPU | `python3 run_pytorch_gpu.py` | Auto-detects a GPU profile. VRAM replay buffer enabled. |
 | Explore continual adaptation | `python3 run_online_learning.py` | Experimental extension. |
 
 ## Primary entrypoints
@@ -30,6 +30,9 @@ python3 run_multiseed.py --preset dense --seeds 13,17,23,29,31
 
 Notes:
 
+- The default config now trains for **10,000 episodes** with **continuous learning** enabled (periodic eval every 1,000 episodes, checkpoint every 5,000).
+- On a PyTorch/CUDA backend, a **50,000-entry GPU replay buffer** is allocated in VRAM and mixed into PPO updates for better sample efficiency.
+- VRAM usage (allocated, reserved, replay buffer size) is logged in training history and the final report.
 - Seed syntax supports `a,b,c` and ranges like `0-9`.
 - Multi-seed runs write an aggregate report to `outputs/reports/<run_name>_multiseed_report.md` and per-seed reports to `outputs/reports/<run_name>_seed<seed>_report.md`.
 

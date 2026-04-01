@@ -36,10 +36,22 @@ Adaptive behavior:
 
 Episode budget:
 
-- `training_episodes`
-- `evaluation_episodes`
+- `training_episodes`: number of episodes for fixed-horizon training (default: 10,000)
+- `evaluation_episodes`: number of episodes for evaluation (default: 500)
 - `benchmark_training_episodes`
 - `benchmark_evaluation_episodes`
+
+Continuous learning:
+
+- `continuous_training`: if true, trains up to `max_training_episodes` with periodic eval/checkpoint (default: false)
+- `max_training_episodes`: upper bound for continuous training (default: 100,000)
+- `eval_interval`: evaluate every N episodes during continuous training (default: 1,000)
+- `checkpoint_interval`: save checkpoint every N episodes during continuous training (default: 5,000)
+
+GPU replay buffer (VRAM):
+
+- `replay_buffer_capacity`: number of experiences stored in the GPU replay buffer (default: 50,000)
+- `replay_buffer_on_gpu`: if true, replay buffer tensors live on CUDA VRAM (default: true)
 
 Safety and reward:
 

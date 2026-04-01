@@ -210,6 +210,12 @@ def main(argv: Iterable[str] | None = None) -> None:
         default=None,
         help="Base run name for the multiseed aggregate (defaults to preset run_name).",
     )
+    parser.add_argument(
+        "--episodes",
+        default=None,
+        type=int,
+        help="Override training_episodes (useful for fast smoke tests).",
+    )
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     seeds = _parse_seeds(args.seeds)
@@ -217,6 +223,12 @@ def main(argv: Iterable[str] | None = None) -> None:
         raise SystemExit("No seeds provided.")
 
     base_config = _select_preset(args.preset)
+    if args.episodes is not None:
+        base_config = base_config.clone(
+            training_episodes=args.episodes,
+            evaluation_episodes=max(1, args.episodes // 4),
+            continuous_training=False,
+        )
     base_run_name = str(args.run_name or base_config.run_name)
     multiseed_run_name = f"{base_run_name}_multiseed"
 
