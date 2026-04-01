@@ -1,5 +1,7 @@
 # Adaptive RL Quantization with llama.cpp
 
+Project URL: `https://github.com/Legendarylibrorg/Adaptive-RL-Quantization`
+
 Adaptive RL Quantization is a research framework for:
 
 - multi-hardware universal policy learning
@@ -48,7 +50,7 @@ For real `llama.cpp` measurements:
 - a built `llama.cpp` binary
 - a model file to pass through the config
 
-## Linux startup from a fresh host
+## Linux startup from a fresh host (recommended)
 
 On a Linux machine, this is the shortest end-to-end startup sequence.
 
@@ -131,6 +133,46 @@ python3 run_moe_research.py
 ```bash
 python3 run_4090_universal.py
 ```
+
+## macOS startup from a fresh host
+
+This repo runs fine on macOS for the simulator research path.
+
+1. Confirm the basics are available:
+
+```bash
+uname -a
+python3 --version
+git --version
+```
+
+2. Clone the repository and enter it:
+
+```bash
+git clone https://github.com/Legendarylibrorg/Adaptive-RL-Quantization.git
+cd Adaptive-RL-Quantization
+```
+
+3. Create and activate a virtual environment:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install --upgrade pip setuptools
+```
+
+4. Install and run:
+
+```bash
+python3 -m pip install -e .
+python3 -m unittest discover -s tests -v
+python3 run_research.py
+```
+
+Notes:
+
+- The CUDA PyTorch paths (`run_pytorch_gpu.py`, `run_pytorch_4090.py`, `scripts/run_4090_pipeline.sh`) are intended for Linux NVIDIA hosts.
+- You can still use the `llama.cpp` backend on macOS if you build `llama.cpp` locally and point the config at the binary + model.
 
 ## Install
 
@@ -352,13 +394,13 @@ Outputs are written under `outputs/`:
 
 ## Documentation
 
-- [Installation Guide](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/docs/INSTALL.md)
-- [Running Guide](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/docs/RUNNING.md)
-- [Configuration Guide](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/docs/CONFIG.md)
-- [GPU Profiles Guide](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/docs/GPU_PROFILES.md)
-- [Paper Draft](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/docs/PAPER.md)
-- [Online Adaptation Guide](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/docs/ONLINE.md)
-- [Troubleshooting](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/docs/TROUBLESHOOTING.md)
+- [Installation Guide](docs/INSTALL.md)
+- [Running Guide](docs/RUNNING.md)
+- [Configuration Guide](docs/CONFIG.md)
+- [GPU Profiles Guide](docs/GPU_PROFILES.md)
+- [Paper Draft](docs/PAPER.md)
+- [Online Adaptation Guide](docs/ONLINE.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
 
 ## Common commands
 
@@ -368,11 +410,38 @@ Canonical offline research run:
 python3 run_research.py
 ```
 
+Multi-seed (recommended for more meaningful research):
+
+```bash
+# runs the dense preset across multiple random seeds and aggregates mean/std
+python3 run_multiseed.py --preset dense --seeds 13,17,23,29,31
+```
+
 Canonical MoE research run:
 
 ```bash
 python3 run_moe_research.py
 ```
+
+Multi-seed MoE run:
+
+```bash
+python3 run_multiseed.py --preset moe --seeds 13,17,23
+```
+
+## Multi-seed outputs (what to read)
+
+`run_multiseed.py` produces:
+
+- `outputs/benchmarks/<run_name>_multiseed_summary.json`: aggregate metrics (mean/std across seeds)
+- `outputs/reports/<run_name>_multiseed_report.md`: human-readable aggregate tables + links to per-seed summaries
+- `outputs/benchmarks/<run_name>_seed<seed>_summary.json`: full per-seed pipeline summary (config, train/eval, benchmarks, analysis pointers)
+- `outputs/reports/<run_name>_seed<seed>_report.md`: per-seed report with benchmark details and figure links
+
+Interpretation notes:
+
+- The **mean ± std** tables quantify run-to-run variability from randomness (seed), not just a single lucky run.
+- Simulator runs are fast and reproducible; switch to `backend="llama_cpp"` in a config preset if you want hardware-grounded measurements.
 
 4090-host universal policy run:
 

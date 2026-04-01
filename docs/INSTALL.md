@@ -5,7 +5,19 @@ This project supports two installation targets:
 - simulator mode: no external ML libraries required
 - CUDA GPU mode: CUDA-enabled PyTorch required
 
+## OS support
+
+This repo is designed to be **Linux-first** (especially for NVIDIA CUDA training), while the **simulator research path works on macOS** as well.
+
+- **Linux**: recommended for GPU runs and for `scripts/run_4090_pipeline.sh`
+- **macOS**: supported for simulator runs; CUDA/NVIDIA paths are not the primary target
+
 ## 1. Base setup
+
+Requirements:
+
+- Python 3.11+
+- `git`
 
 Create a virtual environment:
 
@@ -44,6 +56,13 @@ Install CUDA-enabled PyTorch on the target GPU host. The exact command depends o
 - your driver version
 - your CUDA runtime
 - the PyTorch build you want to use
+
+Linux NVIDIA sanity checks:
+
+```bash
+nvidia-smi
+python3 -c "import torch; print('torch', torch.__version__); print('cuda', torch.cuda.is_available())"
+```
 
 After installation, verify:
 
@@ -85,7 +104,7 @@ If you want real `llama.cpp`-backed measurements instead of the simulator backen
 - a built `llama.cpp` CLI binary
 - a local model file
 
-Then set these config values in [config.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config.py), [config_gpu.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_gpu.py), or [config_4090.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_4090.py):
+Then set these config values in [`config.py`](../config.py), [`config_gpu.py`](../config_gpu.py), or [`config_4090.py`](../config_4090.py):
 
 - `backend="llama_cpp"`
 - `llama_cpp_binary="/absolute/path/to/llama-cli-or-equivalent"`
@@ -108,6 +127,16 @@ That means:
 ## 6. Quick install matrix
 
 Simulator only:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install --upgrade pip setuptools
+python3 -m pip install -e .
+python3 run_research.py
+```
+
+macOS simulator only (same commands):
 
 ```bash
 python3 -m venv .venv

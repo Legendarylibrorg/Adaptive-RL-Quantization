@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+import json
 from pathlib import Path
 import subprocess
 
@@ -152,6 +153,102 @@ class ResearchPipeline:
             return None
         target = Path(config.report_path())
         target.parent.mkdir(parents=True, exist_ok=True)
+        report_dir = target.parent
+
+        def _md_code_json(obj: object) -> str:
+            return "```json\n" + json.dumps(obj, indent=2, sort_keys=True) + "\n```"
+
+        def _fmt_num(value: object, *, digits: int = 2) -> str:
+            if isinstance(value, bool) or value is None:
+                return str(value)
+            if isinstance(value, (int, float)):
+                return f"{value:.{digits}f}"
+            return str(value)
+
+        def _md_table(headers: list[str], rows: list[list[object]]) -> list[str]:
+            lines: list[str] = []
+            lines.append("| " + " | ".join(headers) + " |")
+            lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
+            for row in rows:
+                lines.append("| " + " | ".join(str(cell) for cell in row) + " |")
+            return lines
+
+        def _maybe_link(rel_path: Path) -> str:
+            # Link paths should be relative to the report file.
+            abs_path = report_dir / rel_path
+            if abs_path.exists():
+                return f"[{rel_path.name}]({rel_path.as_posix()})"
+            return f"`{rel_path.as_posix()}` (missing)"
+
+        def _analysis_fig_links() -> list[str]:
+            # Prefer relative links from the report location.
+            analysis_root = Path(config.analysis_dir) / config.run_name
+            rel_root = Path("..") / "analysis" / config.run_name
+            candidates = [
+                ("hardware reward", analysis_root / "hardware" / "hardware_generalization_reward.svg"),
+                ("hardware latency", analysis_root / "hardware" / "hardware_generalization_latency.svg"),
+                ("input complexity vs bits", analysis_root / "inputs" / "input_complexity_vs_bits.svg"),
+                ("input adaptation scatter", analysis_root / "inputs" / "input_adaptation_scatter.svg"),
+                ("quant function params", analysis_root / "quant" / "quant_function_parameters.svg"),
+                ("training reward curve", analysis_root / "training" / "training_reward_curve.svg"),
+            ]
+            lines: list[str] = []
+            for label, abs_path in candidates:
+                rel_path = rel_root / abs_path.relative_to(analysis_root)
+                lines.append(f"- {label}: {_maybe_link(rel_path)}")
+            return lines
+
+        eval_metrics = [
+            ("mean_reward", eval_summary.get("mean_reward")),
+            ("mean_latency_ms", eval_summary.get("mean_latency_ms")),
+            ("mean_throughput_tps", eval_summary.get("mean_throughput_tps")),
+            ("mean_memory_mb", eval_summary.get("mean_memory_mb")),
+            ("mean_perplexity", eval_summary.get("mean_perplexity")),
+            ("mean_stability_penalty", eval_summary.get("mean_stability_penalty")),
+        ]
+        eval_rows = [[k, _fmt_num(v)] for k, v in eval_metrics]
+
+        bench = benchmark_summary
+        single_vs_multi = bench.get("single_vs_multi") if isinstance(bench, dict) else None
+        static_vs_dynamic = bench.get("static_vs_dynamic") if isinstance(bench, dict) else None
+        discrete_vs_learned = bench.get("discrete_vs_learned") if isinstance(bench, dict) else None
+
+        key_results_lines: list[str] = []
+        if isinstance(single_vs_multi, dict):
+            key_results_lines.append(
+                "- universal policy gap improvement: "
+                f"**{_fmt_num(single_vs_multi.get('generalization_gap_improvement'))}** "
+                "(lower gap is better)"
+            )
+        if isinstance(static_vs_dynamic, dict):
+            evaluation = static_vs_dynamic.get("evaluation", {})
+            if isinstance(evaluation, dict):
+                s = evaluation.get("static", {})
+                d = evaluation.get("dynamic", {})
+                if isinstance(s, dict) and isinstance(d, dict):
+                    key_results_lines.append(
+                        "- static → dynamic reward: "
+                        f"{_fmt_num(s.get('mean_reward'))} → {_fmt_num(d.get('mean_reward'))}"
+                    )
+                    key_results_lines.append(
+                        "- static → dynamic stability penalty: "
+                        f"{_fmt_num(s.get('mean_stability_penalty'))} → {_fmt_num(d.get('mean_stability_penalty'))}"
+                    )
+        if isinstance(discrete_vs_learned, dict):
+            evaluation = discrete_vs_learned.get("evaluation", {})
+            if isinstance(evaluation, dict):
+                l = evaluation.get("learned", {})
+                d = evaluation.get("discrete", {})
+                if isinstance(d, dict) and isinstance(l, dict):
+                    key_results_lines.append(
+                        "- discrete → learned reward: "
+                        f"{_fmt_num(d.get('mean_reward'))} → {_fmt_num(l.get('mean_reward'))}"
+                    )
+                    key_results_lines.append(
+                        "- discrete → learned latency (ms): "
+                        f"{_fmt_num(d.get('mean_latency_ms'))} → {_fmt_num(l.get('mean_latency_ms'))}"
+                    )
+
         lines = [
             f"# {config.run_name}",
             "",
@@ -163,23 +260,41 @@ class ResearchPipeline:
             f"- hardware_modes: `{', '.join(config.hardware_modes)}`",
             f"- git_commit: `{git_commit or 'unknown'}`",
             "",
+            "## Key results (from this run)",
+            *(key_results_lines or ["- (no benchmark summary available)"]),
+            "",
             "## Training",
-            f"- train summary: `{train_summary}`",
+            f"- episodes: `{train_summary.get('episodes')}`",
+            f"- mean_reward: `{_fmt_num(train_summary.get('mean_reward'))}`",
+            f"- best_reward: `{_fmt_num(train_summary.get('best_reward'))}`",
+            f"- final_reward: `{_fmt_num(train_summary.get('final_reward'))}`",
             f"- history: `{history_path or 'not written'}`",
             f"- checkpoint: `{checkpoint_path or 'not written'}`",
             "",
             "## Evaluation",
-            f"- evaluation summary: `{eval_summary}`",
+            *_md_table(["metric", "value"], eval_rows),
             "",
             "## Benchmarks",
-            f"- benchmark summary: `{benchmark_summary}`",
+            "",
+            "### Single-hardware vs multi-hardware",
+            _md_code_json(single_vs_multi) if single_vs_multi is not None else "_not run_",
+            "",
+            "### Static vs dynamic",
+            _md_code_json(static_vs_dynamic) if static_vs_dynamic is not None else "_not run_",
+            "",
+            "### Discrete vs learned",
+            _md_code_json(discrete_vs_learned) if discrete_vs_learned is not None else "_not run_",
             "",
             "## GPU / Preflight",
-            f"- gpu profile: `{gpu_profile_report}`",
-            f"- preflight: `{preflight_report}`",
+            f"- gpu profile: `{gpu_profile_report or 'n/a'}`",
+            f"- preflight: `{preflight_report or 'n/a'}`",
             "",
             "## Analysis",
-            f"- analysis outputs: `{analysis}`",
+            "### Figures",
+            *_analysis_fig_links(),
+            "",
+            "### Analysis summaries",
+            _md_code_json(analysis),
         ]
         target.write_text("\n".join(lines) + "\n", encoding="utf-8")
         return str(target)

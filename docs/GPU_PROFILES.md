@@ -4,12 +4,12 @@ The PyTorch path now supports more than one GPU target.
 
 There are two ways to run GPU training:
 
-- [run_pytorch_gpu.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/run_pytorch_gpu.py): auto-detect the GPU and apply a tuned profile
-- [run_pytorch_4090.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/run_pytorch_4090.py): force the RTX 4090 profile
+- [`run_pytorch_gpu.py`](../run_pytorch_gpu.py): auto-detect the GPU and apply a tuned profile
+- [`run_pytorch_4090.py`](../run_pytorch_4090.py): force the RTX 4090 profile
 
 ## Supported profiles
 
-The profile system lives in [adaptive_quant/gpu_profiles.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/adaptive_quant/gpu_profiles.py).
+The profile system lives in [`adaptive_quant/gpu_profiles.py`](../adaptive_quant/gpu_profiles.py).
 
 Current named profiles:
 
@@ -64,7 +64,7 @@ If the card is unknown, the fallback is chosen from total VRAM.
 
 ## How to force a profile
 
-Edit [config_gpu.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_gpu.py):
+Edit [`config_gpu.py`](../config_gpu.py):
 
 - change `torch_gpu_profile="auto"` to a named profile
 

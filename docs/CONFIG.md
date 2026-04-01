@@ -2,15 +2,15 @@
 
 Configuration lives in:
 
-- [config.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config.py)
-- [config_moe.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_moe.py)
-- [config_online.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_online.py)
-- [config_gpu.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_gpu.py)
-- [config_4090.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_4090.py)
-- [config_4090_universal.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_4090_universal.py)
-- [adaptive_quant/configuration.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/adaptive_quant/configuration.py)
+- [`config.py`](../config.py)
+- [`config_moe.py`](../config_moe.py)
+- [`config_online.py`](../config_online.py)
+- [`config_gpu.py`](../config_gpu.py)
+- [`config_4090.py`](../config_4090.py)
+- [`config_4090_universal.py`](../config_4090_universal.py)
+- [`adaptive_quant/configuration.py`](../adaptive_quant/configuration.py)
 
-Use [config.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config.py) as the canonical offline research baseline. It is the simplest preset to reproduce and the best starting point for stable experiments.
+Use [`config.py`](../config.py) as the canonical offline research baseline. It is the simplest preset to reproduce and the best starting point for stable experiments.
 
 ## Most important fields
 
@@ -50,6 +50,8 @@ llama.cpp integration:
 - `llama_cpp_model`
 - `llama_cpp_threads`
 - `llama_cpp_context`
+- `llama_cpp_timeout_s`: subprocess timeout when invoking the llama.cpp binary (prevents hangs)
+- `llama_cpp_max_prompt_chars`: clamp prompt length passed to llama.cpp (reduces argv/resource risk)
 
 PyTorch and 4090:
 
@@ -113,39 +115,39 @@ Local laptop or quick CI-style validation:
 - `training_backend="python"`
 - `backend="simulator"`
 - small `training_episodes`
-- start from [config.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config.py)
+- start from [`config.py`](../config.py)
 
 Auto-tuned GPU training:
 
-- use [config_gpu.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_gpu.py)
+- use [`config_gpu.py`](../config_gpu.py)
 - keep `torch_gpu_profile="auto"` unless you want to force a profile
 - keep `cache_prompt_features=True`
 - keep `torch_preflight=True`
 
 RTX 4090 training:
 
-- use [config_4090.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_4090.py)
+- use [`config_4090.py`](../config_4090.py)
 - keep `training_backend="pytorch"`
 - keep `cache_prompt_features=True`
 - keep `torch_preflight=True`
 
 4090-host universal policy training:
 
-- use [config_4090_universal.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_4090_universal.py)
+- use [`config_4090_universal.py`](../config_4090_universal.py)
 - keep `training_host_label="rtx4090"`
 - keep `multi_hardware=True`
 - keep `hardware_modes=("gpu", "cpu", "low_resource")`
 
 Canonical MoE research:
 
-- use [config_moe.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_moe.py)
+- use [`config_moe.py`](../config_moe.py)
 - keep `moe_enabled=True`
 - keep `moe_variant_names=("safe", "balanced", "aggressive")`
 - keep `moe_max_aggressive_experts` and `moe_max_swap_cost_ms` enabled for safety
 
 Experimental continual adaptation:
 
-- use [config_online.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_online.py) for continual adaptation experiments
+- use [`config_online.py`](../config_online.py) for continual adaptation experiments
 - keep `online_learning=True`
 - tune `online_exploration_rate` and `online_reward_guard` together
 - increase `online_drift_reward_delta` if the loop is too rollback-heavy

@@ -175,12 +175,17 @@ class LlamaCppBackend:
         if not os.path.exists(self.config.llama_cpp_model):
             raise FileNotFoundError(f"Missing model file: {self.config.llama_cpp_model}")
 
+        prompt_text = state.prompt.text
+        max_chars = int(getattr(self.config, "llama_cpp_max_prompt_chars", 4096))
+        if max_chars > 0 and len(prompt_text) > max_chars:
+            prompt_text = prompt_text[:max_chars]
+
         command = [
             self.config.llama_cpp_binary,
             "-m",
             self.config.llama_cpp_model,
             "-p",
-            state.prompt.text,
+            prompt_text,
             "-ngl",
             str(state.hardware_profile.ngl),
             "-t",
@@ -190,7 +195,13 @@ class LlamaCppBackend:
             "-n",
             "64",
         ]
-        completed = subprocess.run(command, capture_output=True, text=True, check=False)
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=float(getattr(self.config, "llama_cpp_timeout_s", 30.0)),
+        )
         stdout = completed.stdout.lower()
         throughput_tps = _extract_numeric(stdout, "tok/s", default=0.0)
         latency_ms = _extract_numeric(stdout, "ms per token", default=0.0)

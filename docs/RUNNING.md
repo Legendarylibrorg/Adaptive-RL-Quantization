@@ -9,7 +9,7 @@ This guide explains the supported entrypoints and what each one does.
 | Reproduce the main offline research path | `python3 run_research.py` | Canonical baseline and best default starting point. |
 | Reproduce the canonical MoE research path | `python3 run_moe_research.py` | Enables packed expert variants and MoE benchmark comparisons. |
 | Train on a 4090 and learn a universal policy | `python3 run_4090_universal.py` | Explicit 4090-host universal-policy preset. |
-| Run the optimized Linux RTX 4090 path | `bash scripts/run_4090_pipeline.sh` | Recommended on the target 4090 host. |
+| Run the optimized Linux RTX 4090 path | `bash scripts/run_4090_pipeline.sh` | Linux NVIDIA host (recommended). |
 | Run CUDA training on another NVIDIA GPU | `python3 run_pytorch_gpu.py` | Auto-detects a GPU profile. |
 | Explore continual adaptation | `python3 run_online_learning.py` | Experimental extension. |
 
@@ -21,10 +21,27 @@ Canonical offline research run:
 python3 run_research.py
 ```
 
+Multi-seed dense run (recommended for more meaningful numbers):
+
+```bash
+python3 run_multiseed.py --preset dense --seeds 13,17,23,29,31
+```
+
+Notes:
+
+- Seed syntax supports `a,b,c` and ranges like `0-9`.
+- Multi-seed runs write an aggregate report to `outputs/reports/<run_name>_multiseed_report.md` and per-seed reports to `outputs/reports/<run_name>_seed<seed>_report.md`.
+
 Canonical MoE research run:
 
 ```bash
 python3 run_moe_research.py
+```
+
+Multi-seed MoE run:
+
+```bash
+python3 run_multiseed.py --preset moe --seeds 13,17,23
 ```
 
 4090-host universal policy run:
@@ -67,7 +84,7 @@ python3 -m unittest discover -s tests -v
 
 ## What `run_research.py` does
 
-`run_research.py` uses [config.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config.py) and:
+`run_research.py` uses [`config.py`](../config.py) and:
 
 1. trains the default policy
 2. evaluates it
@@ -83,7 +100,7 @@ This is the easiest path for:
 
 ## What `run_pytorch_gpu.py` does
 
-`run_pytorch_gpu.py` uses [config_gpu.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_gpu.py) and:
+`run_pytorch_gpu.py` uses [`config_gpu.py`](../config_gpu.py) and:
 
 1. detects the current CUDA device
 2. selects a tuned GPU profile
@@ -98,7 +115,7 @@ This is the recommended path for most NVIDIA GPUs.
 
 ## What `run_moe_research.py` does
 
-`run_moe_research.py` uses [config_moe.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_moe.py) and:
+`run_moe_research.py` uses [`config_moe.py`](../config_moe.py) and:
 
 1. enables the packed-expert-bank MoE path
 2. trains the MoE-aware policy
@@ -108,7 +125,7 @@ This is the recommended path for most NVIDIA GPUs.
 
 ## What `run_4090_universal.py` does
 
-`run_4090_universal.py` uses [config_4090_universal.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_4090_universal.py) and:
+`run_4090_universal.py` uses [`config_4090_universal.py`](../config_4090_universal.py) and:
 
 1. trains on a 4090 host
 2. keeps `multi_hardware=True`
@@ -118,7 +135,7 @@ This is the recommended path for most NVIDIA GPUs.
 
 ## What `run_pytorch_4090.py` does
 
-`run_pytorch_4090.py` uses [config_4090.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_4090.py) and:
+`run_pytorch_4090.py` uses [`config_4090.py`](../config_4090.py) and:
 
 1. runs a CUDA preflight
 2. writes a preflight JSON report
@@ -137,7 +154,7 @@ The shared research pipeline also writes:
 
 ## What `run_online_learning.py` does
 
-`run_online_learning.py` uses [config_online.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_online.py) and:
+`run_online_learning.py` uses [`config_online.py`](../config_online.py) and:
 
 1. bootstraps the policy with an offline simulator training phase
 2. simulates a live multi-hardware request stream
@@ -233,7 +250,7 @@ After the run, inspect:
 
 Run with llama.cpp backend:
 
-Edit [config.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config.py), [config_gpu.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_gpu.py), or [config_4090.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_4090.py):
+Edit [`config.py`](../config.py), [`config_gpu.py`](../config_gpu.py), or [`config_4090.py`](../config_4090.py):
 
 - set `backend="llama_cpp"`
 - set `llama_cpp_binary`

@@ -19,10 +19,10 @@ python3 run_online_learning.py
 
 ## Main files
 
-- [run_online_learning.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/run_online_learning.py)
-- [config_online.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/config_online.py)
-- [adaptive_quant/online_learning.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/adaptive_quant/online_learning.py)
-- [analysis/online_learning.py](/Users/devcomputer/Downloads/Adaptive-RL-Quantization/analysis/online_learning.py)
+- [`run_online_learning.py`](../run_online_learning.py)
+- [`config_online.py`](../config_online.py)
+- [`adaptive_quant/online_learning.py`](../adaptive_quant/online_learning.py)
+- [`analysis/online_learning.py`](../analysis/online_learning.py)
 
 ## How the loop works
 

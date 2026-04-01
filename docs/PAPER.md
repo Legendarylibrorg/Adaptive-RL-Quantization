@@ -144,6 +144,8 @@ The current results come from the offline benchmark artifacts produced by:
 
 - `outputs/benchmarks/adaptive_universal_policy_summary.json`
 - `outputs/benchmarks/adaptive_moe_policy_summary.json`
+- `outputs/benchmarks/*_benchmarks.json` (the benchmark comparison suite)
+- `outputs/reports/*_report.md` (a human-readable report that links figures)
 
 The dense benchmark compares:
 
@@ -158,6 +160,24 @@ The MoE benchmark adds:
 3. static MoE policy vs RL MoE policy.
 
 All headline numbers in this paper are simulator-backed. The simulator is not presented as a substitute for real deployment measurements; it is a structured research harness that preserves the directional tradeoffs of serving while allowing fast, reproducible iteration.
+
+To reproduce the numbers locally:
+
+```bash
+python3 run_research.py
+python3 run_moe_research.py
+```
+
+Then inspect the generated benchmark JSON and report under `outputs/benchmarks/` and `outputs/reports/`.
+
+For more meaningful and publishable numbers (mean/std across randomness), run multi-seed aggregates:
+
+```bash
+python3 run_multiseed.py --preset dense --seeds 13,17,23,29,31
+python3 run_multiseed.py --preset moe --seeds 13,17,23
+```
+
+Those write `outputs/reports/<run_name>_multiseed_report.md` plus per-seed reports and figures.
 
 ### 8. Results
 

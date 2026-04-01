@@ -68,6 +68,13 @@ That report is meant to tell you:
 - whether bf16 is supported
 - how fast the policy forward/backward pass is
 
+Linux NVIDIA quick sanity check:
+
+```bash
+nvidia-smi
+python3 -c "import torch; print(torch.__version__); print(torch.cuda.is_available())"
+```
+
 ## llama.cpp backend does not run
 
 Check:

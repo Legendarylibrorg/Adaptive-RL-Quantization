@@ -68,6 +68,8 @@ class FrameworkConfig:
     llama_cpp_model: str | None = None
     llama_cpp_threads: int = 8
     llama_cpp_context: int = 2048
+    llama_cpp_timeout_s: float = 30.0
+    llama_cpp_max_prompt_chars: int = 4096
     torch_device: str = "cuda"
     torch_gpu_profile: str = "auto"
     torch_dtype: str = "bfloat16"

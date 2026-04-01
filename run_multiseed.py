@@ -1,0 +1,298 @@
+from __future__ import annotations
+
+import argparse
+from dataclasses import dataclass
+import json
+import math
+from pathlib import Path
+from typing import Any, Iterable
+
+from adaptive_quant.entrypoints import run_pipeline_entrypoint
+from adaptive_quant.logging_utils import write_json
+
+from config import CONFIG as CONFIG_DENSE
+from config_moe import CONFIG_MOE
+
+
+Number = int | float
+
+
+@dataclass(frozen=True)
+class AggregateStat:
+    mean: float
+    std: float
+    n: int
+
+
+def _is_number(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _to_float(value: Number) -> float:
+    return float(value)
+
+
+def _mean(values: list[float]) -> float:
+    return sum(values) / len(values) if values else float("nan")
+
+
+def _std(values: list[float]) -> float:
+    if len(values) < 2:
+        return 0.0
+    m = _mean(values)
+    var = sum((x - m) ** 2 for x in values) / (len(values) - 1)
+    return math.sqrt(var)
+
+
+def _flatten_numeric(
+    obj: object,
+    *,
+    prefix: str = "",
+    max_items: int = 10_000,
+) -> dict[str, float]:
+    out: dict[str, float] = {}
+
+    def walk(node: object, path: str) -> None:
+        if len(out) >= max_items:
+            return
+        if _is_number(node):
+            out[path] = _to_float(node)  # type: ignore[arg-type]
+            return
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if not isinstance(k, str):
+                    continue
+                walk(v, f"{path}.{k}" if path else k)
+            return
+        if isinstance(node, (list, tuple)):
+            for i, v in enumerate(node):
+                walk(v, f"{path}[{i}]")
+
+    walk(obj, prefix)
+    return out
+
+
+def _default_key_filter(key: str) -> bool:
+    # Keep the aggregate report focused on the deltas and core means people cite.
+    key_lower = key.lower()
+    if key_lower.startswith("config."):
+        return False
+    if key_lower.endswith("_delta"):
+        return True
+    if "gap" in key_lower:
+        return True
+    for needle in (
+        "mean_reward",
+        "mean_latency_ms",
+        "mean_throughput_tps",
+        "mean_memory_mb",
+        "mean_perplexity",
+        "mean_stability_penalty",
+        "generalization_gap_improvement",
+        "single_policy_gap",
+        "multi_policy_gap",
+    ):
+        if needle in key_lower:
+            return True
+    return False
+
+
+def _aggregate_numeric_maps(maps: list[dict[str, float]]) -> dict[str, AggregateStat]:
+    keys: set[str] = set()
+    for m in maps:
+        keys.update(m.keys())
+
+    aggregated: dict[str, AggregateStat] = {}
+    for key in sorted(keys):
+        values = [m[key] for m in maps if key in m and math.isfinite(m[key])]
+        if not values:
+            continue
+        aggregated[key] = AggregateStat(mean=_mean(values), std=_std(values), n=len(values))
+    return aggregated
+
+
+def _md_table(headers: list[str], rows: list[list[str]]) -> str:
+    lines: list[str] = []
+    lines.append("| " + " | ".join(headers) + " |")
+    lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
+    for row in rows:
+        lines.append("| " + " | ".join(row) + " |")
+    return "\n".join(lines) + "\n"
+
+
+def _fmt(x: float, *, digits: int = 2) -> str:
+    if not math.isfinite(x):
+        return "nan"
+    return f"{x:.{digits}f}"
+
+
+def _write_multiseed_report(
+    *,
+    run_name: str,
+    seeds: list[int],
+    per_seed_summaries: list[dict[str, Any]],
+    per_seed_paths: list[str],
+    aggregated: dict[str, AggregateStat],
+    output_path: str,
+    output_json_path: str,
+) -> None:
+    target = Path(output_path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+
+    # Pick a small set of "headline" keys when available.
+    headline_keys = [
+        "benchmarks.single_vs_multi.generalization_gap_improvement",
+        "benchmarks.static_vs_dynamic.quality_variance_delta",
+        "benchmarks.discrete_vs_learned.reward_delta",
+        "evaluation.mean_reward",
+        "evaluation.mean_latency_ms",
+        "evaluation.mean_memory_mb",
+    ]
+
+    headline_rows: list[list[str]] = []
+    for k in headline_keys:
+        stat = aggregated.get(k)
+        if stat is None:
+            continue
+        headline_rows.append([k, _fmt(stat.mean), _fmt(stat.std), str(stat.n)])
+
+    per_seed_rows: list[list[str]] = []
+    for seed, summary_path in zip(seeds, per_seed_paths, strict=True):
+        per_seed_rows.append([str(seed), f"`{summary_path}`"])
+
+    lines: list[str] = []
+    lines.extend(
+        [
+            f"# {run_name} (multi-seed)",
+            "",
+            "## Overview",
+            f"- seeds: `{seeds}`",
+            f"- per-seed summaries: `{len(per_seed_summaries)}`",
+            f"- aggregate JSON: `{output_json_path}`",
+            "",
+        ]
+    )
+
+    if headline_rows:
+        lines.extend(
+            [
+                "## Headline aggregates (mean ± std)",
+                _md_table(["metric", "mean", "std", "n"], headline_rows).rstrip(),
+                "",
+            ]
+        )
+
+    # Include a broader (but still filtered) table of aggregates.
+    filtered = {k: v for k, v in aggregated.items() if _default_key_filter(k)}
+    broad_rows = [[k, _fmt(v.mean), _fmt(v.std), str(v.n)] for k, v in filtered.items()]
+    lines.extend(
+        [
+            "## Aggregate metrics (filtered)",
+            _md_table(["metric", "mean", "std", "n"], broad_rows).rstrip(),
+            "",
+            "## Per-seed artifacts",
+            _md_table(["seed", "summary"], per_seed_rows).rstrip(),
+            "",
+            "## Notes",
+            "- These statistics summarize the metrics produced by the pipeline (simulator by default unless you switch backends in the preset config).",
+            "- For deeper inspection, open a per-seed `outputs/reports/*_report.md` and the per-seed figures under `outputs/analysis/<run_name>/...`.",
+            "",
+        ]
+    )
+    target.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _parse_seeds(raw: str) -> list[int]:
+    # Supports: "1,2,3" and "0-4"
+    raw = raw.strip()
+    if not raw:
+        return []
+    if "-" in raw and "," not in raw:
+        left, right = raw.split("-", 1)
+        start = int(left.strip())
+        end = int(right.strip())
+        if end < start:
+            start, end = end, start
+        return list(range(start, end + 1))
+    return [int(x.strip()) for x in raw.split(",") if x.strip()]
+
+
+def _select_preset(name: str):
+    if name == "dense":
+        return CONFIG_DENSE
+    if name == "moe":
+        return CONFIG_MOE
+    raise SystemExit(f"Unknown preset: {name!r} (expected 'dense' or 'moe')")
+
+
+def main(argv: Iterable[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description="Run a preset across multiple seeds and aggregate results.")
+    parser.add_argument("--preset", choices=["dense", "moe"], default="dense", help="Which config preset to run.")
+    parser.add_argument("--seeds", default="13,17,23,29,31", help='Seeds as "a,b,c" or "a-b".')
+    parser.add_argument(
+        "--run-name",
+        default=None,
+        help="Base run name for the multiseed aggregate (defaults to preset run_name).",
+    )
+    args = parser.parse_args(list(argv) if argv is not None else None)
+
+    seeds = _parse_seeds(args.seeds)
+    if not seeds:
+        raise SystemExit("No seeds provided.")
+
+    base_config = _select_preset(args.preset)
+    base_run_name = str(args.run_name or base_config.run_name)
+    multiseed_run_name = f"{base_run_name}_multiseed"
+
+    per_seed_summaries: list[dict[str, Any]] = []
+    per_seed_paths: list[str] = []
+    per_seed_numeric: list[dict[str, float]] = []
+
+    for seed in seeds:
+        seed_run_name = f"{base_run_name}_seed{seed}"
+        config = base_config.clone(seed=seed, run_name=seed_run_name)
+        summary = run_pipeline_entrypoint(config)
+        per_seed_summaries.append(summary)
+        per_seed_paths.append(f"{config.benchmark_dir}/{config.run_name}_summary.json")
+
+        numeric = _flatten_numeric(summary)
+        per_seed_numeric.append(numeric)
+
+    aggregated = _aggregate_numeric_maps(per_seed_numeric)
+
+    output_json_path = f"{base_config.benchmark_dir}/{multiseed_run_name}_summary.json"
+    output_md_path = f"{base_config.report_dir}/{multiseed_run_name}_report.md"
+
+    aggregate_payload: dict[str, Any] = {
+        "run_name": multiseed_run_name,
+        "preset": args.preset,
+        "base_run_name": base_run_name,
+        "seeds": seeds,
+        "per_seed": [
+            {"seed": seed, "run_name": f"{base_run_name}_seed{seed}", "summary_path": path}
+            for seed, path in zip(seeds, per_seed_paths, strict=True)
+        ],
+        "aggregates": {
+            k: {"mean": v.mean, "std": v.std, "n": v.n}
+            for k, v in aggregated.items()
+            if _default_key_filter(k)
+        },
+    }
+    write_json(output_json_path, aggregate_payload)
+    _write_multiseed_report(
+        run_name=multiseed_run_name,
+        seeds=seeds,
+        per_seed_summaries=per_seed_summaries,
+        per_seed_paths=per_seed_paths,
+        aggregated=aggregated,
+        output_path=output_md_path,
+        output_json_path=output_json_path,
+    )
+
+    print("Wrote multiseed summary:", output_json_path)
+    print("Wrote multiseed report:", output_md_path)
+
+
+if __name__ == "__main__":
+    main()
+
