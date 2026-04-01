@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import argparse
 import math
-import os
 from pathlib import Path
 import random
 import subprocess
 from typing import Any, Iterable
 
-from adaptive_quant.backend import SimulatorBackend, _extract_numeric
+from adaptive_quant.backend import SimulatorBackend, _extract_numeric, require_llama_cpp_paths
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.logging_utils import write_json
@@ -96,12 +95,10 @@ def main(argv: Iterable[str] | None = None) -> None:
 
     # Calibration must run with a real llama.cpp binary + model.
     config = BASE.clone(backend="llama_cpp", prompt_split_enabled=False)
-    if not config.llama_cpp_binary or not config.llama_cpp_model:
-        raise SystemExit("Calibration requires llama_cpp_binary and llama_cpp_model set in the chosen config preset.")
-    if not os.path.isfile(config.llama_cpp_binary) or not os.access(config.llama_cpp_binary, os.X_OK):
-        raise SystemExit(f"Missing llama.cpp binary: {config.llama_cpp_binary}")
-    if not os.path.exists(config.llama_cpp_model):
-        raise SystemExit(f"Missing model file: {config.llama_cpp_model}")
+    try:
+        require_llama_cpp_paths(config)
+    except FileNotFoundError as exc:
+        raise SystemExit(str(exc)) from exc
 
     rng = random.Random(int(args.seed))
     prompt_count = max(1, int(args.prompts))

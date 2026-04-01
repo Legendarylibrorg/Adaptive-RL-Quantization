@@ -182,12 +182,7 @@ class LlamaCppBackend:
         self.config = config
 
     def evaluate(self, state: EpisodeState, decision: QuantizationDecision) -> dict[str, float]:
-        if not self.config.llama_cpp_binary or not self.config.llama_cpp_model:
-            raise FileNotFoundError("llama.cpp backend requires both a binary path and a model path.")
-        if not os.path.isfile(self.config.llama_cpp_binary) or not os.access(self.config.llama_cpp_binary, os.X_OK):
-            raise FileNotFoundError(f"Missing llama.cpp binary: {self.config.llama_cpp_binary}")
-        if not os.path.exists(self.config.llama_cpp_model):
-            raise FileNotFoundError(f"Missing model file: {self.config.llama_cpp_model}")
+        llama_cpp_binary, llama_cpp_model = require_llama_cpp_paths(self.config)
 
         prompt_text = state.prompt.text
         max_chars = int(getattr(self.config, "llama_cpp_max_prompt_chars", 4096))
@@ -195,9 +190,9 @@ class LlamaCppBackend:
             prompt_text = prompt_text[:max_chars]
 
         command = [
-            self.config.llama_cpp_binary,
+            llama_cpp_binary,
             "-m",
-            self.config.llama_cpp_model,
+            llama_cpp_model,
             "-p",
             prompt_text,
             "-ngl",
@@ -226,6 +221,18 @@ class LlamaCppBackend:
         if latency_ms > 0.0:
             metrics["latency_ms"] = latency_ms * max(1, state.input_features.prompt_length)
         return metrics
+
+
+def require_llama_cpp_paths(config: FrameworkConfig) -> tuple[str, str]:
+    binary = getattr(config, "llama_cpp_binary", None)
+    model = getattr(config, "llama_cpp_model", None)
+    if not binary or not model:
+        raise FileNotFoundError("llama.cpp backend requires both a binary path and a model path.")
+    if not os.path.isfile(binary) or not os.access(binary, os.X_OK):
+        raise FileNotFoundError(f"Missing llama.cpp binary: {binary}")
+    if not os.path.exists(model):
+        raise FileNotFoundError(f"Missing model file: {model}")
+    return str(binary), str(model)
 
 
 def _extract_numeric(stdout: str, marker: str, default: float) -> float:
