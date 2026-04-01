@@ -27,6 +27,8 @@ def _safe_ratio(numer: float, denom: float) -> float | None:
 def _run_llama_cpp_once(
     config: FrameworkConfig,
     *,
+    llama_cpp_binary: str,
+    llama_cpp_model: str,
     prompt_text: str,
     ngl: int,
 ) -> tuple[float | None, float | None, float | None]:
@@ -34,9 +36,9 @@ def _run_llama_cpp_once(
     Returns: (latency_ms_per_token, throughput_tps, memory_mb) where memory_mb is best-effort.
     """
     command = [
-        config.llama_cpp_binary or "",
+        llama_cpp_binary,
         "-m",
-        config.llama_cpp_model or "",
+        llama_cpp_model,
         "-p",
         prompt_text,
         "-ngl",
@@ -55,9 +57,7 @@ def _run_llama_cpp_once(
         check=False,
         timeout=float(getattr(config, "llama_cpp_timeout_s", 30.0)),
     )
-    stdout = (completed.stdout or "").lower()
-    stderr = (completed.stderr or "").lower()
-    combined = stdout + "\n" + stderr
+    combined = ((completed.stdout or "") + "\n" + (completed.stderr or "")).lower()
 
     throughput_tps = _extract_numeric(combined, "tok/s", default=0.0)
     latency_ms_per_token = _extract_numeric(combined, "ms per token", default=0.0)
@@ -96,11 +96,10 @@ def main(argv: Iterable[str] | None = None) -> None:
     # Calibration must run with a real llama.cpp binary + model.
     config = BASE.clone(backend="llama_cpp", prompt_split_enabled=False)
     try:
-        require_llama_cpp_paths(config)
+        llama_cpp_binary, llama_cpp_model = require_llama_cpp_paths(config)
     except FileNotFoundError as exc:
         raise SystemExit(str(exc)) from exc
 
-    rng = random.Random(int(args.seed))
     prompt_count = max(1, int(args.prompts))
 
     env = AdaptiveQuantizationEnv(config, log_path=f"{config.log_dir}/{args.run_name}_calibration.jsonl")
@@ -121,7 +120,13 @@ def main(argv: Iterable[str] | None = None) -> None:
         for _ in range(prompt_count):
             state = env.reset(forced_hardware=hw, phase="eval")
             prompt_text = state.prompt.text[: config.llama_cpp_max_prompt_chars]
-            lat_ms_tok, tps, mem_mb = _run_llama_cpp_once(config, prompt_text=prompt_text, ngl=state.hardware_profile.ngl)
+            lat_ms_tok, tps, mem_mb = _run_llama_cpp_once(
+                config,
+                llama_cpp_binary=llama_cpp_binary,
+                llama_cpp_model=llama_cpp_model,
+                prompt_text=prompt_text,
+                ngl=state.hardware_profile.ngl,
+            )
 
             sim_metrics = sim_backend.evaluate(state, fixed_decision)
             # Convert "ms per token" to "total latency" consistent with env metric definition.
