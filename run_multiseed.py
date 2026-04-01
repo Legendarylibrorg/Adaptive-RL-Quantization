@@ -5,10 +5,12 @@ from dataclasses import dataclass
 import json
 import math
 from pathlib import Path
+import statistics
 from typing import Any, Iterable
 
 from adaptive_quant.entrypoints import run_pipeline_entrypoint
 from adaptive_quant.logging_utils import write_json
+from adaptive_quant.md_utils import md_table
 
 from config import CONFIG as CONFIG_DENSE
 from config_moe import CONFIG_MOE
@@ -32,16 +34,10 @@ def _to_float(value: Number) -> float:
     return float(value)
 
 
-def _mean(values: list[float]) -> float:
-    return sum(values) / len(values) if values else float("nan")
-
-
 def _std(values: list[float]) -> float:
     if len(values) < 2:
         return 0.0
-    m = _mean(values)
-    var = sum((x - m) ** 2 for x in values) / (len(values) - 1)
-    return math.sqrt(var)
+    return float(statistics.stdev(values))
 
 
 def _flatten_numeric(
@@ -107,17 +103,8 @@ def _aggregate_numeric_maps(maps: list[dict[str, float]]) -> dict[str, Aggregate
         values = [m[key] for m in maps if key in m and math.isfinite(m[key])]
         if not values:
             continue
-        aggregated[key] = AggregateStat(mean=_mean(values), std=_std(values), n=len(values))
+        aggregated[key] = AggregateStat(mean=float(statistics.fmean(values)), std=_std(values), n=len(values))
     return aggregated
-
-
-def _md_table(headers: list[str], rows: list[list[str]]) -> str:
-    lines: list[str] = []
-    lines.append("| " + " | ".join(headers) + " |")
-    lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
-    for row in rows:
-        lines.append("| " + " | ".join(row) + " |")
-    return "\n".join(lines) + "\n"
 
 
 def _fmt(x: float, *, digits: int = 2) -> str:
@@ -149,14 +136,14 @@ def _write_multiseed_report(
         "evaluation.mean_memory_mb",
     ]
 
-    headline_rows: list[list[str]] = []
+    headline_rows: list[list[object]] = []
     for k in headline_keys:
         stat = aggregated.get(k)
         if stat is None:
             continue
         headline_rows.append([k, _fmt(stat.mean), _fmt(stat.std), str(stat.n)])
 
-    per_seed_rows: list[list[str]] = []
+    per_seed_rows: list[list[object]] = []
     for seed, summary_path in zip(seeds, per_seed_paths, strict=True):
         per_seed_rows.append([str(seed), f"`{summary_path}`"])
 
@@ -177,21 +164,21 @@ def _write_multiseed_report(
         lines.extend(
             [
                 "## Headline aggregates (mean ± std)",
-                _md_table(["metric", "mean", "std", "n"], headline_rows).rstrip(),
+                "\n".join(md_table(["metric", "mean", "std", "n"], headline_rows)),
                 "",
             ]
         )
 
     # Include a broader (but still filtered) table of aggregates.
     filtered = {k: v for k, v in aggregated.items() if _default_key_filter(k)}
-    broad_rows = [[k, _fmt(v.mean), _fmt(v.std), str(v.n)] for k, v in filtered.items()]
+    broad_rows: list[list[object]] = [[k, _fmt(v.mean), _fmt(v.std), str(v.n)] for k, v in filtered.items()]
     lines.extend(
         [
             "## Aggregate metrics (filtered)",
-            _md_table(["metric", "mean", "std", "n"], broad_rows).rstrip(),
+            "\n".join(md_table(["metric", "mean", "std", "n"], broad_rows)),
             "",
             "## Per-seed artifacts",
-            _md_table(["seed", "summary"], per_seed_rows).rstrip(),
+            "\n".join(md_table(["seed", "summary"], per_seed_rows)),
             "",
             "## Notes",
             "- These statistics summarize the metrics produced by the pipeline (simulator by default unless you switch backends in the preset config).",

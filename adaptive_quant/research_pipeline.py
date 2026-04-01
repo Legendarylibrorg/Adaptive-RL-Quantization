@@ -15,6 +15,7 @@ from adaptive_quant.benchmark import BenchmarkSuite
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.gpu_profiles import apply_gpu_profile
 from adaptive_quant.logging_utils import write_json
+from adaptive_quant.md_utils import md_table
 from adaptive_quant.torch_policy import TORCH_IMPORT_ERROR, torch
 from adaptive_quant.torch_preflight import run_torch_preflight
 from adaptive_quant.trainer import build_trainer
@@ -165,14 +166,6 @@ class ResearchPipeline:
                 return f"{value:.{digits}f}"
             return str(value)
 
-        def _md_table(headers: list[str], rows: list[list[object]]) -> list[str]:
-            lines: list[str] = []
-            lines.append("| " + " | ".join(headers) + " |")
-            lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
-            for row in rows:
-                lines.append("| " + " | ".join(str(cell) for cell in row) + " |")
-            return lines
-
         def _maybe_link(rel_path: Path) -> str:
             # Link paths should be relative to the report file.
             abs_path = report_dir / rel_path
@@ -272,7 +265,7 @@ class ResearchPipeline:
             f"- checkpoint: `{checkpoint_path or 'not written'}`",
             "",
             "## Evaluation",
-            *_md_table(["metric", "value"], eval_rows),
+            *md_table(["metric", "value"], eval_rows),
             "",
             "## Benchmarks",
             "",

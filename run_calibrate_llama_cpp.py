@@ -11,11 +11,8 @@ from adaptive_quant.backend import SimulatorBackend, _extract_numeric, require_l
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.logging_utils import write_json
+from adaptive_quant.math_utils import mean
 from adaptive_quant.types import HardwareType, QuantMode, QuantizationDecision
-
-
-def _mean(values: list[float]) -> float:
-    return sum(values) / len(values) if values else float("nan")
 
 
 def _safe_ratio(numer: float, denom: float) -> float | None:
@@ -81,7 +78,7 @@ def _fit_multiplier(observed: list[float], simulated: list[float]) -> float:
             ratios.append(r)
     if not ratios:
         return 1.0
-    return _mean(ratios)
+    return mean(ratios)
 
 
 def main(argv: Iterable[str] | None = None) -> None:
