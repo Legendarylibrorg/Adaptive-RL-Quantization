@@ -1,10 +1,10 @@
-from adaptive_quant.benchmark import BenchmarkSuite
+from __future__ import annotations
+
+import importlib
+from typing import Any
+
 from adaptive_quant.configuration import FrameworkConfig
-from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.gpu_profiles import apply_gpu_profile, available_gpu_profiles
-from adaptive_quant.online_learning import OnlineLearningLoop, build_request_stream
-from adaptive_quant.policy import UniversalQuantizationPolicy
-from adaptive_quant.trainer import Trainer, build_trainer
 from adaptive_quant.types import OnlineRequest
 
 __all__ = [
@@ -19,4 +19,30 @@ __all__ = [
     "available_gpu_profiles",
     "build_request_stream",
     "build_trainer",
+    "load_config",
+    "quick_config",
 ]
+
+_LAZY: dict[str, tuple[str, str]] = {
+    "BenchmarkSuite": ("adaptive_quant.benchmark", "BenchmarkSuite"),
+    "AdaptiveQuantizationEnv": ("adaptive_quant.environment", "AdaptiveQuantizationEnv"),
+    "OnlineLearningLoop": ("adaptive_quant.online_learning", "OnlineLearningLoop"),
+    "Trainer": ("adaptive_quant.trainer", "Trainer"),
+    "UniversalQuantizationPolicy": ("adaptive_quant.policy", "UniversalQuantizationPolicy"),
+    "build_request_stream": ("adaptive_quant.online_learning", "build_request_stream"),
+    "build_trainer": ("adaptive_quant.trainer", "build_trainer"),
+    "load_config": ("adaptive_quant.easy_config", "load_config"),
+    "quick_config": ("adaptive_quant.easy_config", "quick_config"),
+}
+
+
+def __getattr__(name: str) -> Any:
+    spec = _LAZY.get(name)
+    if spec is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name, attr_name = spec
+    return getattr(importlib.import_module(module_name), attr_name)
+
+
+def __dir__() -> list[str]:
+    return sorted(__all__)

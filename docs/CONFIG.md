@@ -1,6 +1,39 @@
 # Configuration Guide
 
-Configuration lives in:
+## JSON and TOML (file-based configs)
+
+For a **single file** instead of editing Python presets:
+
+1. Copy **[`config.e2e_smoke.json`](../config.e2e_smoke.json)** for a **short, copy-paste E2E RL** run (train → eval → benchmarks), or [`config.example.json`](../config.example.json) (minimal preset example), or [`config.example.pytorch.toml`](../config.example.pytorch.toml) for GPU file-based runs; you can also create your own `.toml` / `.json`.
+2. Optional top-level string **`preset`** picks a base profile (merged first, then other keys override):
+
+   | `preset` value | Effect |
+   | --- | --- |
+   | `default` (or omit `preset` when loading via API without a file base) | Plain `FrameworkConfig()` |
+   | `minimal` | Short run: low `training_episodes`, `stability_probe_count=1`, no replay, preflight off |
+   | `pytorch` | `training_backend="pytorch"`, `torch_gpu_profile="auto"` |
+   | `reproducible` | Same as `FrameworkConfig.reproducible_research()` (sequential env, deterministic train policy & probes, `torch_deterministic`, no compile) |
+
+3. Run from the **repo root** (Linux / macOS):
+
+   ```bash
+   python3 run_research.py --config ./my_run.json
+   python3 run_research.py -c ./my_run.toml
+   python3 run_pytorch.py --config ./cuda_run.toml   # replaces --preset entirely
+   python3 run_moe_research.py --config moe.json
+   python3 run_online_learning.py --config online.toml
+   python3 run_calibrate_llama_cpp.py --config ./paths_only.json
+   ```
+
+4. **API:** `FrameworkConfig.from_file(path)`, `load_config(path)` (from `adaptive_quant`), or `FrameworkConfig.from_mapping(dict, strict=True)` to reject unknown keys.
+
+Lists in JSON for tuple fields (`hardware_modes`, `discrete_bit_widths`, `scale_bounds`, …) are coerced automatically. Nested **`reward_weights`** merges onto defaults.
+
+---
+
+## Python module presets
+
+Configuration also lives in:
 
 - [`config.py`](../config.py)
 - [`config_moe.py`](../config_moe.py)
@@ -10,18 +43,35 @@ Configuration lives in:
 - [`config_4090_universal.py`](../config_4090_universal.py)
 - [`adaptive_quant/configuration.py`](../adaptive_quant/configuration.py)
 
-Use [`config.py`](../config.py) as the canonical offline research baseline. It is the simplest preset to reproduce and the best starting point for stable experiments.
+Use [`config.py`](../config.py) as the canonical offline research baseline when you are not using `--config`. It is the simplest preset to reproduce and the best starting point for stable experiments.
+
+---
+
+## Research / reproducibility fields
+
+- **`env_sampling_mode`**: `random` (default) | `sequential` | `forced` — controls how prompts and hardware are chosen on `reset()`; **`sequential`** uses `episode_index` for a fixed schedule (see [`runner_cli` / trainers passing `episode_index`](../adaptive_quant/trainer_utils.py)).
+- **`env_forced_prompt_id`**, **`env_forced_hardware`**: used when `env_sampling_mode="forced"` if `reset()` does not pass explicit prompt/hardware.
+- **`rl_train_policy_mode`**: `stochastic` (sample π during training) | `deterministic` (greedy / argmax during training rollouts).
+- **`stability_probe_sampling`**: `random` | `deterministic` — probe order for the stability penalty term.
+- **`torch_deterministic`**: enable CUDNN deterministic mode, cuBLAS workspace, global seeds, and stricter PyTorch algorithms (GPU; slower). **`torch.compile` is skipped** when this is true.
+- **`torch_policy_algorithm`**: `ppo` | `vpg` | `awr` (PyTorch trainer only).
+- **`torch_awr_beta`**: temperature for `awr` weights.
+- **`reward_perplexity_reference`**, **`reward_weights.zeta_perplexity_over_ref`**: hinge penalty when perplexity exceeds a baseline (throughput-focused runs with a quality guard).
+
+Factory: **`FrameworkConfig.reproducible_research(seed=..., run_name=..., **kwargs)`** aligns seeds and turns on the full reproducibility-oriented stack.
 
 ## Most important fields
 
 General:
 
-- `training_backend`: `"python"` or `"pytorch"`
+- `training_backend`: `"python"` (stdlib trainer; PyTorch not required) or `"pytorch"` (install PyTorch on the host). PyTorch is only loaded when you run PyTorch-backed code paths (this setting, GPU entrypoints, or imports from `adaptive_quant.torch_*`).
 - `backend`: `"simulator"` or `"llama_cpp"`
 - `training_host_label`: optional label for the machine used to train the policy
 - `run_name`: controls output filenames
 - `run_name` must be a filename-safe slug (letters/digits plus `._-`, no spaces, no path separators).
 - `resume_from_checkpoint`: resume a PyTorch run from a saved checkpoint
+- **Checkpoint format (PyTorch):** new saves write `*.pt` (weights + optimizer tensors only) plus a sidecar `*.checkpoint.json` (episode counters and history). Loads use `weights_only=True` when your PyTorch version supports it.
+- `allow_legacy_checkpoint_load`: default **false**. Set **true** only to load older single-file pickle checkpoints that lack the sidecar (trusted files only); then turn it off again.
 
 Adaptive behavior:
 
@@ -36,21 +86,21 @@ Adaptive behavior:
 
 Episode budget:
 
-- `training_episodes`: number of episodes for fixed-horizon training (default: 10,000)
-- `evaluation_episodes`: number of episodes for evaluation (default: 500)
+- `training_episodes`: number of episodes for fixed-horizon training (default: 3,000)
+- `evaluation_episodes`: number of episodes for evaluation (default: 400)
 - `benchmark_training_episodes`
 - `benchmark_evaluation_episodes`
 
 Continuous learning:
 
 - `continuous_training`: if true, trains up to `max_training_episodes` with periodic eval/checkpoint (default: false)
-- `max_training_episodes`: upper bound for continuous training (default: 100,000)
+- `max_training_episodes`: upper bound for continuous training (default: 50,000)
 - `eval_interval`: evaluate every N episodes during continuous training (default: 1,000)
 - `checkpoint_interval`: save checkpoint every N episodes during continuous training (default: 5,000)
 
 GPU replay buffer (VRAM):
 
-- `replay_buffer_capacity`: number of experiences stored in the GPU replay buffer (default: 50,000)
+- `replay_buffer_capacity`: number of experiences stored in the replay buffer (default: 20,000; PyTorch path only)
 - `replay_buffer_on_gpu`: if true, replay buffer tensors live on CUDA VRAM (default: true)
 
 Safety and reward:

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
+from pathlib import Path
 import re
+from typing import Any, Mapping
 
 from adaptive_quant.types import HardwareType, QuantMode
 
@@ -13,6 +15,8 @@ class RewardWeights:
     gamma_perplexity: float = 0.850
     delta_memory: float = 0.002
     epsilon_instability: float = 1.000
+    # Hinge on perplexity vs reward_perplexity_reference (0 disables the extra term).
+    zeta_perplexity_over_ref: float = 0.0
 
 
 @dataclass
@@ -37,14 +41,14 @@ class FrameworkConfig:
     moe_variant_churn_penalty: float = 0.050
     moe_max_aggressive_experts: int = 1
     moe_max_swap_cost_ms: float = 7.5
-    training_episodes: int = 10_000
-    evaluation_episodes: int = 500
+    training_episodes: int = 3_000
+    evaluation_episodes: int = 400
     benchmark_training_episodes: int | None = None
     benchmark_evaluation_episodes: int | None = None
     continuous_training: bool = False
     eval_interval: int = 1_000
     checkpoint_interval: int = 5_000
-    max_training_episodes: int = 100_000
+    max_training_episodes: int = 50_000
     learning_rate: float = 0.035
     value_learning_rate: float = 0.020
     continuous_stddev: float = 0.18
@@ -67,11 +71,23 @@ class FrameworkConfig:
     write_training_history: bool = True
     write_research_report: bool = True
     resume_from_checkpoint: str | None = None
+    # When False (default), only split checkpoints (.pt + .checkpoint.json) load; legacy single-file
+    # pickle checkpoints require explicit opt-in (trusted source only).
+    allow_legacy_checkpoint_load: bool = False
     backend: str = "simulator"
     training_host_label: str | None = None
     prompt_split_enabled: bool = False
     prompt_split_seed: int = 2027
     prompt_train_fraction: float = 0.8
+    # Research env: prompt/hardware schedule. random (default) | sequential | forced
+    env_sampling_mode: str = "random"
+    # Used when env_sampling_mode='forced' and reset() does not pass explicit prompt/hardware.
+    env_forced_prompt_id: str | None = None
+    env_forced_hardware: str | None = None
+    # Policy during training data collection: stochastic (sample π) | deterministic (argmax π)
+    rl_train_policy_mode: str = "stochastic"
+    # Extra probes for stability_penalty: random | deterministic (sorted prompt ids)
+    stability_probe_sampling: str = "random"
     llama_cpp_binary: str | None = None
     llama_cpp_model: str | None = None
     llama_cpp_threads: int = 8
@@ -85,6 +101,8 @@ class FrameworkConfig:
     torch_compile: bool = True
     torch_amp: bool = True
     torch_tf32: bool = True
+    # Strict reproducibility: CUDNN deterministic, CUBLAS workspace, seeds, deterministic algorithms (slower).
+    torch_deterministic: bool = False
     torch_hidden_dim: int = 768
     torch_mlp_depth: int = 4
     torch_learning_rate: float = 3e-4
@@ -93,6 +111,10 @@ class FrameworkConfig:
     torch_minibatch_size: int = 128
     torch_update_epochs: int = 6
     torch_ppo_clip: float = 0.2
+    # Policy gradient variant for training_backend=pytorch: ppo | vpg | awr
+    torch_policy_algorithm: str = "ppo"
+    # Temperature for awr weights exp(advantage / beta); ignored for ppo/vpg.
+    torch_awr_beta: float = 1.0
     torch_value_coef: float = 0.5
     torch_entropy_coef: float = 0.01
     torch_max_grad_norm: float = 1.0
@@ -120,11 +142,69 @@ class FrameworkConfig:
     online_drift_reward_delta: float = 1.50
     online_safe_mode_cooldown: int = 16
     reward_weights: RewardWeights = field(default_factory=RewardWeights)
+    # Simulator / offline RL: soft constraint to push tok/s while discouraging quality regression.
+    reward_perplexity_reference: float | None = None
     seed: int = 13
 
     def __post_init__(self) -> None:
         _validate_run_name(self.run_name)
+        _validate_torch_policy_algorithm(self.torch_policy_algorithm)
+        _validate_env_sampling_mode(self.env_sampling_mode)
+        _validate_rl_train_policy_mode(self.rl_train_policy_mode)
+        _validate_stability_probe_sampling(self.stability_probe_sampling)
 
+    def rl_train_deterministic(self) -> bool:
+        """True when train rollouts use greedy (argmax) actions for reproducible bandit-style experiments."""
+        return self.rl_train_policy_mode.strip().lower() == "deterministic"
+
+    @classmethod
+    def reproducible_research(
+        cls,
+        *,
+        seed: int = 13,
+        run_name: str = "reproducible_research",
+        training_backend: str = "python",
+        **kwargs: Any,
+    ) -> FrameworkConfig:
+        """
+        One-shot preset for research runs: sequential (prompt, hardware) schedule,
+        greedy policy during train collection, deterministic stability probes, aligned
+        prompt_split_seed; with training_backend=\"pytorch\" also enables torch_deterministic
+        and disables torch.compile. Pass any FrameworkConfig field via kwargs to override.
+        """
+        base: dict[str, Any] = {
+            "seed": seed,
+            "prompt_split_seed": seed,
+            "env_sampling_mode": "sequential",
+            "rl_train_policy_mode": "deterministic",
+            "stability_probe_sampling": "deterministic",
+            "torch_deterministic": True,
+            "torch_compile": False,
+            "run_name": run_name,
+            "training_backend": training_backend,
+        }
+        base.update(kwargs)
+        return cls(**base)
+
+    @classmethod
+    def from_mapping(
+        cls,
+        data: Mapping[str, Any],
+        *,
+        base: FrameworkConfig | None = None,
+        strict: bool = False,
+    ) -> FrameworkConfig:
+        """Merge a plain dict (JSON/TOML-friendly) into a config; see ``adaptive_quant.easy_config``."""
+        from adaptive_quant.easy_config import config_from_dict
+
+        return config_from_dict(data, base=base, strict=strict)
+
+    @classmethod
+    def from_file(cls, path: str | Path, *, strict: bool = False) -> FrameworkConfig:
+        """Load ``.json`` or ``.toml`` with optional ``preset`` key; see ``adaptive_quant.easy_config.load_config``."""
+        from adaptive_quant.easy_config import load_config
+
+        return load_config(path, strict=strict)
 
     def resolved_quant_mode(self) -> QuantMode:
         return QuantMode(self.quant_mode)
@@ -192,6 +272,51 @@ class FrameworkConfig:
 
 
 _RUN_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+
+_TORCH_POLICY_ALGORITHMS = frozenset({"ppo", "vpg", "awr"})
+_ENV_SAMPLING_MODES = frozenset({"random", "sequential", "forced"})
+_RL_TRAIN_POLICY_MODES = frozenset({"stochastic", "deterministic"})
+_STABILITY_PROBE_SAMPLING = frozenset({"random", "deterministic"})
+
+
+def _validate_env_sampling_mode(name: str) -> None:
+    if not isinstance(name, str):
+        raise TypeError("env_sampling_mode must be a string")
+    key = name.strip().lower()
+    if key not in _ENV_SAMPLING_MODES:
+        raise ValueError(
+            f"env_sampling_mode must be one of {sorted(_ENV_SAMPLING_MODES)}, got {name!r}"
+        )
+
+
+def _validate_rl_train_policy_mode(name: str) -> None:
+    if not isinstance(name, str):
+        raise TypeError("rl_train_policy_mode must be a string")
+    key = name.strip().lower()
+    if key not in _RL_TRAIN_POLICY_MODES:
+        raise ValueError(
+            f"rl_train_policy_mode must be one of {sorted(_RL_TRAIN_POLICY_MODES)}, got {name!r}"
+        )
+
+
+def _validate_stability_probe_sampling(name: str) -> None:
+    if not isinstance(name, str):
+        raise TypeError("stability_probe_sampling must be a string")
+    key = name.strip().lower()
+    if key not in _STABILITY_PROBE_SAMPLING:
+        raise ValueError(
+            f"stability_probe_sampling must be one of {sorted(_STABILITY_PROBE_SAMPLING)}, got {name!r}"
+        )
+
+
+def _validate_torch_policy_algorithm(name: str) -> None:
+    if not isinstance(name, str):
+        raise TypeError("torch_policy_algorithm must be a string")
+    key = name.strip().lower()
+    if key not in _TORCH_POLICY_ALGORITHMS:
+        raise ValueError(
+            f"torch_policy_algorithm must be one of {sorted(_TORCH_POLICY_ALGORITHMS)}, got {name!r}"
+        )
 
 
 def _validate_run_name(run_name: str) -> None:

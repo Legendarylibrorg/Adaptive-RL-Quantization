@@ -1,16 +1,7 @@
 from __future__ import annotations
 
-from adaptive_quant.entrypoints import run_pipeline_entrypoint
-from config_4090 import CONFIG_4090
-
-
-def main() -> None:
-    run_pipeline_entrypoint(
-        CONFIG_4090,
-        requested_profile=CONFIG_4090.torch_gpu_profile,
-        show_gpu_profile=True,
-    )
+from run_pytorch import main
 
 
 if __name__ == "__main__":
-    main()
+    main(["--preset", "4090"])

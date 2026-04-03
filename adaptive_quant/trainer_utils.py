@@ -47,7 +47,12 @@ def collect_episode_results(
     results: list[EpisodeResult] = []
     previous_action = list(initial_previous_action)
     for episode_index in range(episodes):
-        state = reset(previous_action=previous_action, forced_hardware=hardware, phase=phase)
+        state = reset(
+            previous_action=previous_action,
+            forced_hardware=hardware,
+            phase=phase,
+            episode_index=episode_offset + episode_index,
+        )
         decision = act(state)
         result = evaluate_current(decision, episode_offset + episode_index)
         previous_action = feedback(result.decision)

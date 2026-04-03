@@ -1,273 +1,74 @@
 # Running Guide
 
-This guide explains the supported entrypoints and what each one does.
+**Platform:** Commands below are written for **Linux** (`python3`, `bash`, `source .venv/bin/activate`). Run from the **repository root** (where `pyproject.toml` and `config.py` live).
 
-## Which mode should I use?
+1. Install: `python3 -m pip install -e .`, or run **`bash scripts/setup_from_clone.sh`** once on Linux (see [INSTALL.md](INSTALL.md)) — checks **git**, **curl**, **python3**, bootstraps **pip** via **curl** if needed, then tests + RL smoke.
+2. Quick RL without editing Python: [**`config.e2e_smoke.json`**](../config.e2e_smoke.json) — `python3 run_research.py --config config.e2e_smoke.json`
+3. More examples: [CONFIG.md](CONFIG.md), [`config.example.json`](../config.example.json).
 
-| Goal | Recommended command | Notes |
-| --- | --- | --- |
-| Reproduce the main offline research path | `python3 run_research.py` | Canonical baseline with 10k episodes, continuous learning, and GPU replay. |
-| Reproduce the canonical MoE research path | `python3 run_moe_research.py` | Enables packed expert variants and MoE benchmark comparisons. |
-| Calibrate simulator against llama.cpp | `python3 run_calibrate_llama_cpp.py` | Fits simulator multipliers from measured latency/throughput (requires llama.cpp binary + model). |
-| Train on a 4090 with continuous learning | `python3 run_4090_universal.py` | 4090-host, VRAM replay buffer, periodic eval/checkpoint. |
-| Run the optimized Linux RTX 4090 path | `bash scripts/run_4090_pipeline.sh` | Linux NVIDIA host (recommended). |
-| Run CUDA training on another NVIDIA GPU | `python3 run_pytorch_gpu.py` | Auto-detects a GPU profile. VRAM replay buffer enabled. |
-| Explore continual adaptation | `python3 run_online_learning.py` | Experimental extension. |
+Artifacts and API: [USAGE.md](USAGE.md).
 
-## Primary entrypoints
+## Choose an entrypoint
 
-Canonical offline research run:
+| Goal | Command |
+| --- | --- |
+| Main offline run (simulator, no PyTorch) | `python3 run_research.py` |
+| Short E2E RL (tune episodes in JSON) | `python3 run_research.py --config config.e2e_smoke.json` |
+| … with your own file | `python3 run_research.py --config path.json` or `-c path.toml` |
+| MoE preset | `python3 run_moe_research.py` |
+| MoE + file | `python3 run_moe_research.py --config moe.json` |
+| NVIDIA GPU (auto profile) | `python3 run_pytorch.py --preset gpu` — same as `run_pytorch_gpu.py` |
+| GPU + file (**replaces** `--preset`) | `python3 run_pytorch.py --config cuda_run.toml` |
+| RTX 4090 preset | `python3 run_pytorch.py --preset 4090` or `run_pytorch_4090.py` |
+| Linux 4090 checks + run | `bash scripts/run_4090_pipeline.sh` |
+| 4090 host, universal-policy naming | `python3 run_4090_universal.py` |
+| Multi-seed (`dense` or `moe`) | `python3 run_multiseed.py --preset dense --seeds 13,17,23,29,31` |
+| Calibrate simulator from llama.cpp | `python3 run_calibrate_llama_cpp.py` |
+| Calibrate + custom base config | `python3 run_calibrate_llama_cpp.py --config my_base.json` |
+| Online experiment | `python3 run_online_learning.py` |
+| Online + file | `python3 run_online_learning.py --config online.toml` |
+
+## Commands
 
 ```bash
 python3 run_research.py
-```
-
-Multi-seed dense run (recommended for more meaningful numbers):
-
-```bash
-python3 run_multiseed.py --preset dense --seeds 13,17,23,29,31
-```
-
-Notes:
-
-- The default config now trains for **10,000 episodes** with **continuous learning** enabled (periodic eval every 1,000 episodes, checkpoint every 5,000).
-- On a PyTorch/CUDA backend, a **50,000-entry GPU replay buffer** is allocated in VRAM and mixed into PPO updates for better sample efficiency.
-- VRAM usage (allocated, reserved, replay buffer size) is logged in training history and the final report.
-- Seed syntax supports `a,b,c` and ranges like `0-9`.
-- Multi-seed runs write an aggregate report to `outputs/reports/<run_name>_multiseed_report.md` and per-seed reports to `outputs/reports/<run_name>_seed<seed>_report.md`.
-
-Canonical MoE research run:
-
-```bash
+python3 run_research.py --config ./my_settings.json
 python3 run_moe_research.py
-```
-
-Multi-seed MoE run:
-
-```bash
+python3 run_pytorch.py --preset gpu
+python3 run_pytorch.py --config ./gpu_settings.toml
 python3 run_multiseed.py --preset moe --seeds 13,17,23
-```
-
-4090-host universal policy run:
-
-```bash
-python3 run_4090_universal.py
-```
-
-Fixed RTX 4090 PyTorch run:
-
-```bash
-python3 run_pytorch_4090.py
-```
-
-Experimental online adaptation run:
-
-```bash
-python3 run_online_learning.py
-```
-
-## Secondary helpers
-
-Generic GPU PyTorch run:
-
-```bash
-python3 run_pytorch_gpu.py
-```
-
-Recommended 4090 validation + run:
-
-```bash
-bash scripts/run_4090_pipeline.sh
-```
-
-Tests:
-
-```bash
+python3 run_research.py --help
+python3 run_pytorch.py --help
 python3 -m unittest discover -s tests -v
 ```
 
-## What `run_research.py` does
+Before committing (whitespace, syntax, tests): `bash scripts/pre_commit_check.sh`
 
-`run_research.py` uses [`config.py`](../config.py) and:
+Multi-seed: seeds can be `a,b,c` or `0-9`. Reports under `outputs/reports/`.
 
-1. trains the default policy
-2. evaluates it
-3. runs the benchmark suite
-4. writes analysis outputs
+Fixed horizons and episode counts live in each `config*.py`. For long PyTorch runs, enable `continuous_training` and related fields in [CONFIG.md](CONFIG.md).
 
-This is the easiest path for:
+## What every full run does
 
-- checking that the project works
-- iterating on logic without CUDA
-- validating the simulator pipeline
-- reproducing the core research setup
+[`run_research.py`](../run_research.py) (and GPU/MoE entrypoints) call the shared **research pipeline**: train → evaluate → benchmarks → analysis (JSON + SVG) → optional Markdown report and checkpoints. Exact files depend on `run_name` and backend; see [USAGE.md](USAGE.md).
 
-## What `run_pytorch_gpu.py` does
+- **`run_pytorch*.py`**: CUDA preflight first (when enabled), then the same pipeline with a smaller benchmark budget than training.
+- **`run_moe_research.py`**: MoE benchmarks and extra MoE analysis.
+- **`run_online_learning.py`**: offline warm-start, then simulated serving + replay + rollback (optional extension).
 
-`run_pytorch_gpu.py` uses [`config_gpu.py`](../config_gpu.py) and:
+## Outputs
 
-1. detects the current CUDA device
-2. selects a tuned GPU profile
-3. runs a CUDA preflight
-4. writes a preflight JSON report
-5. trains with the PyTorch actor-critic and PPO-style updates
-6. evaluates the trained policy
-7. runs benchmarks using a smaller benchmark budget
-8. writes analysis outputs
+`outputs/logs/`, `outputs/benchmarks/` (including `*_preflight.json` on GPU), `outputs/analysis/<run_name>/`, `outputs/checkpoints/`, `outputs/reports/`.
 
-This is the recommended path for most NVIDIA GPUs.
+## llama.cpp
 
-## What `run_moe_research.py` does
+Set `backend="llama_cpp"`, `llama_cpp_binary`, and `llama_cpp_model` in the preset you use ([`config.py`](../config.py), [`config_gpu.py`](../config_gpu.py), etc.), then run the same entrypoint.
 
-`run_moe_research.py` uses [`config_moe.py`](../config_moe.py) and:
+## Post-hoc analysis
 
-1. enables the packed-expert-bank MoE path
-2. trains the MoE-aware policy
-3. runs MoE benchmark comparisons
-4. writes MoE expert and cache analysis outputs
-5. writes the same training history, checkpoint, and report artifacts as the standard research path
+Regenerate plots from existing logs without retraining: [USAGE.md](USAGE.md) (scripts under `analysis/`).
 
-## What `run_4090_universal.py` does
+## Notes
 
-`run_4090_universal.py` uses [`config_4090_universal.py`](../config_4090_universal.py) and:
-
-1. trains on a 4090 host
-2. keeps `multi_hardware=True`
-3. targets `gpu`, `cpu`, and `low_resource` hardware modes
-4. writes outputs under a dedicated universal-policy run name
-5. uses the same CUDA preflight, training, benchmarks, and reports as the standard 4090 path
-
-## What `run_pytorch_4090.py` does
-
-`run_pytorch_4090.py` uses [`config_4090.py`](../config_4090.py) and:
-
-1. runs a CUDA preflight
-2. writes a preflight JSON report
-3. trains with the PyTorch actor-critic and PPO-style updates
-4. evaluates the trained policy
-5. runs benchmarks using a smaller benchmark budget
-6. writes analysis outputs
-
-This is the path intended for a fixed RTX 4090 preset.
-
-The shared research pipeline also writes:
-
-- a training-history JSON file
-- a final checkpoint
-- a markdown experiment report
-
-## What `run_online_learning.py` does
-
-`run_online_learning.py` uses [`config_online.py`](../config_online.py) and:
-
-1. bootstraps the policy with an offline simulator training phase
-2. simulates a live multi-hardware request stream
-3. logs online telemetry and replay records
-4. applies replay-based policy updates
-5. runs canary checks before serving exploratory decisions
-6. rolls back to the best recent policy snapshot if live reward drifts too far
-7. writes an online analysis summary
-
-This is an optional systems extension for continual-improvement experiments. It is not the main path for the paper’s offline research claims.
-
-## Where outputs go
-
-Logs:
-
-- `outputs/logs/*.jsonl`
-
-Benchmarks and summaries:
-
-- `outputs/benchmarks/*_benchmarks.json`
-- `outputs/benchmarks/*_summary.json`
-- `outputs/benchmarks/*_preflight.json`
-- `outputs/benchmarks/*_online_summary.json`
-- `outputs/checkpoints/*`
-- `outputs/reports/*`
-
-Analysis:
-
-- `outputs/analysis/<run_name>/hardware`
-- `outputs/analysis/<run_name>/inputs`
-- `outputs/analysis/<run_name>/quant`
-- `outputs/analysis/<run_name>/online`
-
-## Typical workflows
-
-Validate the repository quickly:
-
-```bash
-python3 -m unittest discover -s tests -v
-python3 run_research.py
-```
-
-Run the full generic GPU path:
-
-```bash
-python3 run_pytorch_gpu.py
-```
-
-After the run, inspect:
-
-- `outputs/benchmarks/adaptive_universal_policy_torch_gpu_preflight.json`
-- `outputs/benchmarks/adaptive_universal_policy_torch_gpu_summary.json`
-
-Recommended 4090 path on Linux:
-
-```bash
-bash scripts/run_4090_pipeline.sh
-```
-
-After the run, inspect:
-
-- `outputs/benchmarks/adaptive_universal_policy_torch4090_preflight.json`
-- `outputs/benchmarks/adaptive_universal_policy_torch4090_summary.json`
-- `outputs/benchmarks/adaptive_universal_policy_torch4090_training_history.json`
-- `outputs/checkpoints/adaptive_universal_policy_torch4090_final.pt`
-- `outputs/reports/adaptive_universal_policy_torch4090_report.md`
-
-Run the fixed 4090 path directly:
-
-```bash
-python3 run_pytorch_4090.py
-```
-
-After the run, inspect:
-
-- `outputs/benchmarks/adaptive_universal_policy_torch4090_preflight.json`
-- `outputs/benchmarks/adaptive_universal_policy_torch4090_summary.json`
-- `outputs/benchmarks/adaptive_universal_policy_torch4090_training_history.json`
-- `outputs/checkpoints/adaptive_universal_policy_torch4090_final.pt`
-- `outputs/reports/adaptive_universal_policy_torch4090_report.md`
-
-Run the continual online path:
-
-```bash
-python3 run_online_learning.py
-```
-
-After the run, inspect:
-
-- `outputs/benchmarks/adaptive_online_policy_online_summary.json`
-- `outputs/benchmarks/adaptive_online_policy_summary.json`
-- `outputs/analysis/adaptive_online_policy/online`
-
-Run with llama.cpp backend:
-
-Edit [`config.py`](../config.py), [`config_gpu.py`](../config_gpu.py), or [`config_4090.py`](../config_4090.py):
-
-- set `backend="llama_cpp"`
-- set `llama_cpp_binary`
-- set `llama_cpp_model`
-
-Then rerun the same entrypoint you want.
-
-## Runtime notes
-
-- The simulator path is deterministic enough for development and tests.
-- The GPU path is optimized for throughput, but the environment rollout itself still happens in Python because the task is simulator- and decision-heavy.
-- Benchmarks intentionally use a smaller training budget than the main GPU run so the comparison suite stays practical.
-- If you care most about stable, meaningful research results, prefer `run_research.py` and the PyTorch GPU entrypoints over the experimental online loop.
-- If you want the clearest repo tour, think in this order: `run_research.py`, then `run_pytorch_4090.py` or `scripts/run_4090_pipeline.sh`, then `run_online_learning.py` only if needed.
-- If you want the MoE-focused version of the research story, insert `run_moe_research.py` right after `run_research.py`.
-- If you want the clearest “4090 host, universal policy target” workflow, use `run_4090_universal.py`.
+- Tests do not require PyTorch; GPU entrypoints do.
+- Benchmarks use a smaller episode budget than main training on purpose.

@@ -4,3 +4,14 @@ __pycache__/
 .venv/
 outputs/
 eval loop trainer/
+*.egg-info/
+.cursor/
+*.code-workspace
+
+# Local secrets and credentials (never commit)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/

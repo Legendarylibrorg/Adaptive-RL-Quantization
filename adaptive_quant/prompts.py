@@ -73,3 +73,23 @@ class PromptLibrary:
         for _ in range(count):
             result.append(candidates[rng.randrange(len(candidates))])
         return result
+
+    def probes_deterministic(
+        self,
+        prompt: PromptSample,
+        count: int,
+        *,
+        allowed_ids: set[str] | None = None,
+    ) -> list[PromptSample]:
+        """Stable probe order for reproducible stability_penalty (sorted by prompt_id, round-robin)."""
+        if count <= 0:
+            return []
+        candidates = [
+            candidate
+            for candidate in self.prompts
+            if candidate.prompt_id != prompt.prompt_id and (allowed_ids is None or candidate.prompt_id in allowed_ids)
+        ]
+        if not candidates:
+            return []
+        ordered = sorted(candidates, key=lambda p: p.prompt_id)
+        return [ordered[i % len(ordered)] for i in range(count)]

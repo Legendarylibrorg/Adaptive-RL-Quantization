@@ -20,17 +20,19 @@ class Trainer(TrainerBase):
             return self._train_continuous()
         return self._train_fixed()
 
-    def _train_fixed(self) -> dict[str, float]:
-        rewards: list[float] = []
-        for episode_index in range(self.config.training_episodes):
-            state = self.env.reset(previous_action=self.previous_action, phase="train")
-            decision, trace = self.policy.act(state, deterministic=False)
-            result = self.env.evaluate_current(decision, episode_index=episode_index)
-            self.policy.update(trace, result.metrics.reward)
-            self.previous_action = self._feedback_vector(result.decision)
-            rewards.append(result.metrics.reward)
-            self.training_history.append(training_row(float(episode_index), result))
+    def _run_training_episode(self, episode_index: int) -> float:
+        state = self.env.reset(
+            previous_action=self.previous_action, phase="train", episode_index=episode_index
+        )
+        decision, trace = self.policy.act(state, deterministic=self.config.rl_train_deterministic())
+        result = self.env.evaluate_current(decision, episode_index=episode_index)
+        self.policy.update(trace, result.metrics.reward)
+        self.previous_action = self._feedback_vector(result.decision)
+        self.training_history.append(training_row(float(episode_index), result))
+        return result.metrics.reward
 
+    def _train_fixed(self) -> dict[str, float]:
+        rewards = [self._run_training_episode(i) for i in range(self.config.training_episodes)]
         return reward_summary(rewards, updates=len(self.training_history))
 
     def _train_continuous(self) -> dict[str, float]:
@@ -41,13 +43,7 @@ class Trainer(TrainerBase):
         ckpt_interval = self.config.checkpoint_interval
 
         for episode_index in range(target):
-            state = self.env.reset(previous_action=self.previous_action, phase="train")
-            decision, trace = self.policy.act(state, deterministic=False)
-            result = self.env.evaluate_current(decision, episode_index=episode_index)
-            self.policy.update(trace, result.metrics.reward)
-            self.previous_action = self._feedback_vector(result.decision)
-            rewards.append(result.metrics.reward)
-            self.training_history.append(training_row(float(episode_index), result))
+            rewards.append(self._run_training_episode(episode_index))
 
             if eval_interval > 0 and (episode_index + 1) % eval_interval == 0:
                 recent = rewards[-eval_interval:]

@@ -5,20 +5,8 @@ import json
 from pathlib import Path
 import subprocess
 
-from analysis.hardware_generalization import analyze as analyze_hardware
-from analysis.input_adaptation import analyze as analyze_inputs
-from analysis.moe_cache_behavior import analyze as analyze_moe_cache
-from analysis.moe_expert_behavior import analyze as analyze_moe_experts
-from analysis.quant_function_behavior import analyze as analyze_quant
-from analysis.training_dynamics import analyze as analyze_training_dynamics
-from adaptive_quant.benchmark import BenchmarkSuite
 from adaptive_quant.configuration import FrameworkConfig
-from adaptive_quant.gpu_profiles import apply_gpu_profile
-from adaptive_quant.logging_utils import write_json
-from adaptive_quant.md_utils import md_table
-from adaptive_quant.torch_policy import TORCH_IMPORT_ERROR, torch
-from adaptive_quant.torch_preflight import run_torch_preflight
-from adaptive_quant.trainer import build_trainer
+from adaptive_quant.logging_utils import md_table, write_json
 
 
 class ResearchPipeline:
@@ -31,8 +19,16 @@ class ResearchPipeline:
         git_commit = _git_commit()
         trainer = self._build_trainer(config)
         preflight_report = None
+        train_summary: dict[str, object] = {}
+        eval_summary: dict[str, object] = {}
+        vram_report: dict[str, object] | None = None
+        history_path: str | None = None
+        checkpoint_path: str | None = None
+        pipeline_error: BaseException | None = None
         try:
             if config.training_backend == "pytorch" and config.torch_preflight:
+                from adaptive_quant.torch_preflight import run_torch_preflight
+
                 preflight_report = run_torch_preflight(config, trainer.policy)
                 preflight_report["gpu_profile"] = gpu_profile_report
                 write_json(f"{config.benchmark_dir}/{config.run_name}_preflight.json", preflight_report)
@@ -42,8 +38,14 @@ class ResearchPipeline:
             eval_summary = trainer.evaluate()
             history_path = self._write_training_history(config, trainer)
             checkpoint_path = self._maybe_save_final_checkpoint(config, trainer)
+        except BaseException as exc:
+            pipeline_error = exc
         finally:
             trainer.close()
+        if pipeline_error is not None:
+            raise pipeline_error
+
+        from adaptive_quant.benchmark import BenchmarkSuite
 
         benchmark_summary = BenchmarkSuite(config).run()
         analysis = self._run_analysis(config, history_path)
@@ -82,6 +84,9 @@ class ResearchPipeline:
     def _resolve_config(self) -> tuple[FrameworkConfig, dict[str, object] | None]:
         if self.original_config.training_backend != "pytorch":
             return self.original_config, None
+        from adaptive_quant.gpu_profiles import apply_gpu_profile
+        from adaptive_quant.torch_policy import TORCH_IMPORT_ERROR, torch
+
         try:
             requested = self.requested_profile or self.original_config.torch_gpu_profile
             device_name = None
@@ -89,7 +94,7 @@ class ResearchPipeline:
             if torch is None:
                 raise ImportError(
                     "PyTorch is required for `training_backend=\"pytorch\"`. "
-                    "Install a CUDA-enabled PyTorch build before running a PyTorch entrypoint."
+                    "Install PyTorch on this machine (a CUDA build is recommended for GPU training; CPU is supported with automatic fallback)."
                 ) from TORCH_IMPORT_ERROR
             if torch.cuda.is_available():
                 index = torch.cuda.current_device()
@@ -106,6 +111,8 @@ class ResearchPipeline:
             raise SystemExit(str(exc)) from exc
 
     def _build_trainer(self, config: FrameworkConfig):
+        from adaptive_quant.trainer import build_trainer
+
         try:
             return build_trainer(config)
         except ImportError as exc:
@@ -138,6 +145,15 @@ class ResearchPipeline:
         return save_checkpoint(config.final_checkpoint_path())
 
     def _run_analysis(self, config: FrameworkConfig, history_path: str | None) -> dict[str, object]:
+        from analysis.analyzers import (
+            analyze_hardware,
+            analyze_inputs,
+            analyze_moe_cache,
+            analyze_moe_experts,
+            analyze_quant,
+            analyze_training_dynamics,
+        )
+
         analysis_root = f"{config.analysis_dir}/{config.run_name}"
         analysis: dict[str, object] = {
             "hardware": analyze_hardware(f"{config.log_dir}/{config.run_name}_multi_hw.jsonl", f"{analysis_root}/hardware"),
@@ -337,4 +353,25 @@ def _git_commit() -> str | None:
     return completed.stdout.strip() or None
 
 
-__all__ = ["ResearchPipeline"]
+def run_pipeline_entrypoint(
+    config: FrameworkConfig,
+    *,
+    requested_profile: str | None = None,
+    show_gpu_profile: bool = False,
+    show_training_host: bool = False,
+    show_target_hardware: bool = False,
+) -> dict[str, object]:
+    summary = ResearchPipeline(config, requested_profile=requested_profile).run()
+    if show_training_host and config.training_host_label:
+        print("Training host:", config.training_host_label)
+    if show_target_hardware:
+        print("Target hardware modes:", ", ".join(config.hardware_modes))
+    if show_gpu_profile:
+        print("GPU profile:", summary["gpu_profile"])
+    print("Training summary:", summary["train"])
+    print("Evaluation summary:", summary["evaluation"])
+    print("Benchmark summary written to:", f"{config.benchmark_dir}/{config.run_name}_summary.json")
+    return summary
+
+
+__all__ = ["ResearchPipeline", "run_pipeline_entrypoint"]

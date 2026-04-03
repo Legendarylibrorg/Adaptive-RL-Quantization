@@ -181,6 +181,7 @@ class SimulatorBackend:
 class LlamaCppBackend:
     def __init__(self, config: FrameworkConfig) -> None:
         self.config = config
+        self._simulator = SimulatorBackend(config)
 
     def evaluate(self, state: EpisodeState, decision: QuantizationDecision) -> dict[str, float]:
         llama_cpp_binary, llama_cpp_model = require_llama_cpp_paths(self.config)
@@ -214,7 +215,7 @@ class LlamaCppBackend:
         )
         combined = ((completed.stdout or "") + "\n" + (completed.stderr or "")).lower()
         parsed = parse_llama_cpp_metrics(combined)
-        metrics = SimulatorBackend(self.config).evaluate(state, decision)
+        metrics = self._simulator.evaluate(state, decision)
 
         if parsed.get("throughput_tps", 0.0) > 0.0:
             metrics["throughput_tps"] = float(parsed["throughput_tps"])
@@ -228,9 +229,16 @@ def require_llama_cpp_paths(config: FrameworkConfig) -> tuple[str, str]:
     model = getattr(config, "llama_cpp_model", None)
     if not binary or not model:
         raise FileNotFoundError("llama.cpp backend requires both a binary path and a model path.")
+    for label, path in (("llama_cpp_binary", binary), ("llama_cpp_model", model)):
+        if not isinstance(path, str):
+            raise TypeError(f"{label} must be a string path, got {type(path).__name__}")
+        if "\n" in path or "\r" in path or "\x00" in path:
+            raise ValueError(f"{label} contains invalid control characters; refuse ambiguous paths.")
+    binary = os.path.realpath(binary)
+    model = os.path.realpath(model)
     if not os.path.isfile(binary) or not os.access(binary, os.X_OK):
         raise FileNotFoundError(f"Missing llama.cpp binary: {binary}")
-    if not os.path.exists(model):
+    if not os.path.isfile(model):
         raise FileNotFoundError(f"Missing model file: {model}")
     return str(binary), str(model)
 

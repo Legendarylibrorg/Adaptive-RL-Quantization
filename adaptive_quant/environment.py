@@ -45,9 +45,40 @@ class AdaptiveQuantizationEnv:
         forced_prompt_id: str | None = None,
         forced_prompt: PromptSample | None = None,
         phase: str = "train",
+        episode_index: int | None = None,
     ) -> EpisodeState:
-        hardware = forced_hardware or self._sample_hardware()
-        prompt = self._sample_prompt(forced_prompt_id, forced_prompt, phase=phase)
+        mode = self.config.env_sampling_mode.strip().lower()
+        ep = 0 if episode_index is None else int(episode_index)
+
+        if forced_prompt is not None:
+            prompt = forced_prompt
+        elif mode == "sequential":
+            pid = forced_prompt_id or self._sequential_prompt_id(ep, phase)
+            prompt = self.prompt_library.by_id(pid)
+        elif mode == "forced":
+            pid = forced_prompt_id or self.config.env_forced_prompt_id
+            if pid is None:
+                raise ValueError(
+                    "env_sampling_mode='forced' requires forced_prompt, forced_prompt_id, or env_forced_prompt_id"
+                )
+            prompt = self.prompt_library.by_id(pid)
+        else:
+            prompt = self._sample_prompt_random(forced_prompt_id, phase=phase)
+
+        if forced_hardware is not None:
+            hardware = forced_hardware
+        elif mode == "sequential":
+            hardware = self._sequential_hardware(ep)
+        elif mode == "forced":
+            raw_hw = self.config.env_forced_hardware
+            if raw_hw is None:
+                raise ValueError(
+                    "env_sampling_mode='forced' requires forced_hardware on reset() or env_forced_hardware in config"
+                )
+            hardware = HardwareType(raw_hw)
+        else:
+            hardware = self._sample_hardware_random()
+
         previous = previous_action or [0.0, 0.0, 0.0]
         input_features, sensitivity = self._get_prompt_context(prompt)
         hardware_profile = self.hardware_profiles[hardware]
@@ -100,30 +131,37 @@ class AdaptiveQuantizationEnv:
             self._log_episode(result, episode_index)
         return result
 
-    def _sample_hardware(self) -> HardwareType:
+    def _sequential_prompt_id(self, episode_index: int, phase: str) -> str:
+        if self.config.prompt_split_enabled:
+            split_ids = self.train_prompt_ids if phase == "train" else self.eval_prompt_ids
+            allowed = split_ids or {p.prompt_id for p in self.prompt_library.prompts}
+        else:
+            allowed = {p.prompt_id for p in self.prompt_library.prompts}
+        ordered = sorted(allowed)
+        return ordered[episode_index % len(ordered)]
+
+    def _sequential_hardware(self, episode_index: int) -> HardwareType:
+        modes = self.config.ordered_hardware()
+        if not self.config.multi_hardware:
+            return modes[0]
+        return modes[episode_index % len(modes)]
+
+    def _sample_hardware_random(self) -> HardwareType:
         hardware_modes = self.config.ordered_hardware()
         if not self.config.multi_hardware:
             return hardware_modes[0]
         return hardware_modes[self.rng.randrange(len(hardware_modes))]
 
-    def _sample_prompt(
-        self,
-        forced_prompt_id: str | None = None,
-        forced_prompt: PromptSample | None = None,
-        *,
-        phase: str = "train",
-    ):
-        if forced_prompt is not None:
-            return forced_prompt
-        if forced_prompt_id is None:
-            if not self.config.prompt_split_enabled:
-                return self.prompt_library.sample(self.rng)
-            allowed = self.train_prompt_ids if phase == "train" else self.eval_prompt_ids
-            if not allowed:
-                return self.prompt_library.sample(self.rng)
-            prompt_id = list(allowed)[self.rng.randrange(len(allowed))]
-            return self.prompt_library.by_id(prompt_id)
-        return self.prompt_library.by_id(forced_prompt_id)
+    def _sample_prompt_random(self, forced_prompt_id: str | None, *, phase: str = "train") -> PromptSample:
+        if forced_prompt_id is not None:
+            return self.prompt_library.by_id(forced_prompt_id)
+        if not self.config.prompt_split_enabled:
+            return self.prompt_library.sample(self.rng)
+        allowed = self.train_prompt_ids if phase == "train" else self.eval_prompt_ids
+        if not allowed:
+            return self.prompt_library.sample(self.rng)
+        prompt_id = list(allowed)[self.rng.randrange(len(allowed))]
+        return self.prompt_library.by_id(prompt_id)
 
     def _get_prompt_context(self, prompt):
         if prompt.prompt_id in self._prompt_cache:
@@ -140,7 +178,7 @@ class AdaptiveQuantizationEnv:
 
     def _compute_reward(self, metrics: dict[str, float], stability_penalty: float) -> float:
         weights = self.config.reward_weights
-        return (
+        reward = (
             -weights.alpha_latency * metrics["latency_ms"]
             + weights.beta_throughput * metrics["throughput_tps"]
             - weights.gamma_perplexity * metrics["perplexity"]
@@ -150,6 +188,12 @@ class AdaptiveQuantizationEnv:
             - self.config.moe_cache_miss_penalty * metrics.get("cache_miss_count", 0.0)
             - self.config.moe_variant_churn_penalty * metrics.get("variant_churn", 0.0)
         )
+        ref = self.config.reward_perplexity_reference
+        zeta = weights.zeta_perplexity_over_ref
+        if ref is not None and zeta > 0.0:
+            over = max(0.0, float(metrics["perplexity"]) - float(ref))
+            reward -= zeta * over
+        return reward
 
     def _stability_penalty(self, decision: QuantizationDecision, state: EpisodeState) -> float:
         if self.config.stability_probe_count <= 1:
@@ -162,7 +206,12 @@ class AdaptiveQuantizationEnv:
                 allowed = self.eval_prompt_ids
             elif self.train_prompt_ids is not None:
                 allowed = self.train_prompt_ids
-        probes = self.prompt_library.probes(state.prompt, self.config.stability_probe_count, self.rng, allowed_ids=allowed)
+        if self.config.stability_probe_sampling.strip().lower() == "deterministic":
+            probes = self.prompt_library.probes_deterministic(
+                state.prompt, self.config.stability_probe_count, allowed_ids=allowed
+            )
+        else:
+            probes = self.prompt_library.probes(state.prompt, self.config.stability_probe_count, self.rng, allowed_ids=allowed)
         for probe in probes:
             probe_features, probe_sensitivity = self._get_prompt_context(probe)
             probe_state = replace(

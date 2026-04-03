@@ -1,5 +1,14 @@
 # Troubleshooting
 
+## `--config` / file path errors
+
+- **“Config file not found”** — paths are resolved relative to the **current working directory**. From the repo root, use `./my.json` or an absolute path.
+- **`run_pytorch.py` exits** asking for `training_backend='pytorch'` — JSON/TOML for the GPU entrypoint must set `"training_backend": "pytorch"` (or start from the `pytorch` preset in [CONFIG.md](CONFIG.md)).
+
+## No PyTorch on the simulator path
+
+Normal. [`config.py`](../config.py) uses `training_backend="python"`. Install PyTorch only for GPU configs / `run_pytorch*.py`.
+
 ## `run_pytorch_gpu.py` or `run_pytorch_4090.py` says PyTorch is required
 
 This means CUDA-enabled PyTorch is not installed in the active environment.

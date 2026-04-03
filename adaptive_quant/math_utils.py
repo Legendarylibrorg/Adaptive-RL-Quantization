@@ -3,7 +3,8 @@ from __future__ import annotations
 import hashlib
 import math
 import random
-from typing import Iterable, Sequence
+import statistics
+from typing import Sequence
 
 
 def clamp(value: float, lower: float, upper: float) -> float:
@@ -68,23 +69,9 @@ def deterministic_float(key: str, lower: float = 0.0, upper: float = 1.0) -> flo
     return lower + (upper - lower) * bucket
 
 
-def chunked(values: Sequence[float], chunk_size: int) -> list[list[float]]:
-    return [list(values[index : index + chunk_size]) for index in range(0, len(values), chunk_size)]
-
-
 def stable_hash_int(text: str, modulo: int) -> int:
     digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
     return int(digest[:16], 16) % modulo
-
-
-def sliding_average(values: Sequence[float], window: int) -> list[float]:
-    if window <= 1 or len(values) <= 1:
-        return list(values)
-    averaged: list[float] = []
-    for index in range(len(values)):
-        lower = max(0, index - window + 1)
-        averaged.append(mean(values[lower : index + 1]))
-    return averaged
 
 
 def gaussian_sample(mean_value: float, stddev: float, rng: random.Random) -> float:
@@ -93,9 +80,22 @@ def gaussian_sample(mean_value: float, stddev: float, rng: random.Random) -> flo
     return rng.gauss(mean_value, stddev)
 
 
-def flatten(rows: Iterable[Sequence[float]]) -> list[float]:
-    flattened: list[float] = []
-    for row in rows:
-        flattened.extend(row)
-    return flattened
+def safe_ratio(numer: float, denom: float) -> float | None:
+    if not math.isfinite(numer) or not math.isfinite(denom) or denom <= 0:
+        return None
+    return numer / denom
+
+
+def ratio_mean(observed: list[float], simulated: list[float], *, clamp: tuple[float, float] = (0.01, 100.0)) -> float:
+    lower, upper = clamp
+    ratios = [r for o, s in zip(observed, simulated, strict=True) if (r := safe_ratio(o, s)) is not None and lower < r < upper]
+    return float(statistics.fmean(ratios)) if ratios else 1.0
+
+
+def sample_std(values: list[float]) -> float:
+    return float(statistics.stdev(values)) if len(values) >= 2 else 0.0
+
+
+def fmt_float(x: float, *, digits: int = 2) -> str:
+    return "nan" if not math.isfinite(x) else f"{x:.{digits}f}"
 

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from adaptive_quant.logging_utils import load_jsonl, write_json
 from adaptive_quant.math_utils import mean
 
 
@@ -10,17 +9,6 @@ def ensure_directory(path: str) -> Path:
     target = Path(path)
     target.mkdir(parents=True, exist_ok=True)
     return target
-
-
-def metric(records: list[dict], *path: str) -> list[float]:
-    values: list[float] = []
-    for record in records:
-        current = record
-        for key in path:
-            current = current.get(key, {})
-        if isinstance(current, (int, float)):
-            values.append(float(current))
-    return values
 
 
 def grouped_mean(records: list[dict], group_key: str, metric_path: tuple[str, ...]) -> dict[str, float]:
@@ -113,10 +101,6 @@ def write_scatter_plot(path: str, title: str, points: list[tuple[float, float]],
 __all__ = [
     "ensure_directory",
     "grouped_mean",
-    "load_jsonl",
-    "metric",
     "write_bar_chart",
-    "write_json",
     "write_scatter_plot",
 ]
-

@@ -79,6 +79,7 @@ class OnlineLearningLoop:
             previous_action=self.previous_action,
             forced_hardware=request.hardware,
             forced_prompt=prompt,
+            episode_index=self.request_index,
         )
         baseline_decision, _baseline_payload = self.trainer.act_online(state, deterministic=True)
 

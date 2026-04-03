@@ -4,11 +4,10 @@ import tempfile
 import unittest
 
 from config_4090_universal import CONFIG_4090_UNIVERSAL
-from analysis.hardware_generalization import analyze as analyze_hardware
-from analysis.input_adaptation import analyze as analyze_inputs
-from analysis.online_learning import analyze as analyze_online
-from analysis.quant_function_behavior import analyze as analyze_quant
+from analysis.analyzers import analyze_hardware, analyze_inputs, analyze_online, analyze_quant
 from adaptive_quant.benchmark import BenchmarkSuite
+from dataclasses import replace
+
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.gpu_profiles import apply_gpu_profile, infer_gpu_profile
@@ -96,6 +95,79 @@ class FrameworkTests(unittest.TestCase):
             clip_upper=config.clip_bounds[1],
         )
         self.assertEqual(results[1].state.previous_action, expected_previous)
+
+    def test_torch_policy_algorithm_must_be_known(self) -> None:
+        with self.assertRaises(ValueError):
+            FrameworkConfig(run_name="algo_validation_test", torch_policy_algorithm="invalid_algo")
+
+    def test_env_sampling_sequential_is_deterministic_in_prompt_and_hardware(self) -> None:
+        cfg = FrameworkConfig(
+            env_sampling_mode="sequential",
+            multi_hardware=True,
+            run_name="seq_sampling_test",
+            training_episodes=1,
+            evaluation_episodes=1,
+            stability_probe_count=1,
+        )
+        env = AdaptiveQuantizationEnv(cfg, log_path=f"{tempfile.gettempdir()}/seq_sampling.jsonl")
+        modes = cfg.ordered_hardware()
+        for ep in range(3):
+            state = env.reset(episode_index=ep, phase="train")
+            self.assertEqual(state.hardware_profile.hardware_type, modes[ep % len(modes)])
+        p0 = env.reset(episode_index=0, phase="train").prompt.prompt_id
+        p0_again = env.reset(episode_index=0, phase="train").prompt.prompt_id
+        self.assertEqual(p0, p0_again)
+
+    def test_env_sampling_forced_requires_defaults(self) -> None:
+        cfg = FrameworkConfig(
+            env_sampling_mode="forced",
+            run_name="forced_sampling_test",
+            training_episodes=1,
+            stability_probe_count=1,
+        )
+        env = AdaptiveQuantizationEnv(cfg, log_path=f"{tempfile.gettempdir()}/forced_bad.jsonl")
+        with self.assertRaises(ValueError):
+            env.reset()
+
+    def test_reproducible_research_preset_matches_documented_toggles(self) -> None:
+        cfg = FrameworkConfig.reproducible_research(seed=777, run_name="preset_test", training_episodes=4)
+        self.assertEqual(cfg.seed, 777)
+        self.assertEqual(cfg.prompt_split_seed, 777)
+        self.assertEqual(cfg.env_sampling_mode, "sequential")
+        self.assertEqual(cfg.rl_train_policy_mode, "deterministic")
+        self.assertEqual(cfg.stability_probe_sampling, "deterministic")
+        self.assertTrue(cfg.torch_deterministic)
+        self.assertFalse(cfg.torch_compile)
+        self.assertTrue(cfg.rl_train_deterministic())
+        self.assertEqual(cfg.training_episodes, 4)
+
+    def test_research_env_config_validators(self) -> None:
+        with self.assertRaises(ValueError):
+            FrameworkConfig(run_name="bad_env_mode", env_sampling_mode="unknown")
+        with self.assertRaises(ValueError):
+            FrameworkConfig(run_name="bad_policy_mode", rl_train_policy_mode="maybe")
+        with self.assertRaises(ValueError):
+            FrameworkConfig(run_name="bad_probe_mode", stability_probe_sampling="coinflip")
+
+    def test_reward_perplexity_reference_hinge_penalizes_over_ref(self) -> None:
+        base = FrameworkConfig(stability_probe_count=1, run_name="ppl_ref_env", training_episodes=1, evaluation_episodes=1)
+        env = AdaptiveQuantizationEnv(base, log_path=f"{tempfile.gettempdir()}/ppl_ref.jsonl")
+        metrics = {
+            "latency_ms": 10.0,
+            "throughput_tps": 100.0,
+            "perplexity": 14.0,
+            "memory_mb": 512.0,
+        }
+        r_base = env._compute_reward(metrics, 0.0)
+        w = replace(base.reward_weights, zeta_perplexity_over_ref=2.5)
+        cfg = base.clone(
+            reward_weights=w,
+            reward_perplexity_reference=10.0,
+        )
+        env2 = AdaptiveQuantizationEnv(cfg, log_path=f"{tempfile.gettempdir()}/ppl_ref2.jsonl")
+        r_guard = env2._compute_reward(metrics, 0.0)
+        self.assertLess(r_guard, r_base)
+        self.assertAlmostEqual(r_base - r_guard, 2.5 * (14.0 - 10.0))
 
     def test_single_probe_stability_short_circuits_to_zero(self) -> None:
         config = FrameworkConfig(training_episodes=2, evaluation_episodes=1, stability_probe_count=1, run_name="stability_short_circuit")

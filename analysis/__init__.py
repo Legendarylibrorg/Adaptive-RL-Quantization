@@ -1,2 +1,2 @@
-# Analysis entrypoints live in this package.
+"""Analysis package — implementations in `analysis.analyzers`; per-topic shims for CLI."""
 

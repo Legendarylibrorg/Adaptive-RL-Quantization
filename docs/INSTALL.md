@@ -12,22 +12,105 @@ This repo is designed to be **Linux-first** (especially for NVIDIA CUDA training
 - **Linux**: recommended for GPU runs and for `scripts/run_4090_pipeline.sh`
 - **macOS**: supported for simulator runs; CUDA/NVIDIA paths are not the primary target
 
+Follow the sections below in order on a fresh machine: **get the code** → **Linux packages** (if on Linux) → **venv + editable install** → optional GPU / llama.cpp.
+
+## 0. Prerequisites (before `git clone`)
+
+On Linux you need **`git`**, **`curl`**, and **Python 3.11+** on your `PATH`. `curl` is required for the official **`get-pip.py`** bootstrap when a new venv has no `pip` (common on minimal Debian images).
+
+Sanity check:
+
+```bash
+command -v git
+command -v curl
+python3 --version   # expect 3.11 or newer
+```
+
+**One-command bootstrap (Linux):** after cloning the repo, from the repo root run:
+
+```bash
+bash scripts/setup_from_clone.sh
+```
+
+This creates **`.venv`**, upgrades **`pip`** (using **`curl`** if the venv has no pip), runs **`pip install -e .`**, **`unittest`**, and a **short end-to-end RL run** (train → eval → benchmarks) via **`config.e2e_smoke.json`**. Edit that JSON to tune episode counts and `run_name` without touching Python.
+
+Override paths if needed:
+
+```bash
+PYTHON_BIN=python3.12 VENV_DIR="$PWD/.venv" bash scripts/setup_from_clone.sh
+```
+
+## Get the code
+
+Use HTTPS (works everywhere; no SSH keys required):
+
+```bash
+git clone https://github.com/Legendarylibrorg/Adaptive-RL-Quantization.git
+cd Adaptive-RL-Quantization
+```
+
+SSH (if you use GitHub with SSH keys):
+
+```bash
+git clone git@github.com:Legendarylibrorg/Adaptive-RL-Quantization.git
+cd Adaptive-RL-Quantization
+```
+
+Forks and mirrors: replace the URL with your `git remote` as needed; the rest of this guide stays the same.
+
+## Linux: system packages
+
+On a minimal Linux install, install `git`, `curl`, and a recent Python before creating the venv. `curl` is used by many install docs (e.g. bootstrap scripts) and is assumed available for the copy-paste flows below.
+
+**Debian / Ubuntu:**
+
+```bash
+sudo apt update
+sudo apt install -y git curl python3 python3-venv
+```
+
+**Fedora:**
+
+```bash
+sudo dnf install -y git curl python3 python3-venv
+```
+
+Verify:
+
+```bash
+git --version
+curl --version
+python3 --version
+```
+
+Python must report **3.11 or newer**.
+
 ## 1. Base setup
 
 Requirements:
 
 - Python 3.11+
-- `git`
+- `git` (to clone this repository)
+- `curl` (recommended on Linux; used below if `pip` is missing)
+
+The package declares **no PyPI runtime dependencies** (stdlib only). PyTorch is optional via an extra (see GPU section).
 
 Create a virtual environment:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install --upgrade pip setuptools
+python3 -m pip install -U pip
 ```
 
-Install the package:
+If `python3 -m pip` fails because `pip` is not installed in the venv, bootstrap it (official PyPA script, fetched with `curl`):
+
+```bash
+curl -sS https://bootstrap.pypa.io/get-pip.py | python3
+python3 -m pip install -U pip
+```
+
+Install the package (editable):
 
 ```bash
 python3 -m pip install -e .
@@ -51,7 +134,13 @@ python3 -m unittest discover -s tests -v
 
 ## 3. GPU setup
 
-Install CUDA-enabled PyTorch on the target GPU host. The exact command depends on:
+Optional: install the declared PyTorch extra (still pick a CUDA wheel that matches your driver):
+
+```bash
+python3 -m pip install -e ".[torch]"
+```
+
+Or install CUDA-enabled PyTorch manually on the target GPU host. The exact command depends on:
 
 - your driver version
 - your CUDA runtime
@@ -79,16 +168,18 @@ python3 -c "import torch; print('bf16', getattr(torch.cuda, 'is_bf16_supported',
 python3 -c "import torch; print(torch.cuda.get_device_name(0))"
 ```
 
-Then run:
+Then run (unified CLI or legacy wrappers):
 
 ```bash
-python3 run_pytorch_gpu.py
+python3 run_pytorch.py --preset gpu
+# or: python3 run_pytorch_gpu.py
 ```
 
-Or, if you want the explicit 4090 preset:
+4090 preset:
 
 ```bash
-python3 run_pytorch_4090.py
+python3 run_pytorch.py --preset 4090
+# or: python3 run_pytorch_4090.py
 ```
 
 For a one-command 4090 validation and run:
@@ -126,22 +217,39 @@ That means:
 
 ## 6. Quick install matrix
 
-Simulator only:
+**Linux — simulator (full copy-paste from clone):**
 
 ```bash
-python3 -m venv .venv
+git clone https://github.com/Legendarylibrorg/Adaptive-RL-Quantization.git
+cd Adaptive-RL-Quantization
+sudo apt update && sudo apt install -y git curl python3 python3-venv   # Debian/Ubuntu; skip if already installed
+bash scripts/setup_from_clone.sh
 source .venv/bin/activate
-python3 -m pip install --upgrade pip setuptools
-python3 -m pip install -e .
-python3 run_research.py
+python3 run_research.py   # full baseline from config.py (smoke already ran during the script)
 ```
 
-macOS simulator only (same commands):
+**Linux — CUDA GPU (after editable install; install PyTorch for your driver):**
 
 ```bash
+git clone https://github.com/Legendarylibrorg/Adaptive-RL-Quantization.git
+cd Adaptive-RL-Quantization
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install --upgrade pip setuptools
+python3 -m pip install -U pip setuptools
+python3 -m pip install -e .
+# Install CUDA-enabled PyTorch: use https://pytorch.org/get-started/locally/ and copy the `pip` line, or:
+# python3 -m pip install -e ".[torch]"
+python3 run_pytorch_gpu.py
+```
+
+macOS — simulator only (same as Linux clone path; no `apt` step):
+
+```bash
+git clone https://github.com/Legendarylibrorg/Adaptive-RL-Quantization.git
+cd Adaptive-RL-Quantization
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -U pip setuptools
 python3 -m pip install -e .
 python3 run_research.py
 ```
@@ -152,25 +260,15 @@ Optional experimental online extension:
 python3 run_online_learning.py
 ```
 
-CUDA GPU:
+RTX 4090 preset (Linux NVIDIA host, after PyTorch is installed):
 
 ```bash
+git clone https://github.com/Legendarylibrorg/Adaptive-RL-Quantization.git
+cd Adaptive-RL-Quantization
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install --upgrade pip setuptools
+python3 -m pip install -U pip setuptools
 python3 -m pip install -e .
-# install CUDA-enabled PyTorch for your host
-python3 run_pytorch_gpu.py
-```
-
-RTX 4090 preset:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python3 -m pip install --upgrade pip setuptools
-python3 -m pip install -e .
-# install CUDA-enabled PyTorch for your host
 python3 run_pytorch_4090.py
 ```
 
@@ -179,3 +277,7 @@ RTX 4090 preset with smoke tests:
 ```bash
 bash scripts/run_4090_pipeline.sh
 ```
+
+## Next steps
+
+Repository overview and command table: [README.md](../README.md). Usage and config files: [USAGE.md](USAGE.md) · [RUNNING.md](RUNNING.md) · [CONFIG.md](CONFIG.md).

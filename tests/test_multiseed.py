@@ -9,8 +9,8 @@ class MultiSeedRunnerTests(unittest.TestCase):
         # Import inside the test so this remains a normal stdlib unittest.
         from run_multiseed import main
 
-        # Use 2 seeds to keep the test very fast.
-        main(["--preset", "dense", "--seeds", "1,2", "--run-name", "test_multiseed", "--episodes", "240"])
+        # Two seeds, low episode budget so default `unittest discover` stays quick (see scripts/setup_from_clone.sh).
+        main(["--preset", "dense", "--seeds", "1,2", "--run-name", "test_multiseed", "--episodes", "48"])
 
         summary_path = Path("outputs/benchmarks/test_multiseed_multiseed_summary.json")
         report_path = Path("outputs/reports/test_multiseed_multiseed_report.md")

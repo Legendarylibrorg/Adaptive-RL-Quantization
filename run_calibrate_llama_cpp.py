@@ -9,8 +9,9 @@ from typing import Any, Iterable
 from adaptive_quant.backend import SimulatorBackend, parse_llama_cpp_metrics, require_llama_cpp_paths
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
+from adaptive_quant.runner_cli import add_config_file_argument, load_config_or_fallback
 from adaptive_quant.logging_utils import write_json
-from adaptive_quant.stats_utils import ratio_mean
+from adaptive_quant.math_utils import ratio_mean
 from adaptive_quant.types import HardwareType, QuantMode, QuantizationDecision
 
 
@@ -66,6 +67,7 @@ def _fit_multiplier(observed: list[float], simulated: list[float]) -> float:
 
 def main(argv: Iterable[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Fit simulator calibration multipliers from llama.cpp measurements.")
+    add_config_file_argument(parser, help_suffix="Otherwise uses config.py as base.")
     parser.add_argument("--run-name", default="llama_cpp_calibration", help="Output artifact run name prefix.")
     parser.add_argument("--prompts", default="6", help="Number of random prompts to sample for calibration.")
     parser.add_argument("--seed", default="1234", help="RNG seed for prompt sampling.")
@@ -74,7 +76,8 @@ def main(argv: Iterable[str] | None = None) -> None:
     from config import CONFIG as BASE
 
     # Calibration must run with a real llama.cpp binary + model.
-    config = BASE.clone(backend="llama_cpp", prompt_split_enabled=False)
+    base_cfg = load_config_or_fallback(args.config, BASE)
+    config = base_cfg.clone(backend="llama_cpp", prompt_split_enabled=False)
     try:
         llama_cpp_binary, llama_cpp_model = require_llama_cpp_paths(config)
     except FileNotFoundError as exc:
@@ -97,8 +100,8 @@ def main(argv: Iterable[str] | None = None) -> None:
         observed_memory: list[float] = []
         sim_memory: list[float] = []
 
-        for _ in range(prompt_count):
-            state = env.reset(forced_hardware=hw, phase="eval")
+        for episode_i in range(prompt_count):
+            state = env.reset(forced_hardware=hw, phase="eval", episode_index=episode_i)
             prompt_text = state.prompt.text[: config.llama_cpp_max_prompt_chars]
             lat_ms_tok, tps, mem_mb = _run_llama_cpp_once(
                 config,

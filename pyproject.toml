@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,6 +7,12 @@ name = "adaptive-rl-quant"
 version = "0.1.0"
 description = "Adaptive, hardware-aware RL quantization research framework for llama.cpp-style backends."
 requires-python = ">=3.11"
+# Runtime: Python standard library only. External binaries (e.g. llama.cpp) are out-of-band.
+dependencies = []
+
+[project.optional-dependencies]
+# Only when using training_backend="pytorch" or other torch entrypoints.
+torch = ["torch>=2.1"]
 
 [tool.setuptools]
 packages = ["adaptive_quant", "analysis"]

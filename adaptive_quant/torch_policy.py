@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import warnings
 from contextlib import nullcontext
 from typing import Any
 
@@ -18,6 +20,46 @@ except Exception as exc:  # pragma: no cover - exercised only when torch is unav
     TORCH_IMPORT_ERROR = exc
 else:
     TORCH_IMPORT_ERROR = None
+
+
+def resolve_training_device(requested: str) -> tuple["torch.device", str | None]:
+    """
+    Map config.torch_device to a device that exists on this machine.
+    Falls back to CPU when CUDA/MPS was requested but is not available.
+    """
+    if torch is None:
+        raise RuntimeError("resolve_training_device requires torch")
+    raw = (requested or "cpu").strip()
+    device = torch.device(raw)
+    if device.type == "cuda":
+        if not torch.cuda.is_available():
+            return torch.device("cpu"), f"torch_device={requested!r} but CUDA is not available; using CPU."
+        return device, None
+    if device.type == "mps":
+        mps_ok = hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
+        if not mps_ok:
+            return torch.device("cpu"), f"torch_device={requested!r} but MPS is not available; using CPU."
+        return device, None
+    return device, None
+
+
+def configure_global_torch_reproducibility(config: FrameworkConfig) -> None:
+    """
+    Best-effort bit-level reproducibility for CUDA matmuls and PyTorch ops.
+    Call once before building CUDA models or running GPU kernels for training.
+
+    Sets CUBLAS_WORKSPACE_CONFIG when unset (required for deterministic cuBLAS).
+    """
+    if torch is None or not config.torch_deterministic:
+        return
+    os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+    torch.manual_seed(config.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(config.seed)
+    try:
+        torch.use_deterministic_algorithms(True, warn_only=True)
+    except TypeError:
+        torch.use_deterministic_algorithms(True)
 
 
 if torch is not None:
@@ -99,22 +141,39 @@ class TorchPolicyAdapter:
         if torch is None:
             raise ImportError("PyTorch is not installed in this environment.") from TORCH_IMPORT_ERROR
         self.config = config
+        configure_global_torch_reproducibility(config)
         self.supported_modes = config.supported_modes()
         self.mode_to_index = {mode: index for index, mode in enumerate(self.supported_modes)}
-        self.device = torch.device(config.torch_device)
+        self.device, device_note = resolve_training_device(config.torch_device)
+        if device_note:
+            warnings.warn(device_note, UserWarning, stacklevel=2)
         self.compute_dtype = _resolve_autocast_dtype(config.torch_dtype)
         self.model = TorchActorCritic(config).to(self.device)
         self._configure_cuda()
-        if config.torch_compile and hasattr(torch, "compile"):
+        if config.torch_compile and not config.torch_deterministic and hasattr(torch, "compile"):
             try:
                 self.model = torch.compile(self.model)
             except Exception:
                 pass
+        elif config.torch_compile and config.torch_deterministic:
+            warnings.warn(
+                "torch_compile is disabled when torch_deterministic=True (compile is not reproducibility-safe).",
+                UserWarning,
+                stacklevel=2,
+            )
 
     def _configure_cuda(self) -> None:
         if self.device.type != "cuda":
             return
+        if self.config.torch_deterministic:
+            torch.backends.cudnn.benchmark = False
+            torch.backends.cudnn.deterministic = True
+            torch.set_float32_matmul_precision("highest")
+            torch.backends.cuda.matmul.allow_tf32 = False
+            torch.backends.cudnn.allow_tf32 = False
+            return
         torch.backends.cudnn.benchmark = True
+        torch.backends.cudnn.deterministic = False
         if self.config.torch_tf32:
             torch.set_float32_matmul_precision("high")
             torch.backends.cuda.matmul.allow_tf32 = True

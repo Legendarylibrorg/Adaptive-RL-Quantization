@@ -1,0 +1,39 @@
+# Elevated quality gate: Linux, Python 3.11+, editable install, full test suite, whitespace/scripts.
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install (editable)
+        run: python -m pip install -U pip setuptools && python -m pip install -e .
+
+      - name: Pre-commit checks (syntax, bash, whitespace, tests)
+        run: bash scripts/pre_commit_check.sh
+
+      - name: Short E2E RL smoke (simulator)
+        run: python run_research.py --config config.e2e_smoke.json

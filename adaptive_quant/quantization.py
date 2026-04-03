@@ -225,20 +225,3 @@ def _predicted_moe_swap_cost(indices: list[int], state: EpisodeState, config: Fr
         if expert.resident_on_device < 0.5:
             total += (1.2 + 3.4 * aggressiveness) * (0.75 + expert.router_probability) * (1.10 - 0.35 * expert.hotness)
     return total
-
-
-def quantize_values(values: list[float], decision: QuantizationDecision, config: FrameworkConfig) -> list[float]:
-    if not values:
-        return []
-    scale = clamp(decision.scale_factor, *config.scale_bounds)
-    clip = clamp(decision.clipping_range, *config.clip_bounds)
-    average_bits = mean(decision.effective_layer_bits) if decision.effective_layer_bits else config.safe_default_bits
-    levels = max(2, (2 ** int(round(average_bits))) - 1)
-
-    quantized: list[float] = []
-    for value in values:
-        clipped = clamp(value, -clip, clip)
-        normalized = clipped / scale
-        rounded = round(normalized * levels) / levels
-        quantized.append(rounded * scale)
-    return quantized

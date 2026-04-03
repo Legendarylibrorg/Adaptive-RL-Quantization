@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from adaptive_quant.entrypoints import run_pipeline_entrypoint
+from adaptive_quant.research_pipeline import run_pipeline_entrypoint
 from config_4090_universal import CONFIG_4090_UNIVERSAL
 
 

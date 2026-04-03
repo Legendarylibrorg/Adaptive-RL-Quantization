@@ -3,6 +3,7 @@ from config import CONFIG
 
 CONFIG_GPU = CONFIG.clone(
     training_backend="pytorch",
+    continuous_training=False,
     training_episodes=4096,
     evaluation_episodes=256,
     benchmark_training_episodes=1024,

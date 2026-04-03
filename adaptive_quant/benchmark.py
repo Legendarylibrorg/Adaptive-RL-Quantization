@@ -6,7 +6,6 @@ from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.logging_utils import write_json
 from adaptive_quant.quantization import finalize_decision
-from adaptive_quant.torch_policy import torch
 from adaptive_quant.trainer import build_trainer
 from adaptive_quant.trainer_utils import feedback_vector, summarize_episode_results
 from adaptive_quant.types import HardwareType, QuantMode
@@ -82,7 +81,9 @@ class BenchmarkSuite:
             scale_upper = config.scale_bounds[1]
             clip_upper = config.clip_bounds[1]
             for episode_index in range(config.evaluation_episodes):
-                state = env.reset(previous_action=previous_action, phase="eval")
+                state = env.reset(
+                    previous_action=previous_action, phase="eval", episode_index=episode_index
+                )
                 decision = act_fn(state)
                 finalized = finalize_decision(decision, state, config)
                 result = env.evaluate_current(finalized, episode_index=3_000_000 + episode_index)
@@ -237,8 +238,13 @@ class BenchmarkSuite:
         if callable(close):
             close()
         gc.collect()
-        if torch is not None and torch.cuda.is_available():
-            torch.cuda.empty_cache()
+        try:
+            import torch as _torch
+
+            if _torch.cuda.is_available():
+                _torch.cuda.empty_cache()
+        except Exception:
+            pass
 
     def _run_variants(
         self,

@@ -2,10 +2,12 @@
 
 The PyTorch path now supports more than one GPU target.
 
-There are two ways to run GPU training:
+Use [`run_pytorch.py`](../run_pytorch.py) (single implementation) or the thin wrappers:
 
-- [`run_pytorch_gpu.py`](../run_pytorch_gpu.py): auto-detect the GPU and apply a tuned profile
-- [`run_pytorch_4090.py`](../run_pytorch_4090.py): force the RTX 4090 profile
+- `python3 run_pytorch.py --preset gpu` — same as [`run_pytorch_gpu.py`](../run_pytorch_gpu.py) (auto-detect GPU → tuned profile)
+- `python3 run_pytorch.py --preset 4090` — same as [`run_pytorch_4090.py`](../run_pytorch_4090.py) (fixed RTX 4090 profile)
+
+See [Usage Guide](USAGE.md) for repository conventions and where preflight/summary JSON is written.
 
 ## Supported profiles
 
