@@ -32,13 +32,15 @@ python3 --version   # expect 3.11 or newer
 bash scripts/setup_from_clone.sh
 ```
 
-This creates **`.venv`**, upgrades **`pip`** (using **`curl`** if the venv has no pip), runs **`pip install -e .`**, **`unittest`**, and a **short end-to-end RL run** (train → eval → benchmarks) via **`config.e2e_smoke.json`**. Edit that JSON to tune episode counts and `run_name` without touching Python.
+This creates **`.venv`**, upgrades **`pip`** (using **`curl`** if the venv has no pip), runs **`pip install -e .`**, **`unittest`**, and a **short reproducible end-to-end RL run** (train → eval → benchmarks → analysis) via **`config.e2e_smoke.json`**. Install, tests, and smoke use **`.venv/bin/python` explicitly** (no reliance on activating the venv first). Edit that JSON to tune episode counts, `seed`, and `run_name` without touching Python.
 
 Override paths if needed:
 
 ```bash
 PYTHON_BIN=python3.12 VENV_DIR="$PWD/.venv" bash scripts/setup_from_clone.sh
 ```
+
+**Quality gate (contributors):** run **`bash scripts/pre_commit_check.sh`** from the repo root before pushing (see **[CONTRIBUTING.md](../CONTRIBUTING.md)**). If **`.venv`** exists and **`PYTHON_BIN`** is unset, checks use **`.venv/bin/python`**; otherwise they use **`python3`**. Override either way with **`PYTHON_BIN`**. In CI, the workflow sets job-level **`PYTHON_BIN=python`** so install, pre-commit, and E2E smoke share the same **`setup-python`** interpreter.
 
 ## Get the code
 
@@ -93,7 +95,7 @@ Requirements:
 - `git` (to clone this repository)
 - `curl` (recommended on Linux; used below if `pip` is missing)
 
-The package declares **no PyPI runtime dependencies** (stdlib only). PyTorch is optional via an extra (see GPU section).
+The package declares **`dependencies = []`** in **[`pyproject.toml`](../pyproject.toml)** (stdlib only on Python 3.11+). The only declared optional extra is **`torch`** (`pip install -e ".[torch]"`); see GPU section.
 
 Create a virtual environment:
 
@@ -188,6 +190,8 @@ For a one-command 4090 validation and run:
 bash scripts/run_4090_pipeline.sh
 ```
 
+If **`.venv`** already exists (for example after **`setup_from_clone.sh`**), the script picks **`.venv/bin/python`** automatically unless you set **`PYTHON_BIN`**. Override: `PYTHON_BIN=/usr/bin/python3 bash scripts/run_4090_pipeline.sh`.
+
 ## 4. llama.cpp setup
 
 If you want real `llama.cpp`-backed measurements instead of the simulator backend, you need:
@@ -235,7 +239,7 @@ git clone https://github.com/Legendarylibrorg/Adaptive-RL-Quantization.git
 cd Adaptive-RL-Quantization
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install -U pip setuptools
+python3 -m pip install -U pip
 python3 -m pip install -e .
 # Install CUDA-enabled PyTorch: use https://pytorch.org/get-started/locally/ and copy the `pip` line, or:
 # python3 -m pip install -e ".[torch]"
@@ -249,7 +253,7 @@ git clone https://github.com/Legendarylibrorg/Adaptive-RL-Quantization.git
 cd Adaptive-RL-Quantization
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install -U pip setuptools
+python3 -m pip install -U pip
 python3 -m pip install -e .
 python3 run_research.py
 ```
@@ -267,7 +271,7 @@ git clone https://github.com/Legendarylibrorg/Adaptive-RL-Quantization.git
 cd Adaptive-RL-Quantization
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install -U pip setuptools
+python3 -m pip install -U pip
 python3 -m pip install -e .
 python3 run_pytorch_4090.py
 ```

@@ -18,6 +18,10 @@ class EasyConfigTests(unittest.TestCase):
         cfg = load_config(path)
         self.assertEqual(cfg.run_name, "e2e_smoke")
         self.assertEqual(cfg.training_episodes, 32)
+        self.assertEqual(cfg.seed, 13)
+        self.assertEqual(cfg.env_sampling_mode, "sequential")
+        self.assertEqual(cfg.rl_train_policy_mode, "deterministic")
+        self.assertEqual(cfg.stability_probe_sampling, "deterministic")
 
     def test_named_preset_reproducible(self) -> None:
         cfg = named_preset("reproducible")

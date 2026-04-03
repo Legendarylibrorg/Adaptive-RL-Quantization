@@ -17,6 +17,8 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      PYTHON_BIN: python
     strategy:
       fail-fast: false
       matrix:
@@ -30,10 +32,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install (editable)
-        run: python -m pip install -U pip setuptools && python -m pip install -e .
+        run: $PYTHON_BIN -m pip install -U pip && $PYTHON_BIN -m pip install -e .
 
       - name: Pre-commit checks (syntax, bash, whitespace, tests)
         run: bash scripts/pre_commit_check.sh
 
       - name: Short E2E RL smoke (simulator)
-        run: python run_research.py --config config.e2e_smoke.json
+        run: $PYTHON_BIN run_research.py --config config.e2e_smoke.json

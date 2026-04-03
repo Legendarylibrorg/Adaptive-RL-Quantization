@@ -4,7 +4,7 @@
 
 For a **single file** instead of editing Python presets:
 
-1. Copy **[`config.e2e_smoke.json`](../config.e2e_smoke.json)** for a **short, copy-paste E2E RL** run (train → eval → benchmarks), or [`config.example.json`](../config.example.json) (minimal preset example), or [`config.example.pytorch.toml`](../config.example.pytorch.toml) for GPU file-based runs; you can also create your own `.toml` / `.json`.
+1. Use **[`config.e2e_smoke.json`](../config.e2e_smoke.json)** for a **short reproducible E2E RL** run (train → eval → benchmarks → analysis); copy [`config.example.json`](../config.example.json) for a `minimal`-preset example, or [`config.example.pytorch.toml`](../config.example.pytorch.toml) for GPU file-based runs; you can also author your own `.toml` / `.json`.
 2. Optional top-level string **`preset`** picks a base profile (merged first, then other keys override):
 
    | `preset` value | Effect |

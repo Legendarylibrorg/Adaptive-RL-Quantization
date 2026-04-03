@@ -1,11 +1,11 @@
 {
-  "preset": "minimal",
+  "preset": "reproducible",
   "run_name": "e2e_smoke",
+  "seed": 13,
   "training_episodes": 32,
   "evaluation_episodes": 8,
   "benchmark_training_episodes": 12,
   "benchmark_evaluation_episodes": 4,
   "stability_probe_count": 1,
-  "write_research_report": false,
-  "log_every_n_episodes": 50
+  "write_research_report": false
 }

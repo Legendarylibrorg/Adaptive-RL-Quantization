@@ -3,7 +3,7 @@
 **Platform:** Commands below are written for **Linux** (`python3`, `bash`, `source .venv/bin/activate`). Run from the **repository root** (where `pyproject.toml` and `config.py` live).
 
 1. Install: `python3 -m pip install -e .`, or run **`bash scripts/setup_from_clone.sh`** once on Linux (see [INSTALL.md](INSTALL.md)) — checks **git**, **curl**, **python3**, bootstraps **pip** via **curl** if needed, then tests + RL smoke.
-2. Quick RL without editing Python: [**`config.e2e_smoke.json`**](../config.e2e_smoke.json) — `python3 run_research.py --config config.e2e_smoke.json`
+2. Short reproducible E2E (no Python edits): [**`config.e2e_smoke.json`**](../config.e2e_smoke.json) — `python3 run_research.py --config config.e2e_smoke.json`
 3. More examples: [CONFIG.md](CONFIG.md), [`config.example.json`](../config.example.json).
 
 Artifacts and API: [USAGE.md](USAGE.md).
@@ -13,7 +13,7 @@ Artifacts and API: [USAGE.md](USAGE.md).
 | Goal | Command |
 | --- | --- |
 | Main offline run (simulator, no PyTorch) | `python3 run_research.py` |
-| Short E2E RL (tune episodes in JSON) | `python3 run_research.py --config config.e2e_smoke.json` |
+| Short reproducible E2E (tune episodes / seed in JSON) | `python3 run_research.py --config config.e2e_smoke.json` |
 | … with your own file | `python3 run_research.py --config path.json` or `-c path.toml` |
 | MoE preset | `python3 run_moe_research.py` |
 | MoE + file | `python3 run_moe_research.py --config moe.json` |
@@ -42,7 +42,7 @@ python3 run_pytorch.py --help
 python3 -m unittest discover -s tests -v
 ```
 
-Before committing (whitespace, syntax, tests): `bash scripts/pre_commit_check.sh`
+Before committing (whitespace, syntax, tests): `bash scripts/pre_commit_check.sh` — uses **`.venv/bin/python`** when that venv exists and **`PYTHON_BIN`** is unset.
 
 Multi-seed: seeds can be `a,b,c` or `0-9`. Reports under `outputs/reports/`.
 

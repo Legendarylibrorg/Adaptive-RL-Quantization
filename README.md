@@ -11,6 +11,8 @@ Research code for **hardware-aware**, **input-adaptive** quantization policies: 
 | **Simulator** | **Python ≥ 3.11**, editable install — no PyPI runtime deps, no CUDA |
 | **PyTorch / CUDA** | Same repo + **CUDA-enabled PyTorch** on a **Linux + NVIDIA** host (recommended) |
 
+**Footprint:** `adaptive_quant` + `analysis` are ~5.3k lines of Python; **runtime is stdlib-only** (analysis figures are inline SVG). **Editable install** needs only **`pip install -U pip`** then **`pip install -e .`** (setuptools is used by pip’s build backend, not listed as a runtime dep). For GPU training: **`pip install -e ".[torch]"`** or install a CUDA **torch** wheel then **`pip install -e .`**.
+
 Documentation is **Linux-first** (paths, `bash`, `python3`, `venv`). The simulator path also runs on macOS; GPU workflows assume Linux unless noted.
 
 ---
@@ -28,14 +30,14 @@ cd Adaptive-RL-Quantization
 bash scripts/setup_from_clone.sh
 ```
 
-That creates **`.venv`**, installs the package in editable mode, runs tests, and completes a **short end-to-end RL pipeline** using **`config.e2e_smoke.json`** (edit that file to change `training_episodes`, `run_name`, etc.). For later commands in the same shell, activate the venv: `source .venv/bin/activate`.
+That creates **`.venv`**, installs the package in editable mode, runs tests, and completes a **short reproducible end-to-end RL pipeline** (train → eval → benchmarks → analysis) using **`config.e2e_smoke.json`** (edit that file to change `training_episodes`, `seed`, `run_name`, etc.). For later commands in the same shell, activate the venv: `source .venv/bin/activate`.
 
 **Manual equivalent:**
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install -U pip setuptools
+python3 -m pip install -U pip
 python3 -m pip install -e .
 python3 -m unittest discover -s tests -q
 python3 run_research.py --config config.e2e_smoke.json   # fast smoke
@@ -57,6 +59,8 @@ python3 run_pytorch.py --preset gpu
 bash scripts/run_4090_pipeline.sh
 ```
 
+Uses **`.venv/bin/python`** when that venv exists and **`PYTHON_BIN`** is unset (same idea as **`setup_from_clone.sh`**).
+
 Detailed install (distro packages, SSH clone, llama.cpp): **[docs/INSTALL.md](docs/INSTALL.md)**.
 
 **Other OS:** On Windows, use `py -3.11` / `python` instead of `python3`, and `\.venv\Scripts\activate` instead of `source .venv/bin/activate`. GPU support is still oriented to Linux + NVIDIA.
@@ -70,10 +74,10 @@ Detailed install (distro packages, SSH clone, llama.cpp): **[docs/INSTALL.md](do
 | `adaptive_quant/` | Core library: env, trainers, policies, backends, **`easy_config.py`** (JSON/TOML), **`runner_cli.py`** (shared `--config`) |
 | `config.py`, `config_*.py` | Python experiment presets (imported by `run_*.py`) |
 | `config.example.json` | Example **JSON** config (`preset` + overrides) |
-| `config.e2e_smoke.json` | **Short RL run** (train+eval+benchmarks) for smoke tests and quick tuning |
+| `config.e2e_smoke.json` | **Short reproducible RL run** (train+eval+benchmarks+analysis) for CI and quick tuning |
 | `config.example.pytorch.toml` | Example **TOML** for `run_pytorch.py --config` (needs CUDA PyTorch) |
 | `run_*.py` | CLI entrypoints — run from repo root |
-| `scripts/` | **Linux bash** helpers: **`setup_from_clone.sh`**, 4090 pipeline, … |
+| `scripts/` | **`setup_from_clone.sh`**, **`pre_commit_check.sh`**, **`run_4090_pipeline.sh`**, **`_resolve_venv_python.sh`** (shared `.venv` Python pick when `PYTHON_BIN` unset) |
 | `analysis/` | Post-hoc analysis CLIs |
 | `docs/` | Install, running, config reference, troubleshooting |
 | `CONTRIBUTING.md` | PR checklist and local quality gate |

@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # Run before `git commit` (Linux/macOS). Exits non-zero on failure.
+# Interpreter: sources scripts/_resolve_venv_python.sh — set PYTHON_BIN to force (CI uses PYTHON_BIN=python).
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT_DIR}"
 
-PYTHON_BIN="${PYTHON_BIN:-python3}"
+VENV_DIR="${VENV_DIR:-${ROOT_DIR}/.venv}"
+# shellcheck source=scripts/_resolve_venv_python.sh
+source "${ROOT_DIR}/scripts/_resolve_venv_python.sh"
 
 echo "== git diff --check (unstaged whitespace / conflict markers) =="
 git diff --check

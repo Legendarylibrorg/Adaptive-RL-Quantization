@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
+# Linux + NVIDIA: CUDA checks, optional unittest, then run_pytorch_4090.py.
+# Uses scripts/_resolve_venv_python.sh when PYTHON_BIN is unset (prefers .venv).
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PYTHON_BIN="${PYTHON_BIN:-python3}"
+VENV_DIR="${VENV_DIR:-${ROOT_DIR}/.venv}"
+# shellcheck source=scripts/_resolve_venv_python.sh
+source "${ROOT_DIR}/scripts/_resolve_venv_python.sh"
 RUN_TESTS="${RUN_TESTS:-1}"
 
 cd "${ROOT_DIR}"
@@ -34,4 +38,4 @@ if [[ "${RUN_TESTS}" == "1" ]]; then
   "${PYTHON_BIN}" -m unittest discover -s tests -v
 fi
 
-"${PYTHON_BIN}" run_pytorch_4090.py
+"${PYTHON_BIN}" "${ROOT_DIR}/run_pytorch_4090.py"

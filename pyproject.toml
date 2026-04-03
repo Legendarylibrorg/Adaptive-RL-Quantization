@@ -1,4 +1,5 @@
 [build-system]
+# Used only while installing/building the package; not runtime deps. pip fetches this in an isolated env.
 requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
@@ -6,12 +7,15 @@ build-backend = "setuptools.build_meta"
 name = "adaptive-rl-quant"
 version = "0.1.0"
 description = "Adaptive, hardware-aware RL quantization research framework for llama.cpp-style backends."
+readme = "README.md"
 requires-python = ">=3.11"
-# Runtime: Python standard library only. External binaries (e.g. llama.cpp) are out-of-band.
+# Simulator + analysis: stdlib only (e.g. json, tomllib). llama.cpp is an external binary, not a Python dep.
 dependencies = []
 
 [project.optional-dependencies]
-# Only when using training_backend="pytorch" or other torch entrypoints.
+# Sole PyPI runtime extra — PyTorch for training_backend="pytorch" / run_pytorch*.py.
+# Easy path: pip install -e ".[torch]"
+# Or install a CUDA-matched wheel from https://pytorch.org/get-started/locally/ then: pip install -e .
 torch = ["torch>=2.1"]
 
 [tool.setuptools]
