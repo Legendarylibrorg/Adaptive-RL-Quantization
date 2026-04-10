@@ -32,3 +32,18 @@ def load_config_or_fallback(path: str | None, fallback: FrameworkConfig) -> Fram
     if not p.is_file():
         raise SystemExit(f"Config file not found: {p}")
     return FrameworkConfig.from_file(p)
+
+
+def run_research_pipeline_cli(
+    *,
+    fallback: FrameworkConfig,
+    description: str,
+    config_help_suffix: str = "",
+) -> None:
+    """Parse ``--config`` / ``-c`` and run the full offline research pipeline."""
+    from adaptive_quant.research_pipeline import run_pipeline_entrypoint
+
+    parser = argparse.ArgumentParser(description=description)
+    add_config_file_argument(parser, help_suffix=config_help_suffix)
+    args = parser.parse_args()
+    run_pipeline_entrypoint(load_config_or_fallback(args.config, fallback))

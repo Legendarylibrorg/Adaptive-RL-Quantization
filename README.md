@@ -2,7 +2,7 @@
 
 **Upstream:** https://github.com/Legendarylibrorg/Adaptive-RL-Quantization
 
-[![CI](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/actions/workflows/ci.yml/badge.svg)](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/actions/workflows/ci.yml) **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md) · **Security disclosure:** [SECURITY.md](SECURITY.md)
+[![CI](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/actions/workflows/ci.yml/badge.svg)](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/actions/workflows/ci.yml) **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md) · **Code of Conduct:** [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) · **Security:** [SECURITY.md](SECURITY.md)
 
 Research code for **hardware-aware**, **input-adaptive** quantization policies: dynamic per-prompt behavior, learned quant controls, and hybrid modes (`discrete`, `grouped`, `per_layer`, `dynamic`, `learned`), with an optional **MoE** path.
 
@@ -80,9 +80,12 @@ Detailed install (distro packages, SSH clone, llama.cpp): **[docs/INSTALL.md](do
 | `scripts/` | **`setup_from_clone.sh`**, **`pre_commit_check.sh`**, **`run_4090_pipeline.sh`**, **`_resolve_venv_python.sh`** (shared `.venv` Python pick when `PYTHON_BIN` unset) |
 | `analysis/` | Post-hoc analysis CLIs |
 | `docs/` | Install, running, config reference, troubleshooting |
-| `CONTRIBUTING.md` | PR checklist and local quality gate |
+| `CONTRIBUTING.md` | Contributing policy, PR expectations, local quality gate |
+| `CODE_OF_CONDUCT.md` | Community standards ([Contributor Covenant](https://www.contributor-covenant.org/) 2.1) |
 | `SECURITY.md` | Vulnerability reporting (private disclosure) |
 | `.github/workflows/` | CI (Python 3.11/3.12, tests, E2E smoke) |
+| `.github/ISSUE_TEMPLATE/` | Bug report and feature issue forms |
+| `.github/PULL_REQUEST_TEMPLATE.md` | Default PR checklist |
 | `tests/` | `unittest` suite (no GPU required) |
 
 ---
@@ -114,7 +117,7 @@ Programmatically: `FrameworkConfig.from_file("path.json")`, `load_config()` from
 | Same with your own file | `python3 run_research.py --config path.json` |
 | MoE preset | `python3 run_moe_research.py` |
 | NVIDIA GPU (auto VRAM profile) | `python3 run_pytorch.py --preset gpu` |
-| RTX 4090 preset | `python3 run_pytorch.py --preset 4090` or `python3 run_pytorch_4090.py` |
+| RTX 4090 preset | `python3 run_pytorch.py --preset 4090` |
 | 4090 checks + unittest + run | `bash scripts/run_4090_pipeline.sh` |
 | Multi-seed aggregation | `python3 run_multiseed.py --preset dense --seeds 13,17,23` |
 | Calibrate simulator from llama.cpp | `python3 run_calibrate_llama_cpp.py` (binary + model in config) |

@@ -6,7 +6,7 @@ Security fixes are applied against the default branch (**`main`**). Releases fol
 
 ## Reporting a vulnerability
 
-**Do not** open a public GitHub issue for undisclosed security problems.
+**Do not** open a public GitHub issue for undisclosed security problems. (General conduct concerns belong under [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), not the security reporting channel.)
 
 Please report sensitive issues privately to the repository maintainers (use GitHub **Security Advisories** for this repo if enabled, or contact the org owner listed on the upstream GitHub project). Include:
 

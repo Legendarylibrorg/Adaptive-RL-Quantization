@@ -13,7 +13,7 @@ requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
-# Sole PyPI runtime extra — PyTorch for training_backend="pytorch" / run_pytorch*.py.
+# Sole PyPI runtime extra — PyTorch for training_backend="pytorch" / run_pytorch.py.
 # Easy path: pip install -e ".[torch]"
 # Or install a CUDA-matched wheel from https://pytorch.org/get-started/locally/ then: pip install -e .
 torch = ["torch>=2.1"]
