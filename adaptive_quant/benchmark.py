@@ -8,11 +8,12 @@ from adaptive_quant.logging_utils import write_json
 from adaptive_quant.quantization import finalize_decision
 from adaptive_quant.trainer import build_trainer
 from adaptive_quant.trainer_utils import feedback_vector, summarize_episode_results
-from adaptive_quant.types import HardwareType, QuantMode
-from adaptive_quant.types import QuantizationDecision
+from adaptive_quant.types import HardwareType, QuantizationDecision, QuantMode
 
 
 class BenchmarkSuite:
+    """Head-to-head eval scenarios (multi-hardware, static vs dynamic, discrete vs learned, optional MoE suites)."""
+
     def __init__(self, config: FrameworkConfig) -> None:
         self.config = config
 

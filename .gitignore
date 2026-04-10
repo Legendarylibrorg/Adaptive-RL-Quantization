@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 .venv/
+.ruff-venv/
 outputs/
 eval loop trainer/
 *.egg-info/

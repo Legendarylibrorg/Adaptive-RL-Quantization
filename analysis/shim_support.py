@@ -12,12 +12,8 @@ def _prepare(caller_file: str) -> None:
         sys.path.insert(0, root)
 
 
-def run_cli_main(caller_file: str, key: str) -> None:
+def dispatch_cli(caller_file: str, key: str) -> None:
     _prepare(caller_file)
     from analysis.analyzers import run_cli
 
     run_cli(key)
-
-
-def dispatch_cli(caller_file: str, key: str) -> None:
-    run_cli_main(caller_file, key)

@@ -2,12 +2,9 @@ from __future__ import annotations
 
 import tempfile
 import unittest
-
-from config_4090_universal import CONFIG_4090_UNIVERSAL
-from analysis.analyzers import analyze_hardware, analyze_inputs, analyze_online, analyze_quant
-from adaptive_quant.benchmark import BenchmarkSuite
 from dataclasses import replace
 
+from adaptive_quant.benchmark import BenchmarkSuite
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.gpu_profiles import apply_gpu_profile, infer_gpu_profile
@@ -16,7 +13,19 @@ from adaptive_quant.policy import UniversalQuantizationPolicy
 from adaptive_quant.quantization import finalize_decision
 from adaptive_quant.research_pipeline import ResearchPipeline
 from adaptive_quant.trainer import Trainer, build_trainer
-from adaptive_quant.types import HardwareType, OnlineRequest, QuantMode, QuantizationDecision
+from adaptive_quant.types import (
+    HardwareType,
+    OnlineRequest,
+    QuantizationDecision,
+    QuantMode,
+)
+from analysis.analyzers import (
+    analyze_hardware,
+    analyze_inputs,
+    analyze_online,
+    analyze_quant,
+)
+from config_4090_universal import CONFIG_4090_UNIVERSAL
 
 
 class FrameworkTests(unittest.TestCase):

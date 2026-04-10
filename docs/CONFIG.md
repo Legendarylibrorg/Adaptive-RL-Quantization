@@ -205,7 +205,7 @@ RTX 4090 training:
 
 4090-host universal policy training:
 
-- use [`config_4090_universal.py`](../config_4090_universal.py)
+- use [`config_4090_universal.py`](../config_4090_universal.py) (or `python3 run_pytorch.py --preset 4090-universal` from the repo root)
 - keep `training_host_label="rtx4090"`
 - keep `multi_hardware=True`
 - keep `hardware_modes=("gpu", "cpu", "low_resource")`

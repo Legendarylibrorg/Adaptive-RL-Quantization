@@ -6,7 +6,12 @@ import unittest
 from pathlib import Path
 
 from adaptive_quant.configuration import FrameworkConfig
-from adaptive_quant.easy_config import config_from_dict, load_config, named_preset, quick_config
+from adaptive_quant.easy_config import (
+    config_from_dict,
+    load_config,
+    named_preset,
+    quick_config,
+)
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 

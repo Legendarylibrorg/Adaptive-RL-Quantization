@@ -10,6 +10,8 @@ from typing import Any
 # Local-use bounds (stdlib only): avoid accidental multi-GB reads on analysis / small JSON sidecars.
 MAX_LOCAL_READ_BYTES = 256 << 20
 MAX_JSONL_LINES = 2_000_000
+# Single-line cap: one pathological line cannot exhaust memory before the line count limit trips.
+MAX_JSONL_LINE_BYTES = 4 << 20
 
 
 def enforce_local_read_limit(path: str | Path, *, label: str = "File") -> None:
@@ -66,6 +68,11 @@ def load_jsonl(path: str) -> list[dict[str, Any]]:
         for i, line in enumerate(handle):
             if i >= MAX_JSONL_LINES:
                 raise ValueError(f"JSONL exceeds local line limit ({MAX_JSONL_LINES}): {source}")
+            raw_len = len(line.encode("utf-8"))
+            if raw_len > MAX_JSONL_LINE_BYTES:
+                raise ValueError(
+                    f"JSONL line exceeds byte limit ({MAX_JSONL_LINE_BYTES}): line {i + 1} in {source}"
+                )
             line = line.strip()
             if line:
                 records.append(json.loads(line))

@@ -156,17 +156,24 @@ class CheckpointSafeTests(unittest.TestCase):
 
 
 class LlamaCppPathHardeningTests(unittest.TestCase):
-    def test_rejects_newline_in_paths(self) -> None:
-        from adaptive_quant.backend import require_llama_cpp_paths
+    def test_rejects_newline_in_paths_at_config(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            FrameworkConfig(
+                run_name="path_test",
+                backend="llama_cpp",
+                llama_cpp_binary="/bin/sh\nevil",
+                llama_cpp_model="/tmp/m.gguf",
+            )
+        self.assertIn("llama_cpp_binary", str(ctx.exception))
 
-        cfg = FrameworkConfig(
-            run_name="path_test",
-            backend="llama_cpp",
-            llama_cpp_binary="/bin/sh\nevil",
-            llama_cpp_model="/tmp/m.gguf",
-        )
+    def test_rejects_newline_in_model_path_at_config(self) -> None:
         with self.assertRaises(ValueError):
-            require_llama_cpp_paths(cfg)
+            FrameworkConfig(
+                run_name="path_test",
+                backend="llama_cpp",
+                llama_cpp_binary="/bin/sh",
+                llama_cpp_model="/tmp/m\neg",
+            )
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Linux + NVIDIA: CUDA checks, optional unittest, then run_pytorch_4090.py.
+# Linux + NVIDIA: CUDA checks, optional unittest, then run_pytorch.py --preset 4090.
 # Uses scripts/_resolve_venv_python.sh when PYTHON_BIN is unset (prefers .venv).
 set -euo pipefail
 
@@ -38,4 +38,4 @@ if [[ "${RUN_TESTS}" == "1" ]]; then
   "${PYTHON_BIN}" -m unittest discover -s tests -v
 fi
 
-"${PYTHON_BIN}" "${ROOT_DIR}/run_pytorch_4090.py"
+"${PYTHON_BIN}" "${ROOT_DIR}/run_pytorch.py" --preset 4090

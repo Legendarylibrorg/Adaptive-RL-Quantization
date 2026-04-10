@@ -2,7 +2,7 @@
 
 `run_online_learning.py` turns the framework into a continual adaptation loop.
 
-This module is an **optional experimental extension**. The main research path for the repository remains offline training and controlled evaluation through `run_research.py`, `run_pytorch_gpu.py`, and `run_pytorch_4090.py`.
+This module is an **optional experimental extension**. The main research path for the repository remains offline training and controlled evaluation through `run_research.py` and `run_pytorch.py` (GPU presets such as `gpu` and `4090`).
 
 It does four things:
 

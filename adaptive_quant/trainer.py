@@ -7,10 +7,16 @@ from adaptive_quant.base_trainer import TrainerBase
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import write_json
 from adaptive_quant.policy import PolicyTrace, UniversalQuantizationPolicy
-from adaptive_quant.trainer_utils import online_update_summary, reward_summary, training_row
+from adaptive_quant.trainer_utils import (
+    online_update_summary,
+    reward_summary,
+    training_row,
+)
 
 
 class Trainer(TrainerBase):
+    """Stdlib RL trainer (REINFORCE-style updates on ``UniversalQuantizationPolicy`` inside ``AdaptiveQuantizationEnv``)."""
+
     def __init__(self, config: FrameworkConfig, log_path: str | None = None) -> None:
         super().__init__(config, log_path=log_path)
         self.policy = UniversalQuantizationPolicy(config)
@@ -83,6 +89,7 @@ class Trainer(TrainerBase):
 
 
 def build_trainer(config: FrameworkConfig, log_path: str | None = None) -> Trainer:
+    """Factory: ``TorchTrainer`` when ``training_backend="pytorch"``, else stdlib ``Trainer``."""
     if config.training_backend == "pytorch":
         from adaptive_quant.torch_trainer import TorchTrainer
 

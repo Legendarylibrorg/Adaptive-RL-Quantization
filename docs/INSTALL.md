@@ -170,18 +170,16 @@ python3 -c "import torch; print('bf16', getattr(torch.cuda, 'is_bf16_supported',
 python3 -c "import torch; print(torch.cuda.get_device_name(0))"
 ```
 
-Then run (unified CLI or legacy wrappers):
+Then run:
 
 ```bash
 python3 run_pytorch.py --preset gpu
-# or: python3 run_pytorch_gpu.py
 ```
 
 4090 preset:
 
 ```bash
 python3 run_pytorch.py --preset 4090
-# or: python3 run_pytorch_4090.py
 ```
 
 For a one-command 4090 validation and run:
@@ -243,7 +241,7 @@ python3 -m pip install -U pip
 python3 -m pip install -e .
 # Install CUDA-enabled PyTorch: use https://pytorch.org/get-started/locally/ and copy the `pip` line, or:
 # python3 -m pip install -e ".[torch]"
-python3 run_pytorch_gpu.py
+python3 run_pytorch.py --preset gpu
 ```
 
 macOS — simulator only (same as Linux clone path; no `apt` step):
@@ -273,7 +271,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -U pip
 python3 -m pip install -e .
-python3 run_pytorch_4090.py
+python3 run_pytorch.py --preset 4090
 ```
 
 RTX 4090 preset with smoke tests:

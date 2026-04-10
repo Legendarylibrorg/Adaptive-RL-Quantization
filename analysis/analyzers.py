@@ -5,8 +5,17 @@ import json
 import sys
 from pathlib import Path
 
-from adaptive_quant.analysis_utils import ensure_directory, grouped_mean, write_bar_chart, write_scatter_plot
-from adaptive_quant.logging_utils import enforce_local_read_limit, load_jsonl, write_json
+from adaptive_quant.analysis_utils import (
+    ensure_directory,
+    grouped_mean,
+    write_bar_chart,
+    write_scatter_plot,
+)
+from adaptive_quant.logging_utils import (
+    enforce_local_read_limit,
+    load_jsonl,
+    write_json,
+)
 from adaptive_quant.math_utils import mean
 
 
@@ -35,9 +44,12 @@ def _by_hardware(records: list[dict], metric_path: tuple[str, ...]) -> dict[str,
     return grouped_mean(records, "hardware_mode", metric_path)
 
 
+def _jsonl_analysis_setup(log_path: str, output_dir: str) -> tuple[list[dict], Path]:
+    return load_jsonl(log_path), ensure_directory(output_dir)
+
+
 def analyze_hardware(log_path: str, output_dir: str) -> dict[str, object]:
-    records = load_jsonl(log_path)
-    output_root = ensure_directory(output_dir)
+    records, output_root = _jsonl_analysis_setup(log_path, output_dir)
     reward_by_hardware = _by_hardware(records, ("metrics", "reward"))
     latency_by_hardware = _by_hardware(records, ("metrics", "latency_ms"))
     throughput_by_hardware = _by_hardware(records, ("metrics", "throughput_tps"))
@@ -66,8 +78,7 @@ def _complexity_bucket(score: float) -> str:
 
 
 def analyze_inputs(log_path: str, output_dir: str) -> dict[str, object]:
-    records = load_jsonl(log_path)
-    output_root = ensure_directory(output_dir)
+    records, output_root = _jsonl_analysis_setup(log_path, output_dir)
     buckets: dict[str, list[dict]] = {"low": [], "medium": [], "high": []}
     points: list[tuple[float, float]] = []
     for record in records:
@@ -108,8 +119,7 @@ def analyze_inputs(log_path: str, output_dir: str) -> dict[str, object]:
 
 
 def analyze_moe_cache(log_path: str, output_dir: str) -> dict[str, object]:
-    records = load_jsonl(log_path)
-    output_root = ensure_directory(output_dir)
+    records, output_root = _jsonl_analysis_setup(log_path, output_dir)
     cache_vs_latency: list[tuple[float, float]] = []
     entropy_vs_reward: list[tuple[float, float]] = []
     swap_costs, cache_misses = [], []
@@ -144,8 +154,7 @@ def analyze_moe_cache(log_path: str, output_dir: str) -> dict[str, object]:
 
 
 def analyze_moe_experts(log_path: str, output_dir: str) -> dict[str, object]:
-    records = load_jsonl(log_path)
-    output_root = ensure_directory(output_dir)
+    records, output_root = _jsonl_analysis_setup(log_path, output_dir)
     variant_usage: dict[str, float] = {}
     expert_frequency: dict[str, float] = {}
     sensitivity_vs_aggressiveness: list[tuple[float, float]] = []
@@ -185,8 +194,7 @@ def analyze_moe_experts(log_path: str, output_dir: str) -> dict[str, object]:
 
 
 def analyze_quant(log_path: str, output_dir: str) -> dict[str, object]:
-    records = load_jsonl(log_path)
-    output_root = ensure_directory(output_dir)
+    records, output_root = _jsonl_analysis_setup(log_path, output_dir)
     learned = [r for r in records if r.get("decision", {}).get("mode") == "learned"]
     scale_values = [float(r["decision"].get("scale_factor", 0.0)) for r in learned]
     clip_values = [float(r["decision"].get("clipping_range", 0.0)) for r in learned]
@@ -239,8 +247,7 @@ def analyze_training_dynamics(history_path: str, output_dir: str) -> dict[str, o
 
 
 def analyze_online(log_path: str, output_dir: str) -> dict[str, object]:
-    records = load_jsonl(log_path)
-    output_root = ensure_directory(output_dir)
+    records, output_root = _jsonl_analysis_setup(log_path, output_dir)
     reward_by_hardware = _by_hardware(records, ("served_metrics", "reward"))
     accept_rate = _mean_flag_rate(records, "accepted_candidate")
     update_rate = _mean_flag_rate(records, "online_update_applied")

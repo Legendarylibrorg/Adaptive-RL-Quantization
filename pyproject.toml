@@ -6,17 +6,32 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "adaptive-rl-quant"
 version = "0.1.0"
-description = "Adaptive, hardware-aware RL quantization research framework for llama.cpp-style backends."
+description = "Train an RL policy to pick quantization settings for llama.cpp-style inference (simulator or real binary); optional PyTorch GPU training."
 readme = "README.md"
 requires-python = ">=3.11"
 # Simulator + analysis: stdlib only (e.g. json, tomllib). llama.cpp is an external binary, not a Python dep.
 dependencies = []
 
 [project.optional-dependencies]
-# Sole PyPI runtime extra — PyTorch for training_backend="pytorch" / run_pytorch*.py.
+# Sole PyPI runtime extra — PyTorch for training_backend="pytorch" / run_pytorch.py.
 # Easy path: pip install -e ".[torch]"
 # Or install a CUDA-matched wheel from https://pytorch.org/get-started/locally/ then: pip install -e .
 torch = ["torch>=2.1"]
+# Local quality: lint + format (not required for simulator-only CI).
+dev = ["ruff>=0.8"]
 
 [tool.setuptools]
 packages = ["adaptive_quant", "analysis"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = [
+    "E501", # line length — project uses long strings and tables
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["adaptive_quant", "analysis"]

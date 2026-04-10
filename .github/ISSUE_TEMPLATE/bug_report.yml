@@ -1,0 +1,54 @@
+name: Bug report
+description: Report unexpected behavior in the framework, tests, or documented workflows
+labels: ["triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Security issues:** Do not use this form. Follow [SECURITY.md](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/blob/main/SECURITY.md).
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What went wrong in one or two sentences?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Commands, config snippets, or a minimal script.
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python version, and whether PyTorch/CUDA was involved (if relevant).
+      placeholder: e.g. Ubuntu 24.04, Python 3.12, simulator only
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Logs, screenshots, or links (optional).

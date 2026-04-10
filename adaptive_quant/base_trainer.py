@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
-from adaptive_quant.trainer_utils import collect_episode_results, feedback_vector, summarize_episode_results
+from adaptive_quant.trainer_utils import (
+    collect_episode_results,
+    feedback_vector,
+    summarize_episode_results,
+)
 from adaptive_quant.types import EpisodeResult, HardwareType
 
 
