@@ -1,13 +1,22 @@
+"""Quantization **policy**: maps env state → ``QuantizationDecision`` (modes, bits, learned knobs, MoE indices)."""
+
 from __future__ import annotations
 
 import copy
+import math
 import random
 from dataclasses import dataclass
-import math
 
 from adaptive_quant.configuration import FrameworkConfig
-from adaptive_quant.math_utils import argmax, clamp, dot, gaussian_sample, sample_categorical, softmax
-from adaptive_quant.types import EpisodeState, QuantMode, QuantizationDecision
+from adaptive_quant.math_utils import (
+    argmax,
+    clamp,
+    dot,
+    gaussian_sample,
+    sample_categorical,
+    softmax,
+)
+from adaptive_quant.types import EpisodeState, QuantizationDecision, QuantMode
 
 
 def _random_matrix(rows: int, cols: int, rng: random.Random, scale: float = 0.08) -> list[list[float]]:
@@ -94,6 +103,8 @@ class ValueHead:
 
 
 class UniversalQuantizationPolicy:
+    """Bandit-friendly policy: state vector → ``QuantizationDecision`` across configured quant modes (incl. learned + MoE)."""
+
     def __init__(self, config: FrameworkConfig) -> None:
         self.config = config
         self.rng = random.Random(config.seed + 101)

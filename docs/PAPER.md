@@ -25,7 +25,7 @@ The repository now supports this framing in three increasingly expressive regime
 2. learned quantization functions with continuous control,
 3. MoE-aware packed expert variant selection.
 
-The core experimental story remains offline-first and reproducible. The project includes a CUDA path tuned for RTX 4090-class hardware and an explicit `run_4090_universal.py` entrypoint for “train on a 4090, learn a universal policy,” but the stable evidence base is still the simulator-backed offline benchmark.
+The core experimental story remains offline-first and reproducible. The project includes a CUDA path tuned for RTX 4090-class hardware and `python3 run_pytorch.py --preset 4090-universal` for “train on a 4090, learn a universal policy,” but the stable evidence base is still the simulator-backed offline benchmark.
 
 ### 2. Contributions
 
@@ -134,7 +134,7 @@ The main research entrypoints are:
 
 - `run_research.py`: canonical dense offline baseline
 - `run_moe_research.py`: canonical MoE offline baseline
-- `run_4090_universal.py`: explicit 4090-host universal-policy training path
+- `run_pytorch.py --preset 4090-universal`: explicit 4090-host universal-policy training path
 
 The PyTorch/CUDA path exists to accelerate policy learning on a strong local device, especially an RTX 4090, while still conditioning on multiple target hardware profiles. In that sense, the 4090 is the **training host**, not the only intended deployment target.
 
@@ -336,7 +336,7 @@ all under an explicit VRAM budget.
 
 #### 12.4 Hardware-Conditioned Transfer
 
-The dedicated `run_4090_universal.py` path should eventually be paired with held-out real hardware evaluation so the project can make stronger claims about universal transfer.
+The dedicated `run_pytorch.py --preset 4090-universal` path should eventually be paired with held-out real hardware evaluation so the project can make stronger claims about universal transfer.
 
 ### 13. Conclusion
 
@@ -367,13 +367,13 @@ python3 run_moe_research.py
 Explicit 4090-host universal-policy run:
 
 ```bash
-python3 run_4090_universal.py
+python3 run_pytorch.py --preset 4090-universal
 ```
 
 Fixed 4090 CUDA run:
 
 ```bash
-python3 run_pytorch_4090.py
+python3 run_pytorch.py --preset 4090
 ```
 
 Linux 4090 validation wrapper:

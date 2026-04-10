@@ -12,10 +12,24 @@ from adaptive_quant.math_utils import variance
 from adaptive_quant.moe import ExpertBank
 from adaptive_quant.prompts import PromptLibrary
 from adaptive_quant.quantization import finalize_decision, safe_fallback_decision
-from adaptive_quant.types import EpisodeMetrics, EpisodeResult, EpisodeState, HardwareType, PromptSample, QuantizationDecision
+from adaptive_quant.types import (
+    EpisodeMetrics,
+    EpisodeResult,
+    EpisodeState,
+    HardwareType,
+    PromptSample,
+    QuantizationDecision,
+)
 
 
 class AdaptiveQuantizationEnv:
+    """One-step RL interface: reset (prompt + hardware + features) → policy act → backend measures → reward.
+
+    ``SimulatorBackend`` is the default measurable world; ``LlamaCppBackend`` delegates to your **llama.cpp**
+    binary when ``config.backend="llama_cpp"``. MoE adds ``ExpertBank`` routing and penalties when enabled.
+    Episodes append structured rows to JSONL for downstream ``analysis/`` tools.
+    """
+
     def __init__(self, config: FrameworkConfig, log_path: str | None = None) -> None:
         self.config = config
         self.rng = random.Random(config.seed)

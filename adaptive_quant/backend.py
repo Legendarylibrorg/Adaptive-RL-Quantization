@@ -8,7 +8,12 @@ from typing import Protocol
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.math_utils import clamp, mean, variance
 from adaptive_quant.moe import ExpertBank
-from adaptive_quant.types import EpisodeState, HardwareType, QuantMode, QuantizationDecision
+from adaptive_quant.types import (
+    EpisodeState,
+    HardwareType,
+    QuantizationDecision,
+    QuantMode,
+)
 
 
 class BackendMetrics(Protocol):

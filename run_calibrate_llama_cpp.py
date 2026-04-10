@@ -1,18 +1,21 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
-import random
 import subprocess
+from pathlib import Path
 from typing import Any, Iterable
 
-from adaptive_quant.backend import SimulatorBackend, parse_llama_cpp_metrics, require_llama_cpp_paths
+from adaptive_quant.backend import (
+    SimulatorBackend,
+    parse_llama_cpp_metrics,
+    require_llama_cpp_paths,
+)
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
-from adaptive_quant.runner_cli import add_config_file_argument, load_config_or_fallback
 from adaptive_quant.logging_utils import write_json
 from adaptive_quant.math_utils import ratio_mean
-from adaptive_quant.types import HardwareType, QuantMode, QuantizationDecision
+from adaptive_quant.runner_cli import add_config_file_argument, load_config_or_fallback
+from adaptive_quant.types import HardwareType, QuantizationDecision, QuantMode
 
 
 def _run_llama_cpp_once(
@@ -159,7 +162,9 @@ def main(argv: Iterable[str] | None = None) -> None:
     }
     out_path = f"{config.benchmark_dir}/{args.run_name}_calibration.json"
     write_json(out_path, output)
-    print("Wrote calibration:", out_path)
+    from adaptive_quant.run_footer import print_calibration_footer
+
+    print_calibration_footer(run_name=args.run_name, out_path=out_path, calibration=calibration)
 
 
 if __name__ == "__main__":

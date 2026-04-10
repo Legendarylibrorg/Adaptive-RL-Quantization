@@ -6,7 +6,7 @@ from contextlib import nullcontext
 from typing import Any
 
 from adaptive_quant.configuration import FrameworkConfig
-from adaptive_quant.types import QuantMode, QuantizationDecision
+from adaptive_quant.types import QuantizationDecision, QuantMode
 
 try:
     import torch

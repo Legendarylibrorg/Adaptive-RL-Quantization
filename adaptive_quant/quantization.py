@@ -5,7 +5,7 @@ from dataclasses import replace
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.features import summarize_precision_needs
 from adaptive_quant.math_utils import clamp, mean, variance
-from adaptive_quant.types import EpisodeState, QuantMode, QuantizationDecision
+from adaptive_quant.types import EpisodeState, QuantizationDecision, QuantMode
 
 
 def precision_level_to_bits(precision_level: float, config: FrameworkConfig) -> float:

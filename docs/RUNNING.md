@@ -17,11 +17,11 @@ Artifacts and API: [USAGE.md](USAGE.md).
 | … with your own file | `python3 run_research.py --config path.json` or `-c path.toml` |
 | MoE preset | `python3 run_moe_research.py` |
 | MoE + file | `python3 run_moe_research.py --config moe.json` |
-| NVIDIA GPU (auto profile) | `python3 run_pytorch.py --preset gpu` — same as `run_pytorch_gpu.py` |
+| NVIDIA GPU (auto profile) | `python3 run_pytorch.py --preset gpu` |
 | GPU + file (**replaces** `--preset`) | `python3 run_pytorch.py --config cuda_run.toml` |
-| RTX 4090 preset | `python3 run_pytorch.py --preset 4090` or `run_pytorch_4090.py` |
+| RTX 4090 preset | `python3 run_pytorch.py --preset 4090` |
 | Linux 4090 checks + run | `bash scripts/run_4090_pipeline.sh` |
-| 4090 host, universal-policy naming | `python3 run_4090_universal.py` |
+| 4090 host, universal-policy naming | `python3 run_pytorch.py --preset 4090-universal` |
 | Multi-seed (`dense` or `moe`) | `python3 run_multiseed.py --preset dense --seeds 13,17,23,29,31` |
 | Calibrate simulator from llama.cpp | `python3 run_calibrate_llama_cpp.py` |
 | Calibrate + custom base config | `python3 run_calibrate_llama_cpp.py --config my_base.json` |
@@ -52,7 +52,7 @@ Fixed horizons and episode counts live in each `config*.py`. For long PyTorch ru
 
 [`run_research.py`](../run_research.py) (and GPU/MoE entrypoints) call the shared **research pipeline**: train → evaluate → benchmarks → analysis (JSON + SVG) → optional Markdown report and checkpoints. Exact files depend on `run_name` and backend; see [USAGE.md](USAGE.md).
 
-- **`run_pytorch*.py`**: CUDA preflight first (when enabled), then the same pipeline with a smaller benchmark budget than training.
+- **`run_pytorch.py`**: CUDA preflight first (when enabled), then the same pipeline with a smaller benchmark budget than training.
 - **`run_moe_research.py`**: MoE benchmarks and extra MoE analysis.
 - **`run_online_learning.py`**: offline warm-start, then simulated serving + replay + rollback (optional extension).
 

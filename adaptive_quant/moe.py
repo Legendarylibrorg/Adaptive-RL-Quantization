@@ -1,11 +1,22 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 
 from adaptive_quant.configuration import FrameworkConfig
-from adaptive_quant.math_utils import clamp, deterministic_float, softmax, stable_hash_int
-from adaptive_quant.types import HardwareProfile, InputFeatures, MoEContext, MoEExpertState, PromptSample
+from adaptive_quant.math_utils import (
+    clamp,
+    deterministic_float,
+    softmax,
+    stable_hash_int,
+)
+from adaptive_quant.types import (
+    HardwareProfile,
+    InputFeatures,
+    MoEContext,
+    MoEExpertState,
+    PromptSample,
+)
 
 
 @dataclass(frozen=True)

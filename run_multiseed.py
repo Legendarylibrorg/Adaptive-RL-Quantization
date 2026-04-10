@@ -1,19 +1,17 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
 import math
-from pathlib import Path
 import statistics
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Iterable
 
-from adaptive_quant.research_pipeline import run_pipeline_entrypoint
 from adaptive_quant.logging_utils import md_table, write_json
 from adaptive_quant.math_utils import fmt_float, sample_std
-
+from adaptive_quant.research_pipeline import run_pipeline_entrypoint
 from config import CONFIG as CONFIG_DENSE
 from config_moe import CONFIG_MOE
-
 
 Number = int | float
 
@@ -214,6 +212,7 @@ def main(argv: Iterable[str] | None = None) -> None:
         type=int,
         help="Override training_episodes (useful for fast smoke tests).",
     )
+    parser.add_argument("--quiet", action="store_true", help="Suppress end-of-run CLI banners (e.g. unit tests).")
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     seeds = _parse_seeds(args.seeds)
@@ -237,7 +236,7 @@ def main(argv: Iterable[str] | None = None) -> None:
     for seed in seeds:
         seed_run_name = f"{base_run_name}_seed{seed}"
         config = base_config.clone(seed=seed, run_name=seed_run_name)
-        summary = run_pipeline_entrypoint(config)
+        summary = run_pipeline_entrypoint(config, footer_mode="none" if args.quiet else "minimal")
         per_seed_summaries.append(summary)
         per_seed_paths.append(f"{config.benchmark_dir}/{config.run_name}_summary.json")
 
@@ -275,8 +274,16 @@ def main(argv: Iterable[str] | None = None) -> None:
         output_json_path=output_json_path,
     )
 
-    print("Wrote multiseed summary:", output_json_path)
-    print("Wrote multiseed report:", output_md_path)
+    if not args.quiet:
+        from adaptive_quant.run_footer import print_multiseed_footer
+
+        print_multiseed_footer(
+            multiseed_run_name=multiseed_run_name,
+            seeds=seeds,
+            aggregate_json=output_json_path,
+            report_md=output_md_path,
+            per_seed_summary_paths=per_seed_paths,
+        )
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import JsonlLogger, to_jsonable, write_json
 from adaptive_quant.math_utils import mean
 from adaptive_quant.prompts import PromptLibrary
-from adaptive_quant.types import HardwareType, OnlineRequest, PromptSample
+from adaptive_quant.types import OnlineRequest, PromptSample
 
 
 @dataclass

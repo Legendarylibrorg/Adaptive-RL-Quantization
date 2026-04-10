@@ -17,6 +17,9 @@ if ! git diff --cached --quiet 2>/dev/null; then
   git diff --cached --check
 fi
 
+echo "== Secret pattern scan (tracked files; heuristic) =="
+bash "${ROOT_DIR}/scripts/secret_scan.sh"
+
 echo "== Python compile (syntax) =="
 "${PYTHON_BIN}" -m compileall -q adaptive_quant analysis
 shopt -s nullglob

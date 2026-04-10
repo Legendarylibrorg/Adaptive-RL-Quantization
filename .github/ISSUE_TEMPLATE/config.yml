@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security disclosure
+    url: https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/blob/main/SECURITY.md
+    about: Read SECURITY.md — do not file public issues for undisclosed vulnerabilities.
+  - name: Contributing policy
+    url: https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/blob/main/CONTRIBUTING.md
+    about: PR expectations, local checks, and code of conduct.

@@ -2,10 +2,11 @@
 
 The PyTorch path now supports more than one GPU target.
 
-Use [`run_pytorch.py`](../run_pytorch.py) (single implementation) or the thin wrappers:
+Use [`run_pytorch.py`](../run_pytorch.py) from the repo root:
 
-- `python3 run_pytorch.py --preset gpu` — same as [`run_pytorch_gpu.py`](../run_pytorch_gpu.py) (auto-detect GPU → tuned profile)
-- `python3 run_pytorch.py --preset 4090` — same as [`run_pytorch_4090.py`](../run_pytorch_4090.py) (fixed RTX 4090 profile)
+- `python3 run_pytorch.py --preset gpu` — auto-detect GPU → tuned profile
+- `python3 run_pytorch.py --preset 4090` — fixed RTX 4090 profile
+- `python3 run_pytorch.py --preset 4090-universal` — multi-hardware universal policy on a 4090-class host ([`config_4090_universal.py`](../config_4090_universal.py))
 
 See [Usage Guide](USAGE.md) for repository conventions and where preflight/summary JSON is written.
 
@@ -46,7 +47,7 @@ The goal is to keep:
 
 ## Auto-detection behavior
 
-`run_pytorch_gpu.py` detects the current CUDA device and then maps it to a profile using:
+The **`gpu`** preset (`torch_gpu_profile="auto"` in [`config_gpu.py`](../config_gpu.py)) detects the current CUDA device and then maps it to a profile using:
 
 - device name matches for common cards
 - total VRAM when the name is not enough
@@ -79,21 +80,25 @@ torch_gpu_profile="rtx4080"
 Then run:
 
 ```bash
-python3 run_pytorch_gpu.py
+python3 run_pytorch.py --preset gpu
 ```
 
-## Which runner to use
+## Which preset to use
 
-Use `run_pytorch_gpu.py` when:
+Use **`--preset gpu`** when:
 
 - you want one entrypoint for multiple NVIDIA GPUs
 - you want automatic tuning
 - you are not sure which profile to pick
 
-Use `run_pytorch_4090.py` when:
+Use **`--preset 4090`** when:
 
 - you specifically want the fixed 4090 profile
 - you want reproducibility against the 4090 preset
+
+Use **`--preset 4090-universal`** when:
+
+- you want the multi-hardware schedule from [`config_4090_universal.py`](../config_4090_universal.py) on a 4090-class training host
 
 ## Where to inspect the selected profile
 

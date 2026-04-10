@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 
 class MultiSeedRunnerTests(unittest.TestCase):
@@ -10,7 +10,19 @@ class MultiSeedRunnerTests(unittest.TestCase):
         from run_multiseed import main
 
         # Two seeds, low episode budget so default `unittest discover` stays quick (see scripts/setup_from_clone.sh).
-        main(["--preset", "dense", "--seeds", "1,2", "--run-name", "test_multiseed", "--episodes", "48"])
+        main(
+            [
+                "--preset",
+                "dense",
+                "--seeds",
+                "1,2",
+                "--run-name",
+                "test_multiseed",
+                "--episodes",
+                "48",
+                "--quiet",
+            ]
+        )
 
         summary_path = Path("outputs/benchmarks/test_multiseed_multiseed_summary.json")
         report_path = Path("outputs/reports/test_multiseed_multiseed_report.md")

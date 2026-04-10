@@ -1,15 +1,22 @@
 from __future__ import annotations
 
-from dataclasses import asdict
 import json
-from pathlib import Path
 import subprocess
+from dataclasses import asdict
+from pathlib import Path
 
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import md_table, write_json
 
 
 class ResearchPipeline:
+    """Single orchestrated experiment: train policy → evaluate → benchmark suite → analysis → ``*_summary.json``.
+
+    PyTorch runs optionally run VRAM preflight first; GPU profile metadata is attached when
+    ``training_backend="pytorch"``. Artifacts consistently use ``config.run_name`` under
+    ``outputs/`` (see field paths on ``FrameworkConfig``).
+    """
+
     def __init__(self, config: FrameworkConfig, requested_profile: str | None = None) -> None:
         self.original_config = config
         self.requested_profile = requested_profile
@@ -262,16 +269,16 @@ class ResearchPipeline:
         if isinstance(discrete_vs_learned, dict):
             evaluation = discrete_vs_learned.get("evaluation", {})
             if isinstance(evaluation, dict):
-                l = evaluation.get("learned", {})
-                d = evaluation.get("discrete", {})
-                if isinstance(d, dict) and isinstance(l, dict):
+                learned_metrics = evaluation.get("learned", {})
+                discrete_metrics = evaluation.get("discrete", {})
+                if isinstance(discrete_metrics, dict) and isinstance(learned_metrics, dict):
                     key_results_lines.append(
                         "- discrete → learned reward: "
-                        f"{_fmt_num(d.get('mean_reward'))} → {_fmt_num(l.get('mean_reward'))}"
+                        f"{_fmt_num(discrete_metrics.get('mean_reward'))} → {_fmt_num(learned_metrics.get('mean_reward'))}"
                     )
                     key_results_lines.append(
                         "- discrete → learned latency (ms): "
-                        f"{_fmt_num(d.get('mean_latency_ms'))} → {_fmt_num(l.get('mean_latency_ms'))}"
+                        f"{_fmt_num(discrete_metrics.get('mean_latency_ms'))} → {_fmt_num(learned_metrics.get('mean_latency_ms'))}"
                     )
 
         lines = [
@@ -360,7 +367,17 @@ def run_pipeline_entrypoint(
     show_gpu_profile: bool = False,
     show_training_host: bool = False,
     show_target_hardware: bool = False,
+    footer_mode: str = "full",
 ) -> dict[str, object]:
+    """Run ``ResearchPipeline`` and print a short human-readable summary (CLI-friendly).
+
+    ``requested_profile`` selects a named GPU preset when ``training_backend="pytorch"`` (see ``gpu_profiles``).
+    ``footer_mode``: ``full`` (paths + metrics), ``minimal`` (one line), ``none`` (silent).
+
+    Returns the same dict written to ``{benchmark_dir}/{run_name}_summary.json``.
+    """
+    from adaptive_quant.run_footer import print_pipeline_footer
+
     summary = ResearchPipeline(config, requested_profile=requested_profile).run()
     if show_training_host and config.training_host_label:
         print("Training host:", config.training_host_label)
@@ -368,9 +385,7 @@ def run_pipeline_entrypoint(
         print("Target hardware modes:", ", ".join(config.hardware_modes))
     if show_gpu_profile:
         print("GPU profile:", summary["gpu_profile"])
-    print("Training summary:", summary["train"])
-    print("Evaluation summary:", summary["evaluation"])
-    print("Benchmark summary written to:", f"{config.benchmark_dir}/{config.run_name}_summary.json")
+    print_pipeline_footer(config, summary, mode=footer_mode)
     return summary
 
 

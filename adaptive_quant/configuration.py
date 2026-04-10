@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-import re
 from typing import Any, Mapping
 
 from adaptive_quant.types import HardwareType, QuantMode
@@ -21,6 +21,14 @@ class RewardWeights:
 
 @dataclass
 class FrameworkConfig:
+    """Experiment contract: env sampling, rewards, backends, artifact dirs, and trainer knobs in one place.
+
+    ``training_backend="python"`` keeps the core **simulator + stdlib trainer** path import-light.
+    ``training_backend="pytorch"`` selects the CUDA-capable trainer; ``backend="llama_cpp"`` swaps the
+    measurement backend for a configured **llama.cpp** CLI. Use ``from_file`` / ``easy_config.load_config``
+    for reproducible JSON/TOML; ``clone()`` / ``replace`` preserve validated path semantics.
+    """
+
     training_backend: str = "python"
     multi_hardware: bool = True
     dynamic_quant: bool = True
@@ -148,6 +156,15 @@ class FrameworkConfig:
 
     def __post_init__(self) -> None:
         _validate_run_name(self.run_name)
+        _validate_artifact_dir("outputs_dir", self.outputs_dir)
+        _validate_artifact_dir("log_dir", self.log_dir)
+        _validate_artifact_dir("benchmark_dir", self.benchmark_dir)
+        _validate_artifact_dir("analysis_dir", self.analysis_dir)
+        _validate_artifact_dir("checkpoint_dir", self.checkpoint_dir)
+        _validate_artifact_dir("report_dir", self.report_dir)
+        _validate_optional_filesystem_path("resume_from_checkpoint", self.resume_from_checkpoint)
+        _validate_optional_filesystem_path("llama_cpp_binary", self.llama_cpp_binary)
+        _validate_optional_filesystem_path("llama_cpp_model", self.llama_cpp_model)
         _validate_torch_policy_algorithm(self.torch_policy_algorithm)
         _validate_env_sampling_mode(self.env_sampling_mode)
         _validate_rl_train_policy_mode(self.rl_train_policy_mode)
@@ -334,3 +351,40 @@ def _validate_run_name(run_name: str) -> None:
         raise ValueError(
             f"Invalid run_name {run_name!r}: expected /^[A-Za-z0-9][A-Za-z0-9._-]{{0,127}}$/"
         )
+
+
+def _path_has_parent_reference(path: str) -> bool:
+    """True if any path component is '..', after normalizing to a Path."""
+    return ".." in Path(path).parts
+
+
+def _validate_artifact_dir(field_name: str, path: str) -> None:
+    """
+    Reject traversal / control characters in directory prefixes used with run_name-based filenames.
+
+    Absolute paths are allowed (e.g. /data/outputs); '..' components are not.
+    """
+    if not isinstance(path, str):
+        raise TypeError(f"{field_name} must be a string")
+    stripped = path.strip()
+    if not stripped:
+        raise ValueError(f"{field_name} must be non-empty")
+    if "\x00" in path or "\n" in path or "\r" in path:
+        raise ValueError(f"{field_name} contains invalid control characters")
+    if _path_has_parent_reference(path):
+        raise ValueError(f"{field_name} must not contain '..' ({path!r})")
+
+
+def _validate_optional_filesystem_path(field_name: str, path: str | None) -> None:
+    """Same rules as artifact dirs when the field is set (None is allowed)."""
+    if path is None:
+        return
+    if not isinstance(path, str):
+        raise TypeError(f"{field_name} must be a string or None")
+    stripped = path.strip()
+    if not stripped:
+        raise ValueError(f"{field_name} if set must be non-empty")
+    if "\x00" in path or "\n" in path or "\r" in path:
+        raise ValueError(f"{field_name} contains invalid control characters")
+    if _path_has_parent_reference(path):
+        raise ValueError(f"{field_name} must not contain '..' ({path!r})")

@@ -6,7 +6,6 @@ import re
 from adaptive_quant.math_utils import clamp, deterministic_float, mean, norm, variance
 from adaptive_quant.types import InputFeatures, LayerSensitivity, PromptSample
 
-
 TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_]+|[^\sA-Za-z0-9_]")
 
 

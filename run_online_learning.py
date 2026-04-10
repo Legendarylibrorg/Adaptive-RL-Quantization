@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import argparse
 
-from analysis.analyzers import analyze_online
-from config_online import CONFIG_ONLINE
 from adaptive_quant.logging_utils import write_json
 from adaptive_quant.online_learning import OnlineLearningLoop, build_request_stream
 from adaptive_quant.runner_cli import add_config_file_argument, load_config_or_fallback
 from adaptive_quant.trainer import build_trainer
+from analysis.analyzers import analyze_online
+from config_online import CONFIG_ONLINE
 
 
 def main() -> None:
@@ -38,10 +38,16 @@ def main() -> None:
             "analysis": {"online_learning": online_analysis},
         },
     )
-    print("Bootstrap summary:", bootstrap_summary)
-    print("Online summary:", online_summary)
-    print("Evaluation summary:", eval_summary)
-    print("Online summary written to:", f"{cfg.benchmark_dir}/{cfg.run_name}_summary.json")
+    from adaptive_quant.run_footer import print_online_footer
+
+    summary_path = f"{cfg.benchmark_dir}/{cfg.run_name}_summary.json"
+    print_online_footer(
+        cfg,
+        summary_path=summary_path,
+        bootstrap=bootstrap_summary,
+        online=online_summary,
+        evaluation=eval_summary,
+    )
 
 
 if __name__ == "__main__":

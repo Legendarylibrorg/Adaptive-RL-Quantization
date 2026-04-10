@@ -1,17 +1,22 @@
 from __future__ import annotations
 
-from dataclasses import replace
 import os
-from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from dataclasses import replace
+from pathlib import Path
 
 from adaptive_quant.backend import LlamaCppBackend
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.quantization import finalize_decision
-from adaptive_quant.types import HardwareType, PromptSample, QuantMode, QuantizationDecision
+from adaptive_quant.types import (
+    HardwareType,
+    PromptSample,
+    QuantizationDecision,
+    QuantMode,
+)
 
 
 class LlamaCppHardeningTests(unittest.TestCase):

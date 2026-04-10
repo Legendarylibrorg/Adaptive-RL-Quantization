@@ -1,3 +1,14 @@
+"""Train an RL policy to choose quantization (and optional MoE variants) using prompt + hardware context.
+
+The default path is a **stdlib simulator**; optional **PyTorch** accelerates training and optional **llama.cpp**
+replaces simulated metrics when you configure a binary and GGUF. Public symbols listed in ``__all__`` are
+lazy-imported where useful so importing ``adaptive_quant`` does not pull optional CUDA stacks until needed.
+
+Entrypoints: ``run_research.py`` (Python trainer), ``run_pytorch.py`` (CUDA trainer), ``ResearchPipeline`` /
+``run_pipeline_entrypoint`` for programmatic runs. Configure via ``FrameworkConfig`` or JSON/TOML
+(``load_config`` / ``FrameworkConfig.from_file``).
+"""
+
 from __future__ import annotations
 
 import importlib
