@@ -7,16 +7,17 @@ This project supports two installation targets:
 
 ## OS support
 
-This repo is designed to be **Linux-first** (especially for NVIDIA CUDA training), while the **simulator research path works on macOS** as well.
+This repo is designed to be **cross-platform for the simulator path**, while **Linux + NVIDIA** remains the primary target for CUDA training.
 
-- **Linux**: recommended for GPU runs and for `scripts/run_4090_pipeline.sh`
-- **macOS**: supported for simulator runs; CUDA/NVIDIA paths are not the primary target
+- **Linux**: supported for simulator and GPU runs; required for `scripts/run_4090_pipeline.sh`
+- **macOS**: supported for simulator runs
+- **Windows**: supported for simulator runs through the Python entrypoints and Python setup/check scripts
 
-Follow the sections below in order on a fresh machine: **get the code** → **Linux packages** (if on Linux) → **venv + editable install** → optional GPU / llama.cpp.
+Follow the sections below in order on a fresh machine: **get the code** → **platform packages** (if needed) → **venv + editable install** → optional GPU / llama.cpp.
 
 ## 0. Prerequisites (before `git clone`)
 
-On Linux you need **`git`**, **`curl`**, and **Python 3.11+** on your `PATH`. `curl` is required for the official **`get-pip.py`** bootstrap when a new venv has no `pip` (common on minimal Debian images).
+You need **`git`** and **Python 3.11+** on your `PATH`. On Linux, `curl` is still helpful for manual fallback bootstrapping on minimal images.
 
 Sanity check:
 
@@ -26,21 +27,23 @@ command -v curl
 python3 --version   # expect 3.11 or newer
 ```
 
-**One-command bootstrap (Linux):** after cloning the repo, from the repo root run:
+**One-command bootstrap (all supported OSes):** after cloning the repo, from the repo root run:
 
 ```bash
-bash scripts/setup_from_clone.sh
+python3 scripts/setup_from_clone.py
 ```
 
-This creates **`.venv`**, upgrades **`pip`** (using **`curl`** if the venv has no pip), runs **`pip install -e .`**, **`unittest`**, and a **short reproducible end-to-end RL run** (train → eval → benchmarks → analysis) via **`config.e2e_smoke.json`**. Install, tests, and smoke use **`.venv/bin/python` explicitly** (no reliance on activating the venv first). Edit that JSON to tune episode counts, `seed`, and `run_name` without touching Python.
+This creates **`.venv`**, upgrades **`pip`** (using `ensurepip` first and falling back to `get-pip.py` only if needed), runs **`pip install -e .`**, **`unittest`**, and a **short reproducible end-to-end RL run** (train → eval → benchmarks → analysis) via **`config.e2e_smoke.json`**. Install, tests, and smoke use the venv interpreter directly (no reliance on activating the venv first). Edit that JSON to tune episode counts, `seed`, and `run_name` without touching Python.
+
+On Linux/macOS, `bash scripts/setup_from_clone.sh` remains available as a thin wrapper around the same Python entrypoint.
 
 Override paths if needed:
 
 ```bash
-PYTHON_BIN=python3.12 VENV_DIR="$PWD/.venv" bash scripts/setup_from_clone.sh
+python3 scripts/setup_from_clone.py --venv-dir .venv --config config.e2e_smoke.json
 ```
 
-**Quality gate (contributors):** run **`bash scripts/pre_commit_check.sh`** from the repo root before pushing (see **[CONTRIBUTING.md](../CONTRIBUTING.md)**). If **`.venv`** exists and **`PYTHON_BIN`** is unset, checks use **`.venv/bin/python`**; otherwise they use **`python3`**. Override either way with **`PYTHON_BIN`**. In CI, the workflow sets job-level **`PYTHON_BIN=python`** so install, pre-commit, and E2E smoke share the same **`setup-python`** interpreter.
+**Quality gate (contributors):** run **`python3 scripts/pre_commit_check.py`** from the repo root before pushing (see **[CONTRIBUTING.md](../CONTRIBUTING.md)**). On Linux/macOS, `bash scripts/pre_commit_check.sh` remains a wrapper around the same Python implementation. On Windows use `py -3.11 scripts/pre_commit_check.py` or `python scripts/pre_commit_check.py`.
 
 ## Get the code
 
@@ -93,7 +96,7 @@ Requirements:
 
 - Python 3.11+
 - `git` (to clone this repository)
-- `curl` (recommended on Linux; used below if `pip` is missing)
+- `curl` (optional manual fallback on Linux)
 
 The package declares **`dependencies = []`** in **[`pyproject.toml`](../pyproject.toml)** (stdlib only on Python 3.11+). The only declared optional extra is **`torch`** (`pip install -e ".[torch]"`); see GPU section.
 
@@ -105,12 +108,14 @@ source .venv/bin/activate
 python3 -m pip install -U pip
 ```
 
-If `python3 -m pip` fails because `pip` is not installed in the venv, bootstrap it (official PyPA script, fetched with `curl`):
+If `python3 -m pip` fails because `pip` is not installed in the venv, bootstrap it with `ensurepip` first:
 
 ```bash
-curl -sS https://bootstrap.pypa.io/get-pip.py | python3
+python3 -m ensurepip --upgrade
 python3 -m pip install -U pip
 ```
+
+If `ensurepip` is unavailable on your platform build, `python3 scripts/setup_from_clone.py` will fall back automatically.
 
 Install the package (editable):
 
@@ -225,7 +230,7 @@ That means:
 git clone https://github.com/Legendarylibrorg/Adaptive-RL-Quantization.git
 cd Adaptive-RL-Quantization
 sudo apt update && sudo apt install -y git curl python3 python3-venv   # Debian/Ubuntu; skip if already installed
-bash scripts/setup_from_clone.sh
+python3 scripts/setup_from_clone.py
 source .venv/bin/activate
 python3 run_research.py   # full baseline from config.py (smoke already ran during the script)
 ```
@@ -244,7 +249,7 @@ python3 -m pip install -e .
 python3 run_pytorch.py --preset gpu
 ```
 
-macOS — simulator only (same as Linux clone path; no `apt` step):
+macOS — simulator only:
 
 ```bash
 git clone https://github.com/Legendarylibrorg/Adaptive-RL-Quantization.git
@@ -254,6 +259,16 @@ source .venv/bin/activate
 python3 -m pip install -U pip
 python3 -m pip install -e .
 python3 run_research.py
+```
+
+**Windows — simulator only:**
+
+```powershell
+git clone https://github.com/Legendarylibrorg/Adaptive-RL-Quantization.git
+cd Adaptive-RL-Quantization
+py -3.11 scripts/setup_from_clone.py
+.venv\Scripts\activate
+python run_research.py
 ```
 
 Optional experimental online extension:

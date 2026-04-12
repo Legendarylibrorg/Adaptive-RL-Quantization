@@ -75,6 +75,7 @@ General:
 
 Adaptive behavior:
 
+- `detect_host_hardware`: when true (default), probe the local host and tune the simulated hardware profiles from detected CPU/RAM/GPU characteristics; disable for strictly static cross-host baselines
 - `multi_hardware`
 - `dynamic_quant`
 - `learned_quant`
@@ -90,6 +91,8 @@ Episode budget:
 - `evaluation_episodes`: number of episodes for evaluation (default: 400)
 - `benchmark_training_episodes`
 - `benchmark_evaluation_episodes`
+- `recommendation_eval_episodes`: bounded episode budget for the post-train RL quant recommendation pass
+- `recommendation_candidate_limit`: max number of RL-generated fixed quant candidates to re-score on the detected target hardware
 
 Continuous learning:
 

@@ -7,9 +7,10 @@
 
 ## Shell scripts use the wrong Python
 
-- **`pre_commit_check.sh`** and **`run_4090_pipeline.sh`** source **`scripts/_resolve_venv_python.sh`**: if **`PYTHON_BIN`** is unset and **`.venv/bin/python`** exists, that venv is used; otherwise **`python3`** on `PATH`.
-- Force a specific interpreter: `PYTHON_BIN=/usr/bin/python3.12 bash scripts/pre_commit_check.sh`
-- **`setup_from_clone.sh`** always uses **`.venv/bin/python`** for install, tests, and the E2E smoke after the venv exists (see [INSTALL.md](INSTALL.md)).
+- **`pre_commit_check.py`** prefers **`PYTHON_BIN`** when set, then the repo venv interpreter (`.venv/bin/python` on Unix, `.venv\Scripts\python.exe` on Windows), then the current interpreter.
+- Force a specific interpreter: `PYTHON_BIN=/usr/bin/python3.12 python3 scripts/pre_commit_check.py`
+- **`run_4090_pipeline.sh`** still uses **`scripts/_resolve_venv_python.sh`** on Linux GPU hosts.
+- **`setup_from_clone.py`** always uses the venv interpreter it creates for install, tests, and the E2E smoke after the venv exists (see [INSTALL.md](INSTALL.md)).
 
 ## No PyTorch on the simulator path
 

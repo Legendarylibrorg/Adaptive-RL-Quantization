@@ -1,8 +1,8 @@
 # Running Guide
 
-**Platform:** Commands below are written for **Linux** (`python3`, `bash`, `source .venv/bin/activate`). Run from the **repository root** (where `pyproject.toml` and `config.py` live).
+**Platform:** The simulator entrypoints work on **Linux, macOS, and Windows**. Commands below use `python3`; on Windows substitute `py -3.11` or `python` as needed. Run from the **repository root** (where `pyproject.toml` and `config.py` live).
 
-1. Install: `python3 -m pip install -e .`, or run **`bash scripts/setup_from_clone.sh`** once on Linux (see [INSTALL.md](INSTALL.md)) — checks **git**, **curl**, **python3**, bootstraps **pip** via **curl** if needed, then tests + RL smoke.
+1. Install: `python3 -m pip install -e .`, or run **`python3 scripts/setup_from_clone.py`** once (see [INSTALL.md](INSTALL.md)) — creates a venv, bootstraps `pip` when needed, then runs tests + RL smoke.
 2. Short reproducible E2E (no Python edits): [**`config.e2e_smoke.json`**](../config.e2e_smoke.json) — `python3 run_research.py --config config.e2e_smoke.json`
 3. More examples: [CONFIG.md](CONFIG.md), [`config.example.json`](../config.example.json).
 
@@ -42,7 +42,7 @@ python3 run_pytorch.py --help
 python3 -m unittest discover -s tests -v
 ```
 
-Before committing (whitespace, syntax, tests): `bash scripts/pre_commit_check.sh` — uses **`.venv/bin/python`** when that venv exists and **`PYTHON_BIN`** is unset.
+Before committing (whitespace, syntax, tests): `python3 scripts/pre_commit_check.py` on Unix-like hosts; on Windows use `py -3.11 scripts/pre_commit_check.py` or `python scripts/pre_commit_check.py`. On Linux/macOS, `bash scripts/pre_commit_check.sh` is a wrapper around the same Python implementation.
 
 Multi-seed: seeds can be `a,b,c` or `0-9`. Reports under `outputs/reports/`.
 

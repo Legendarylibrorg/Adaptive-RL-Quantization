@@ -30,8 +30,10 @@ __all__ = [
     "available_gpu_profiles",
     "build_request_stream",
     "build_trainer",
+    "detect_host_hardware",
     "load_config",
     "quick_config",
+    "recommend_quantization",
 ]
 
 _LAZY: dict[str, tuple[str, str]] = {
@@ -42,8 +44,10 @@ _LAZY: dict[str, tuple[str, str]] = {
     "UniversalQuantizationPolicy": ("adaptive_quant.policy", "UniversalQuantizationPolicy"),
     "build_request_stream": ("adaptive_quant.online_learning", "build_request_stream"),
     "build_trainer": ("adaptive_quant.trainer", "build_trainer"),
+    "detect_host_hardware": ("adaptive_quant.hardware", "detect_host_hardware"),
     "load_config": ("adaptive_quant.easy_config", "load_config"),
     "quick_config": ("adaptive_quant.easy_config", "quick_config"),
+    "recommend_quantization": ("adaptive_quant.recommendation", "recommend_quantization"),
 }
 
 

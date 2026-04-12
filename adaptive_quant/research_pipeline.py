@@ -28,9 +28,11 @@ class ResearchPipeline:
         preflight_report = None
         train_summary: dict[str, object] = {}
         eval_summary: dict[str, object] = {}
+        recommendation_summary: dict[str, object] | None = None
         vram_report: dict[str, object] | None = None
         history_path: str | None = None
         checkpoint_path: str | None = None
+        recommendation_path: str | None = None
         pipeline_error: BaseException | None = None
         try:
             if config.training_backend == "pytorch" and config.torch_preflight:
@@ -43,6 +45,9 @@ class ResearchPipeline:
             train_summary = trainer.train()
             vram_report = self._collect_vram_report(trainer)
             eval_summary = trainer.evaluate()
+            recommendation_summary = self._recommend_quantization(config, trainer)
+            recommendation_path = config.recommendation_path()
+            write_json(recommendation_path, recommendation_summary)
             history_path = self._write_training_history(config, trainer)
             checkpoint_path = self._maybe_save_final_checkpoint(config, trainer)
         except BaseException as exc:
@@ -68,6 +73,7 @@ class ResearchPipeline:
             analysis=analysis,
             history_path=history_path,
             checkpoint_path=checkpoint_path,
+            recommendation_summary=recommendation_summary,
         )
         summary = {
             "config": asdict(config),
@@ -77,11 +83,13 @@ class ResearchPipeline:
             "vram": vram_report,
             "train": train_summary,
             "evaluation": eval_summary,
+            "recommendation": recommendation_summary,
             "benchmarks": benchmark_summary,
             "analysis": analysis,
             "artifacts": {
                 "training_history": history_path,
                 "final_checkpoint": checkpoint_path,
+                "recommendation": recommendation_path,
                 "report": report_path,
             },
         }
@@ -152,6 +160,11 @@ class ResearchPipeline:
             return None
         return save_checkpoint(config.final_checkpoint_path())
 
+    def _recommend_quantization(self, config: FrameworkConfig, trainer) -> dict[str, object]:
+        from adaptive_quant.recommendation import recommend_quantization
+
+        return recommend_quantization(trainer, config)
+
     def _run_analysis(self, config: FrameworkConfig, history_path: str | None) -> dict[str, object]:
         from analysis.analyzers import (
             analyze_hardware,
@@ -189,6 +202,7 @@ class ResearchPipeline:
         analysis: dict[str, object],
         history_path: str | None,
         checkpoint_path: str | None,
+        recommendation_summary: dict[str, object] | None,
     ) -> str | None:
         if not config.write_research_report:
             return None
@@ -240,6 +254,8 @@ class ResearchPipeline:
             ("mean_stability_penalty", eval_summary.get("mean_stability_penalty")),
         ]
         eval_rows = [[k, _fmt_num(v)] for k, v in eval_metrics]
+        recommendation = recommendation_summary if isinstance(recommendation_summary, dict) else None
+        recommended_quant = recommendation.get("recommended_quant") if isinstance(recommendation, dict) else None
 
         bench = benchmark_summary
         single_vs_multi = bench.get("single_vs_multi") if isinstance(bench, dict) else None
@@ -306,6 +322,13 @@ class ResearchPipeline:
             "",
             "## Evaluation",
             *md_table(["metric", "value"], eval_rows),
+            "",
+            "## Recommendation",
+            f"- target_hardware: `{recommendation.get('target_hardware') if recommendation else 'n/a'}`",
+            f"- detected_hardware: `{recommendation.get('detected_hardware') if recommendation else 'n/a'}`",
+            f"- adaptive_policy_reward: `{_fmt_num((recommendation or {}).get('adaptive_policy', {}).get('mean_reward') if recommendation else None)}`",
+            f"- recommended_fixed_quant: `{(recommended_quant or {}).get('signature', 'n/a')}`",
+            f"- recommended_fixed_reward: `{_fmt_num((recommended_quant or {}).get('evaluation', {}).get('mean_reward') if isinstance(recommended_quant, dict) else None)}`",
             "",
             "## Benchmarks",
             "",

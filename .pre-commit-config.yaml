@@ -1,11 +1,12 @@
 # Optional: install hooks with `pip install pre-commit && pre-commit install`
-# The canonical gate is still `bash scripts/pre_commit_check.sh` (used by CI).
+# The canonical gate is `python3 scripts/pre_commit_check.py` on Unix-like hosts
+# (or `py -3.11 scripts/pre_commit_check.py` / `python scripts/pre_commit_check.py` on Windows).
 repos:
   - repo: local
     hooks:
       - id: repo-pre-commit-check
-        name: scripts/pre_commit_check.sh
-        entry: bash scripts/pre_commit_check.sh
-        language: system
+        name: scripts/pre_commit_check.py
+        entry: python scripts/pre_commit_check.py
+        language: python
         pass_filenames: false
         always_run: true

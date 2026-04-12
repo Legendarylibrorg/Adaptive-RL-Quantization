@@ -9,7 +9,7 @@ class MultiSeedRunnerTests(unittest.TestCase):
         # Import inside the test so this remains a normal stdlib unittest.
         from run_multiseed import main
 
-        # Two seeds, low episode budget so default `unittest discover` stays quick (see scripts/setup_from_clone.sh).
+        # Two seeds, low episode budget so default `unittest discover` stays quick (see scripts/setup_from_clone.py).
         main(
             [
                 "--preset",
@@ -32,4 +32,3 @@ class MultiSeedRunnerTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

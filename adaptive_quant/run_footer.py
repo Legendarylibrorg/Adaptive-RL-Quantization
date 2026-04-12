@@ -68,6 +68,9 @@ def print_pipeline_footer(
     ck = art.get("final_checkpoint")
     if ck:
         rows.append(("checkpoint", str(ck)))
+    rq = art.get("recommendation")
+    if rq:
+        rows.append(("recommendation_json", str(rq)))
 
     train = summary.get("train")
     if isinstance(train, dict):
@@ -77,6 +80,15 @@ def print_pipeline_footer(
         rows.extend(
             _metric_rows("eval", ev, ("mean_reward", "mean_latency_ms", "mean_throughput_tps"))
         )
+    recommendation = summary.get("recommendation")
+    if isinstance(recommendation, dict):
+        rows.append(("target_hardware", _fmt_scalar(recommendation.get("target_hardware"))))
+        fixed = recommendation.get("recommended_quant")
+        if isinstance(fixed, dict):
+            rows.append(("recommended_quant", _fmt_scalar(fixed.get("signature"))))
+            evaluation = fixed.get("evaluation")
+            if isinstance(evaluation, dict):
+                rows.append(("recommended_reward", _fmt_scalar(evaluation.get("mean_reward"))))
 
     print_cli_block("Run complete", rows)
 
