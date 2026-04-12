@@ -11,6 +11,15 @@ def clamp(value: float, lower: float, upper: float) -> float:
     return max(lower, min(upper, value))
 
 
+def stable_sigmoid(value: float) -> float:
+    """Numerically stable logistic (sigmoid) for a scalar."""
+    if value >= 0:
+        z = math.exp(-value)
+        return 1.0 / (1.0 + z)
+    z = math.exp(value)
+    return z / (1.0 + z)
+
+
 def mean(values: Sequence[float]) -> float:
     if not values:
         return 0.0

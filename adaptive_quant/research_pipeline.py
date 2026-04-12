@@ -92,17 +92,18 @@ class ResearchPipeline:
         if self.original_config.training_backend != "pytorch":
             return self.original_config, None
         from adaptive_quant.gpu_profiles import apply_gpu_profile
-        from adaptive_quant.torch_policy import TORCH_IMPORT_ERROR, torch
+        from adaptive_quant.torch_policy import (
+            TORCH_BACKEND_REQUIRED_MESSAGE,
+            TORCH_IMPORT_ERROR,
+            torch,
+        )
 
         try:
             requested = self.requested_profile or self.original_config.torch_gpu_profile
             device_name = None
             total_memory_gb = None
             if torch is None:
-                raise ImportError(
-                    "PyTorch is required for `training_backend=\"pytorch\"`. "
-                    "Install PyTorch on this machine (a CUDA build is recommended for GPU training; CPU is supported with automatic fallback)."
-                ) from TORCH_IMPORT_ERROR
+                raise ImportError(TORCH_BACKEND_REQUIRED_MESSAGE) from TORCH_IMPORT_ERROR
             if torch.cuda.is_available():
                 index = torch.cuda.current_device()
                 properties = torch.cuda.get_device_properties(index)

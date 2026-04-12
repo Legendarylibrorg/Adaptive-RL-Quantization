@@ -64,10 +64,6 @@ def _run_llama_cpp_once(
     )
 
 
-def _fit_multiplier(observed: list[float], simulated: list[float]) -> float:
-    return ratio_mean(observed, simulated)
-
-
 def main(argv: Iterable[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Fit simulator calibration multipliers from llama.cpp measurements.")
     add_config_file_argument(parser, help_suffix="Otherwise uses config.py as base.")
@@ -139,9 +135,9 @@ def main(argv: Iterable[str] | None = None) -> None:
                 "memory_mb": sim_memory,
             },
             "fit": {
-                "latency_multiplier": _fit_multiplier(observed_latency, sim_latency) if observed_latency else 1.0,
-                "throughput_multiplier": _fit_multiplier(observed_throughput, sim_throughput) if observed_throughput else 1.0,
-                "memory_multiplier": _fit_multiplier(observed_memory, sim_memory) if observed_memory else 1.0,
+                "latency_multiplier": ratio_mean(observed_latency, sim_latency) if observed_latency else 1.0,
+                "throughput_multiplier": ratio_mean(observed_throughput, sim_throughput) if observed_throughput else 1.0,
+                "memory_multiplier": ratio_mean(observed_memory, sim_memory) if observed_memory else 1.0,
             },
         }
 

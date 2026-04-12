@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import copy
-import math
 import random
 from dataclasses import dataclass
 
@@ -15,6 +14,7 @@ from adaptive_quant.math_utils import (
     gaussian_sample,
     sample_categorical,
     softmax,
+    stable_sigmoid,
 )
 from adaptive_quant.types import EpisodeState, QuantizationDecision, QuantMode
 
@@ -74,7 +74,7 @@ class GaussianHead:
             raw_samples = list(raw_means)
         else:
             raw_samples = [gaussian_sample(mean_value, self.stddev, rng) for mean_value in raw_means]
-        mapped = [_map_to_bounds(_sigmoid(sample), lower, upper) for sample, (lower, upper) in zip(raw_samples, bounds)]
+        mapped = [_map_to_bounds(stable_sigmoid(sample), lower, upper) for sample, (lower, upper) in zip(raw_samples, bounds)]
         return mapped, raw_samples, raw_means
 
     def update(self, state_vector: list[float], raw_samples: list[float], raw_means: list[float], advantage: float, learning_rate: float) -> None:
@@ -278,14 +278,6 @@ class UniversalQuantizationPolicy:
         self.learned_head = copy.deepcopy(snapshot["learned_head"])
         self.moe_heads = copy.deepcopy(snapshot.get("moe_heads", self.moe_heads))
         self.value_head = copy.deepcopy(snapshot["value_head"])
-
-
-def _sigmoid(value: float) -> float:
-    if value >= 0:
-        exponent = math.exp(-value)
-        return 1.0 / (1.0 + exponent)
-    exponent = math.exp(value)
-    return exponent / (1.0 + exponent)
 
 
 def _map_to_bounds(value: float, lower: float, upper: float) -> float:

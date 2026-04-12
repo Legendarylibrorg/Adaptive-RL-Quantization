@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from adaptive_quant.math_utils import mean
+
 
 class HardwareType(str, Enum):
     GPU = "gpu"
@@ -157,7 +159,7 @@ class QuantizationDecision:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def feedback_vector(self, max_bits: int, scale_upper: float, clip_upper: float) -> list[float]:
-        average_bits = sum(self.effective_layer_bits) / len(self.effective_layer_bits) if self.effective_layer_bits else 0.0
+        average_bits = mean(self.effective_layer_bits)
         return [
             average_bits / max_bits if max_bits else 0.0,
             self.scale_factor / scale_upper if scale_upper else 0.0,

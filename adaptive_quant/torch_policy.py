@@ -21,6 +21,11 @@ except Exception as exc:  # pragma: no cover - exercised only when torch is unav
 else:
     TORCH_IMPORT_ERROR = None
 
+TORCH_BACKEND_REQUIRED_MESSAGE = (
+    'PyTorch is required for `training_backend="pytorch"`. '
+    "Install PyTorch (CUDA build recommended for GPU; CPU-only installs run with device fallback)."
+)
+
 
 def resolve_training_device(requested: str) -> tuple["torch.device", str | None]:
     """

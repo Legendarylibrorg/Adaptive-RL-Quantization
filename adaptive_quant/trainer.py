@@ -6,6 +6,7 @@ from pathlib import Path
 from adaptive_quant.base_trainer import TrainerBase
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import write_json
+from adaptive_quant.math_utils import mean
 from adaptive_quant.policy import PolicyTrace, UniversalQuantizationPolicy
 from adaptive_quant.trainer_utils import (
     online_update_summary,
@@ -56,7 +57,7 @@ class Trainer(TrainerBase):
                 eval_summary = self.evaluate()
                 print(
                     f"[episode {episode_index + 1:,}] "
-                    f"recent_reward={sum(recent) / len(recent):.3f}  "
+                    f"recent_reward={mean(recent):.3f}  "
                     f"eval_reward={eval_summary.get('mean_reward', 0):.3f}",
                     file=sys.stderr,
                 )

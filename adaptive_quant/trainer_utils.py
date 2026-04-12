@@ -60,17 +60,21 @@ def collect_episode_results(
     return results
 
 
+def _mean_metric(results: list[EpisodeResult], attr: str) -> float:
+    return mean([float(getattr(result.metrics, attr)) for result in results])
+
+
 def summarize_episode_results(results: list[EpisodeResult]) -> dict[str, float]:
     return {
-        "mean_reward": mean([float(result.metrics.reward) for result in results]),
-        "mean_perplexity": mean([float(result.metrics.perplexity) for result in results]),
-        "mean_latency_ms": mean([float(result.metrics.latency_ms) for result in results]),
-        "mean_throughput_tps": mean([float(result.metrics.throughput_tps) for result in results]),
-        "mean_memory_mb": mean([float(result.metrics.memory_mb) for result in results]),
-        "mean_stability_penalty": mean([float(result.metrics.stability_penalty) for result in results]),
-        "mean_swap_cost_ms": mean([float(result.metrics.swap_cost_ms) for result in results]),
-        "mean_cache_miss_count": mean([float(result.metrics.cache_miss_count) for result in results]),
-        "mean_variant_churn": mean([float(result.metrics.variant_churn) for result in results]),
+        "mean_reward": _mean_metric(results, "reward"),
+        "mean_perplexity": _mean_metric(results, "perplexity"),
+        "mean_latency_ms": _mean_metric(results, "latency_ms"),
+        "mean_throughput_tps": _mean_metric(results, "throughput_tps"),
+        "mean_memory_mb": _mean_metric(results, "memory_mb"),
+        "mean_stability_penalty": _mean_metric(results, "stability_penalty"),
+        "mean_swap_cost_ms": _mean_metric(results, "swap_cost_ms"),
+        "mean_cache_miss_count": _mean_metric(results, "cache_miss_count"),
+        "mean_variant_churn": _mean_metric(results, "variant_churn"),
     }
 
 
