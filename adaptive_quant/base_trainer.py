@@ -26,21 +26,14 @@ class TrainerBase:
     def _policy_act(self, state, *, deterministic: bool):
         return self.policy.act(self._policy_input(state), deterministic=deterministic)
 
-    def evaluate(self, episodes: int | None = None, hardware: HardwareType | None = None) -> dict[str, float]:
-        results = collect_episode_results(
-            episodes or self.config.evaluation_episodes,
-            initial_previous_action=self.previous_action,
-            reset=self.env.reset,
-            act=lambda state: self._policy_act(state, deterministic=True)[0],
-            evaluate_current=self.env.evaluate_current,
-            feedback=self._feedback_vector,
-            episode_offset=1_000_000,
-            hardware=hardware,
-            phase="eval",
-        )
-        return summarize_episode_results(results)
-
-    def rollout(self, episodes: int) -> list[EpisodeResult]:
+    def _collect_episodes(
+        self,
+        episodes: int,
+        *,
+        episode_offset: int,
+        hardware: HardwareType | None = None,
+        phase: str = "train",
+    ) -> list[EpisodeResult]:
         return collect_episode_results(
             episodes,
             initial_previous_action=self.previous_action,
@@ -48,8 +41,22 @@ class TrainerBase:
             act=lambda state: self._policy_act(state, deterministic=True)[0],
             evaluate_current=self.env.evaluate_current,
             feedback=self._feedback_vector,
-            episode_offset=2_000_000,
+            episode_offset=episode_offset,
+            hardware=hardware,
+            phase=phase,
         )
+
+    def evaluate(self, episodes: int | None = None, hardware: HardwareType | None = None) -> dict[str, float]:
+        results = self._collect_episodes(
+            episodes or self.config.evaluation_episodes,
+            episode_offset=1_000_000,
+            hardware=hardware,
+            phase="eval",
+        )
+        return summarize_episode_results(results)
+
+    def rollout(self, episodes: int) -> list[EpisodeResult]:
+        return self._collect_episodes(episodes, episode_offset=2_000_000)
 
     def close(self) -> None:
         self.env.logger.close()

@@ -13,8 +13,6 @@ from adaptive_quant.research_pipeline import run_pipeline_entrypoint
 from config import CONFIG as CONFIG_DENSE
 from config_moe import CONFIG_MOE
 
-Number = int | float
-
 
 @dataclass(frozen=True)
 class AggregateStat:
@@ -25,10 +23,6 @@ class AggregateStat:
 
 def _is_number(value: object) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
-
-
-def _to_float(value: Number) -> float:
-    return float(value)
 
 
 def _flatten_numeric(
@@ -43,7 +37,7 @@ def _flatten_numeric(
         if len(out) >= max_items:
             return
         if _is_number(node):
-            out[path] = _to_float(node)  # type: ignore[arg-type]
+            out[path] = float(node)  # type: ignore[arg-type]
             return
         if isinstance(node, dict):
             for k, v in node.items():

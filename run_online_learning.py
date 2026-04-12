@@ -16,6 +16,7 @@ def main() -> None:
     args = parser.parse_args()
     cfg = load_config_or_fallback(args.config, CONFIG_ONLINE)
 
+    summary_path = f"{cfg.benchmark_dir}/{cfg.run_name}_summary.json"
     trainer = build_trainer(cfg)
     try:
         bootstrap_summary = trainer.train()
@@ -30,7 +31,7 @@ def main() -> None:
     analysis_root = f"{cfg.analysis_dir}/{cfg.run_name}"
     online_analysis = analyze_online(cfg.online_telemetry_path(), f"{analysis_root}/online")
     write_json(
-        f"{cfg.benchmark_dir}/{cfg.run_name}_summary.json",
+        summary_path,
         {
             "bootstrap_train": bootstrap_summary,
             "online": online_summary,
@@ -39,8 +40,6 @@ def main() -> None:
         },
     )
     from adaptive_quant.run_footer import print_online_footer
-
-    summary_path = f"{cfg.benchmark_dir}/{cfg.run_name}_summary.json"
     print_online_footer(
         cfg,
         summary_path=summary_path,
