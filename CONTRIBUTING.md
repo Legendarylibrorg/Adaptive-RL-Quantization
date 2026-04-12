@@ -23,13 +23,13 @@ By contributing, you agree that your contributions are licensed under the same t
 - **Vulnerabilities:** Do **not** open a public issue. Follow [SECURITY.md](SECURITY.md).
 - **Secrets:** Never commit API keys, tokens, passwords, or private model paths. Use `.env` (gitignored) or local JSON/TOML configs. See README **Security** notes.
 - **Checkpoints:** Treat downloaded `.pt` / legacy pickle checkpoints as **untrusted** unless you created them locally.
-- **Supply chain:** Prefer minimal, reviewable changes to dependencies (`pyproject.toml`, GitHub Actions). When upgrading Actions or adding packages, prefer pins reviewers can verify (exact versions or commit SHAs for actions where practical).
+- **Supply chain:** Keep Python dependency changes reviewable. CI bootstrap packages live in **[`requirements/ci.txt`](requirements/ci.txt)**, their sha256 values live separately in **[`security/dependency_hashes.json`](security/dependency_hashes.json)**, and **[`scripts/verify_hashes.py`](scripts/verify_hashes.py)** should stay green when those pins change.
 
 ---
 
 ## Development setup
 
-From the repository root (Linux/macOS; Windows analogous):
+From the repository root:
 
 ```bash
 python3 -m venv .venv
@@ -45,13 +45,13 @@ Optional GPU work: `pip install -e ".[torch]"` or a CUDA-matched PyTorch wheel, 
 
 ### High-grade local workflow (optional)
 
-For a tighter loop on your machine (Linux/macOS):
+For a tighter loop on your machine:
 
 1. `pip install -e ".[dev]"` — installs **[Ruff](https://docs.astral.sh/ruff/)** for lint + format (`pyproject.toml` → `[project.optional-dependencies] dev`).
-2. **`make help`** — see [Makefile](Makefile): quality (`lint`, `format`, `check` = Ruff + `pre_commit_check.sh`); experiments (`run`, `reproduce` / `smoke`, `multiseed`, `pytorch`, …).
+2. **`make help`** on Linux/macOS — see [Makefile](Makefile): quality (`lint`, `format`, `check` = Ruff + `pre_commit_check.py`); experiments (`run`, `reproduce` / `smoke`, `multiseed`, `pytorch`, …). On Windows, use the Python scripts under `scripts/`.
 3. [.vscode/extensions.json](.vscode/extensions.json) recommends the Python and Ruff extensions; [.editorconfig](.editorconfig) keeps basic spacing consistent.
 
-CI does **not** install `[dev]`; Ruff is an **optional** local bar above the required `pre_commit_check.sh`.
+CI does **not** install `[dev]`; Ruff is an **optional** local bar above the required `pre_commit_check.py`.
 
 ---
 
@@ -60,22 +60,23 @@ CI does **not** install `[dev]`; Ruff is an **optional** local bar above the req
 From the repo root:
 
 ```bash
-bash scripts/pre_commit_check.sh
+python3 scripts/pre_commit_check.py
 ```
 
 This runs:
 
 - `git diff --check` / staged check (whitespace, conflict markers)
-- **[`scripts/secret_scan.sh`](scripts/secret_scan.sh)** — heuristic secret patterns on tracked files (git only, no third-party scanner)
+- **[`scripts/secret_scan.py`](scripts/secret_scan.py)** — heuristic secret patterns on tracked files (git only, no third-party scanner)
+- **[`scripts/verify_hashes.py`](scripts/verify_hashes.py)** — validates pinned CI dependency hashes against separate storage
 - Python syntax (`compileall` on `adaptive_quant`, `analysis`; `py_compile` on root `*.py`)
 - `bash -n` on `scripts/*.sh`
 - Full **`unittest`** suite
 
-If **`.venv`** exists and **`PYTHON_BIN`** is unset, the script uses **`.venv/bin/python`** (see [scripts/_resolve_venv_python.sh](scripts/_resolve_venv_python.sh)). In CI, **`PYTHON_BIN=python`** is set explicitly.
+If **`.venv`** exists and **`PYTHON_BIN`** is unset, the script uses the repo venv interpreter automatically (`.venv/bin/python` on Unix, `.venv\Scripts\python.exe` on Windows).
 
 This script is **not** the third-party [pre-commit](https://pre-commit.com/) framework; it is the repository’s canonical gate and matches what CI runs.
 
-**Optional Git hooks:** `pip install pre-commit && pre-commit install` using [`.pre-commit-config.yaml`](.pre-commit-config.yaml) (wraps the same `pre_commit_check.sh`).
+**Optional Git hooks:** `pip install pre-commit && pre-commit install` using [`.pre-commit-config.yaml`](.pre-commit-config.yaml) (wraps the same `pre_commit_check.py` flow).
 
 ---
 
@@ -84,7 +85,7 @@ This script is **not** the third-party [pre-commit](https://pre-commit.com/) fra
 1. **Branch** from the default branch (`main`, or `master` on older forks). Use a short, descriptive branch name (e.g. `fix-jsonl-parse`, `docs-install-typo`).
 2. **Keep PRs focused.** One coherent change is easier to review than unrelated refactors. Avoid “cleanup” mixed with feature work unless requested.
 3. **Describe the PR.** Use the [pull request template](.github/PULL_REQUEST_TEMPLATE.md): problem, solution, testing, risk, linked issues.
-4. **Green CI.** PRs should pass GitHub Actions on **Python 3.11 and 3.12** (see [.github/workflows/ci.yml](.github/workflows/ci.yml)): secret pattern scan, editable install, `pre_commit_check.sh`, and a short E2E RL smoke (`config.e2e_smoke.json`).
+4. **Green CI.** PRs should pass GitHub Actions on **Linux, macOS, and Windows** (see [.github/workflows/ci.yml](.github/workflows/ci.yml)): secret pattern scan, dependency hash verification, hash-verified bootstrap install, editable install, `pre_commit_check.py`, and a short E2E RL smoke (`config.e2e_smoke.json`). Pull requests also run dependency review via [.github/workflows/dependency-review.yml](.github/workflows/dependency-review.yml).
 5. **Respond to review feedback.** Maintainers may request tests, docs, or scope changes before merge.
 
 Force-pushing during review is fine once agreed; avoid rewriting history after merge.
@@ -104,7 +105,7 @@ Force-pushing during review is fine once agreed; avoid rewriting history after m
 
 - **User-visible behavior changes** (CLI flags, config fields, defaults, install steps) should update **README** and/or **`docs/`** in the same PR when practical.
 - **Purely internal refactors** do not require doc churn.
-- **Docs are Linux-first** unless the change is explicitly cross-platform.
+- **Docs should call out OS-specific steps** when behavior differs (for example simulator vs CUDA workflows).
 
 ---
 
@@ -121,7 +122,7 @@ For **upstream** alignment, note the repo’s relationship to the upstream proje
 
 ## Maintainer notes (informational)
 
-- **CI** uses `permissions: contents: read`, workflow concurrency, and a Python version matrix.
+- **CI** uses `permissions: contents: read`, workflow concurrency, a Python version matrix, and hash-verified bootstrap dependencies from `requirements/ci.txt`.
 - **E2E smoke** is intentionally short; full research budgets live in `config*.py` / JSON presets.
 - **GPU pipelines** (e.g. `run_pytorch.py`, `scripts/run_4090_pipeline.sh`) are validated on appropriate hardware, not in default CI.
 

@@ -6,7 +6,7 @@ from dataclasses import replace
 from adaptive_quant.backend import LlamaCppBackend, SimulatorBackend
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.features import estimate_layer_sensitivity, extract_input_features
-from adaptive_quant.hardware import default_hardware_profiles
+from adaptive_quant.hardware import detect_host_hardware, host_aware_hardware_profiles
 from adaptive_quant.logging_utils import JsonlLogger
 from adaptive_quant.math_utils import variance
 from adaptive_quant.moe import ExpertBank
@@ -42,7 +42,8 @@ class AdaptiveQuantizationEnv:
                 rng=self._prompt_split_rng,
                 train_fraction=config.prompt_train_fraction,
             )
-        self.hardware_profiles = default_hardware_profiles()
+        self.detected_hardware = detect_host_hardware() if config.detect_host_hardware else None
+        self.hardware_profiles = host_aware_hardware_profiles(self.detected_hardware)
         self.backend = LlamaCppBackend(config) if config.backend == "llama_cpp" else SimulatorBackend(config)
         self.expert_bank = ExpertBank(config) if config.moe_enabled else None
         self.logger = JsonlLogger(log_path or f"{config.log_dir}/{config.run_name}.jsonl")

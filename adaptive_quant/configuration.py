@@ -35,6 +35,7 @@ class FrameworkConfig:
     learned_quant: bool = True
     moe_enabled: bool = False
     quant_mode: str = QuantMode.HYBRID.value
+    detect_host_hardware: bool = True
     hardware_modes: tuple[str, ...] = ("gpu", "cpu", "low_resource")
     discrete_bit_widths: tuple[int, ...] = (2, 4, 8)
     num_groups: int = 4
@@ -53,6 +54,8 @@ class FrameworkConfig:
     evaluation_episodes: int = 400
     benchmark_training_episodes: int | None = None
     benchmark_evaluation_episodes: int | None = None
+    recommendation_eval_episodes: int = 96
+    recommendation_candidate_limit: int = 12
     continuous_training: bool = False
     eval_interval: int = 1_000
     checkpoint_interval: int = 5_000
@@ -169,6 +172,8 @@ class FrameworkConfig:
         _validate_env_sampling_mode(self.env_sampling_mode)
         _validate_rl_train_policy_mode(self.rl_train_policy_mode)
         _validate_stability_probe_sampling(self.stability_probe_sampling)
+        _validate_positive_int("recommendation_eval_episodes", self.recommendation_eval_episodes)
+        _validate_positive_int("recommendation_candidate_limit", self.recommendation_candidate_limit)
 
     def rl_train_deterministic(self) -> bool:
         """True when train rollouts use greedy (argmax) actions for reproducible bandit-style experiments."""
@@ -281,6 +286,9 @@ class FrameworkConfig:
     def training_history_path(self) -> str:
         return f"{self.benchmark_dir}/{self.run_name}_training_history.json"
 
+    def recommendation_path(self) -> str:
+        return f"{self.benchmark_dir}/{self.run_name}_recommendation.json"
+
     def final_checkpoint_path(self) -> str:
         return f"{self.checkpoint_dir}/{self.run_name}_final.pt"
 
@@ -334,6 +342,13 @@ def _validate_torch_policy_algorithm(name: str) -> None:
         raise ValueError(
             f"torch_policy_algorithm must be one of {sorted(_TORCH_POLICY_ALGORITHMS)}, got {name!r}"
         )
+
+
+def _validate_positive_int(name: str, value: int) -> None:
+    if not isinstance(value, int):
+        raise TypeError(f"{name} must be an int")
+    if value <= 0:
+        raise ValueError(f"{name} must be > 0, got {value!r}")
 
 
 def _validate_run_name(run_name: str) -> None:

@@ -21,6 +21,8 @@ Most deployments still treat quantization as a **one-time export**: pick a prese
 
 Train → evaluate → benchmark suite → analysis artifacts under **`outputs/`** (JSON, JSONL, inline SVG, optional Markdown reports). **/stdlib simulator** is the default path (CI-friendly, no PyTorch). **Optional:** drive the same loop with a local **llama.cpp** binary + GGUF, or scale policy learning with **PyTorch + CUDA** (`run_pytorch.py` presets). Same `FrameworkConfig` surface either way.
 
+Runs now also **detect the host hardware** (safe fallback to static defaults when probing is unavailable) and emit an **RL-backed quantization recommendation** for the detected target class under the benchmark artifacts.
+
 **Where the boundary is**
 
 Headline quantitative stories in **[docs/PAPER.md](docs/PAPER.md)** are written for the **simulator-first** evidence base (honest scope, reproducible budgets). The CUDA path is for real compute and host-grounded training; it does not, by itself, replace careful multi-machine measurement if you want deployment claims. This is **research infrastructure**, not a hosted inference API—but the **ambition** is production-shaped: multi-objective rewards, hardware-aware state, and analysis hooks you can extend rather than a one-off script.
@@ -32,15 +34,17 @@ Headline quantitative stories in **[docs/PAPER.md](docs/PAPER.md)** are written 
 
 **Install:** `pip install -U pip` then **`pip install -e .`**. GPU training: **`pip install -e ".[torch]"`** or install a matching [torch](https://pytorch.org/get-started/locally/) wheel first, then **`pip install -e .`**.
 
-Docs assume **Linux** (`bash`, `python3`, `venv`). The simulator runs on **macOS** too; GPU workflows target **Linux + NVIDIA** unless noted.
+The simulator path is supported on **Linux, macOS, and Windows**. GPU workflows still target **Linux + NVIDIA** unless noted.
 
-**Daily dev (optional):** `pip install -e ".[dev]"` then **`make help`** — Ruff lint/format + **`make check`** runs Ruff and the same script as CI (`pre_commit_check.sh`). See [CONTRIBUTING.md](CONTRIBUTING.md).
+**Daily dev (optional):** `pip install -e ".[dev]"` then **`make help`** on Linux/macOS, or run **`python3 scripts/pre_commit_check.py`** directly on Unix-like hosts (`py -3.11` / `python` on Windows). See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+**Dependency hardening:** CI bootstrap packages now live in **`requirements/ci.txt`** and are installed with **`pip --require-hashes`** after verification against the separate manifest in **`security/dependency_hashes.json`**. **Dependabot** watches both **`pyproject.toml`** and **`requirements/`**.
 
 ---
 
-## Quick start (Linux)
+## Quick start
 
-**Requirements on PATH:** `git`, `curl`, and **Python ≥ 3.11** (Debian/Ubuntu: `sudo apt install -y git curl python3 python3-venv`). `curl` bootstraps `pip` inside a fresh venv when needed.
+**Requirements on PATH:** `git` and **Python ≥ 3.11**. On Linux, `curl` is still useful for manual fallback bootstrapping on minimal systems.
 
 From the **repository root** after `git clone`:
 
@@ -48,10 +52,10 @@ From the **repository root** after `git clone`:
 git clone https://github.com/Legendarylibrorg/Adaptive-RL-Quantization.git
 cd Adaptive-RL-Quantization
 
-bash scripts/setup_from_clone.sh
+python3 scripts/setup_from_clone.py
 ```
 
-That creates **`.venv`**, installs the package in editable mode, runs tests, and completes a **short reproducible end-to-end RL pipeline** (train → eval → benchmarks → analysis) using **`config.e2e_smoke.json`** (edit that file to change `training_episodes`, `seed`, `run_name`, etc.). For later commands in the same shell, activate the venv: `source .venv/bin/activate`.
+That creates **`.venv`**, installs the package in editable mode, runs tests, and completes a **short reproducible end-to-end RL pipeline** (train → eval → benchmarks → analysis) using **`config.e2e_smoke.json`** (edit that file to change `training_episodes`, `seed`, `run_name`, etc.). On Linux/macOS, `bash scripts/setup_from_clone.sh` remains a wrapper around the same Python flow.
 
 **Manual equivalent:**
 
@@ -84,7 +88,7 @@ Uses **`.venv/bin/python`** when that venv exists and **`PYTHON_BIN`** is unset 
 
 Detailed install (distro packages, SSH clone, llama.cpp): **[docs/INSTALL.md](docs/INSTALL.md)**.
 
-**Other OS:** On Windows, use `py -3.11` / `python` instead of `python3`, and `\.venv\Scripts\activate` instead of `source .venv/bin/activate`. GPU support is still oriented to Linux + NVIDIA.
+**Windows:** use `py -3.11 scripts/setup_from_clone.py` or `python scripts/setup_from_clone.py`, and activate with `\.venv\Scripts\activate`. GPU support is still oriented to Linux + NVIDIA.
 
 ---
 
@@ -99,13 +103,14 @@ Detailed install (distro packages, SSH clone, llama.cpp): **[docs/INSTALL.md](do
 | `config.example.pytorch.toml` | Example **TOML** for `run_pytorch.py --config` (needs CUDA PyTorch) |
 | `run_*.py` | CLI entrypoints — run from repo root |
 | `Makefile` | **Research** targets: `make help` — `run` / `reproduce` (`smoke`) / `multiseed` / `pytorch`; quality: `lint` / `format` / `check` (Ruff needs `pip install -e ".[dev]"`) |
-| `scripts/` | **`setup_from_clone.sh`**, **`pre_commit_check.sh`**, **`secret_scan.sh`** (heuristic grep, no extra deps), **`run_4090_pipeline.sh`**, **`_resolve_venv_python.sh`** (shared `.venv` Python pick when `PYTHON_BIN` unset) |
+| `scripts/` | Cross-platform **`setup_from_clone.py`**, **`pre_commit_check.py`**, **`secret_scan.py`** plus Unix wrappers (`*.sh`), **`run_4090_pipeline.sh`**, **`_resolve_venv_python.sh`** |
+| `requirements/ci.txt` + `security/dependency_hashes.json` | Pinned CI bootstrap dependencies plus the separate sha256 manifest used to render a `--require-hashes` install file |
 | `analysis/` | Post-hoc analysis CLIs |
 | `docs/` | Install, running, config reference, troubleshooting |
 | `CONTRIBUTING.md` | Contributing policy, PR expectations, local quality gate |
 | `CODE_OF_CONDUCT.md` | Community standards ([Contributor Covenant](https://www.contributor-covenant.org/) 2.1) |
 | `SECURITY.md` | Vulnerability reporting (private disclosure) |
-| `.github/workflows/` | CI (Python 3.11/3.12, tests, E2E smoke) |
+| `.github/workflows/` | CI (Linux/macOS/Windows, Python 3.11/3.12, tests, E2E smoke) |
 | `.github/ISSUE_TEMPLATE/` | Bug report and feature issue forms |
 | `.github/PULL_REQUEST_TEMPLATE.md` | Default PR checklist |
 | `tests/` | `unittest` suite (no GPU required) |
@@ -163,6 +168,7 @@ Under **`outputs/`**:
 
 - `logs/` — JSONL episodes
 - `benchmarks/` — summaries, optional `*_preflight.json` (GPU)
+- `benchmarks/*_recommendation.json` — detected hardware + adaptive-policy summary + best fixed quant candidate sourced from RL rollouts
 - `analysis/<run_name>/` — JSON + figures
 - `checkpoints/` — policy checkpoints (PyTorch)
 - `reports/` — Markdown reports
@@ -175,7 +181,8 @@ Paths are driven by `run_name` and directory fields in config.
 
 - **Secrets:** Do not commit API keys or `.env` files. `.gitignore` excludes `.env`, `.env.*`, `*.pem`, `*.key`, and `secrets/`. Use a local env file or your shell; optionally commit a redacted **`.env.example`** only.
 - **Checkpoints:** Treat downloaded or third-party **`.pt` / pickle checkpoints** as **untrusted code** unless you saved them yourself. The default loader prefers **split checkpoints** with **`weights_only=True`**; legacy single-file loads require an explicit opt-in (`allow_legacy_checkpoint_load`).
-- **Scans:** CI and **`pre_commit_check.sh`** run **`scripts/secret_scan.sh`** (high-signal `git grep` patterns on tracked files — lightweight, not exhaustive). Enable **GitHub secret scanning** on the org/repo if available; for deeper audits you can additionally run tools like [gitleaks](https://github.com/gitleaks/gitleaks) locally. **`SECURITY.md`** covers private reporting.
+- **Scans:** CI and **`pre_commit_check.py`** run **`scripts/secret_scan.py`** (high-signal tracked-file scan — lightweight, not exhaustive). Enable **GitHub secret scanning** on the org/repo if available; for deeper audits you can additionally run tools like [gitleaks](https://github.com/gitleaks/gitleaks) locally. **`SECURITY.md`** covers private reporting.
+- **Dependency integrity:** CI verifies **`requirements/ci.txt`** against **`security/dependency_hashes.json`**, renders a temporary `--require-hashes` file, and installs only from that verified manifest. Run **`python3 scripts/verify_hashes.py`** locally when you change pinned CI packages.
 
 ---
 
@@ -183,8 +190,8 @@ Paths are driven by `run_name` and directory fields in config.
 
 | Doc | Contents |
 | --- | --- |
-| [docs/INSTALL.md](docs/INSTALL.md) | Linux packages, venv, optional `[torch]`, llama.cpp |
-| [docs/RUNNING.md](docs/RUNNING.md) | Every entrypoint, examples, **Linux-first** |
+| [docs/INSTALL.md](docs/INSTALL.md) | Cross-platform venv setup, optional `[torch]`, llama.cpp |
+| [docs/RUNNING.md](docs/RUNNING.md) | Every entrypoint, examples, OS notes |
 | [docs/CONFIG.md](docs/CONFIG.md) | All settings + **JSON/TOML** + reproducibility |
 | [docs/USAGE.md](docs/USAGE.md) | Artifacts, API, re-running analysis |
 | [docs/GPU_PROFILES.md](docs/GPU_PROFILES.md) | VRAM / preset table |

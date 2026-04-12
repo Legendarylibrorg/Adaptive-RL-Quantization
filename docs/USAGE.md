@@ -2,9 +2,9 @@
 
 ## Platform and working directory
 
-- **Primary target:** **Linux** (especially NVIDIA CUDA training). Work in the **repo root** (directory with `config.py` and `pyproject.toml`).
-- **macOS:** supported for the **simulator** path (`training_backend="python"`).
-- **Windows:** use `py -3.11` or `python` instead of `python3`, and venv `Scripts\activate`; GPU workflows remain **Linux-first**.
+- **Simulator path:** supported on **Linux, macOS, and Windows**. Work in the **repo root** (directory with `config.py` and `pyproject.toml`).
+- **Windows:** use `py -3.11` or `python` instead of `python3`, and venv `Scripts\activate`.
+- **GPU workflows:** remain **Linux-first**.
 
 Install and system packages: [INSTALL.md](INSTALL.md). Command reference: [RUNNING.md](RUNNING.md).
 
@@ -13,6 +13,8 @@ Install and system packages: [INSTALL.md](INSTALL.md). Command reference: [RUNNI
 1. `python3 -m pip install -e .`
 2. `python3 -m unittest discover -s tests -q`
 3. `python3 run_research.py` or `python3 run_research.py --config my.json`
+
+Cross-platform shortcuts: `python3 scripts/setup_from_clone.py` and `python3 scripts/pre_commit_check.py` on Unix-like hosts; on Windows use `py -3.11` or `python`.
 
 **Dependencies:** Core package has **no required PyPI deps** ([`pyproject.toml`](../pyproject.toml)). PyTorch is optional (`pip install -e ".[torch]"` or a manual CUDA wheel) for GPU entrypoints and `training_backend="pytorch"`.
 
@@ -41,7 +43,9 @@ Or `ResearchPipeline(cfg).run()`, `FrameworkConfig.from_file`, `FrameworkConfig.
 
 ## Outputs
 
-Everything lands under `outputs/`: `logs/`, `benchmarks/` (summaries + optional `*_preflight.json`), `analysis/<run_name>/`, `checkpoints/`, `reports/`. Names follow `run_name` and path fields in config.
+Everything lands under `outputs/`: `logs/`, `benchmarks/` (summaries + optional `*_preflight.json` + `*_recommendation.json`), `analysis/<run_name>/`, `checkpoints/`, `reports/`. Names follow `run_name` and path fields in config.
+
+The recommendation artifact records detected host hardware, the target hardware class used for scoring, adaptive-policy performance on that target, and the best fixed quant candidate discovered from deterministic RL rollouts.
 
 ## Re-run analysis (no training)
 

@@ -17,7 +17,8 @@
 
 <!-- How did you verify this? -->
 
-- [ ] `bash scripts/pre_commit_check.sh`
+- [ ] `python3 scripts/pre_commit_check.py`
+- [ ] `python3 scripts/verify_hashes.py`
 - [ ] `python3 -m unittest discover -s tests`
 - [ ] E2E / manual run (describe):
 

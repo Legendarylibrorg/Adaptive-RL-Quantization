@@ -1,4 +1,4 @@
-# Research-oriented Makefile (Linux/macOS). From repo root: `make help`
+# Research-oriented Makefile (Linux/macOS; on Windows use the Python scripts under scripts/). From repo root: `make help`
 # Override interpreter:  PY=python3.12 make test
 
 .PHONY: help
@@ -124,7 +124,7 @@ test-quiet:
 	$(PY) -m unittest discover -s tests -q
 
 secret-scan:
-	bash scripts/secret_scan.sh
+	$(PY) scripts/secret_scan.py
 
 lint:
 	$(PY) -m ruff check $(PKG) $(SCRIPTS_PY) $(RUN) $(CFG)
@@ -133,7 +133,7 @@ format:
 	$(PY) -m ruff format $(PKG) $(SCRIPTS_PY) $(RUN) $(CFG)
 
 check: lint
-	bash scripts/pre_commit_check.sh
+	$(PY) scripts/pre_commit_check.py
 
 doctor:
 	@cd "$(CURDIR)" && PYTHONPATH="$(CURDIR):$$PYTHONPATH" $(PY) scripts/env_report.py

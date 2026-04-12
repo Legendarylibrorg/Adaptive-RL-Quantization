@@ -8,12 +8,6 @@ from adaptive_quant.math_utils import clamp, mean, variance
 from adaptive_quant.types import EpisodeState, QuantizationDecision, QuantMode
 
 
-def precision_level_to_bits(precision_level: float, config: FrameworkConfig) -> float:
-    min_bits = min(config.discrete_bit_widths)
-    max_bits = max(config.discrete_bit_widths)
-    return min_bits + clamp(precision_level, *config.precision_bounds) * (max_bits - min_bits)
-
-
 def safe_fallback_decision(config: FrameworkConfig) -> QuantizationDecision:
     return QuantizationDecision(
         mode=QuantMode.DISCRETE,

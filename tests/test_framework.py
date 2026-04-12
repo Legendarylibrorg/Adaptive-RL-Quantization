@@ -8,9 +8,14 @@ from adaptive_quant.benchmark import BenchmarkSuite
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.gpu_profiles import apply_gpu_profile, infer_gpu_profile
+from adaptive_quant.hardware import (
+    DetectedHardware,
+    host_aware_hardware_profiles,
+)
 from adaptive_quant.online_learning import OnlineLearningLoop
 from adaptive_quant.policy import UniversalQuantizationPolicy
 from adaptive_quant.quantization import finalize_decision
+from adaptive_quant.recommendation import recommend_quantization
 from adaptive_quant.research_pipeline import ResearchPipeline
 from adaptive_quant.trainer import Trainer, build_trainer
 from adaptive_quant.types import (
@@ -242,6 +247,46 @@ class FrameworkTests(unittest.TestCase):
         self.assertEqual(metadata["selected_gpu_profile"], "rtx4080")
         self.assertGreaterEqual(tuned.torch_batch_episodes, tuned.torch_minibatch_size)
 
+    def test_host_aware_profiles_follow_detected_machine(self) -> None:
+        detected = DetectedHardware(
+            system="linux",
+            machine="x86_64",
+            cpu_count=32,
+            total_memory_gb=64.0,
+            accelerator_type=HardwareType.GPU,
+            accelerator_name="NVIDIA GeForce RTX 4090",
+            accelerator_memory_gb=24.0,
+            accelerator_profile="rtx4090",
+            cuda_available=True,
+        )
+        profiles = host_aware_hardware_profiles(detected)
+        self.assertGreater(profiles[HardwareType.CPU].memory_budget_mb, 7_500.0)
+        self.assertGreater(profiles[HardwareType.GPU].compute_factor, 1.85)
+        self.assertGreater(profiles[HardwareType.GPU].preferred_bits, profiles[HardwareType.CPU].preferred_bits)
+
+    def test_recommend_quantization_returns_best_fixed_candidate(self) -> None:
+        config = FrameworkConfig(
+            training_episodes=8,
+            evaluation_episodes=4,
+            recommendation_eval_episodes=4,
+            recommendation_candidate_limit=4,
+            stability_probe_count=1,
+            run_name="recommend_test",
+        )
+        trainer = build_trainer(config, log_path=f"{tempfile.gettempdir()}/recommend_test.jsonl")
+        try:
+            trainer.train()
+            recommendation = recommend_quantization(trainer, config)
+        finally:
+            trainer.close()
+
+        self.assertIn(recommendation["target_hardware"], {"gpu", "cpu", "low_resource"})
+        self.assertGreater(recommendation["candidate_count"], 0)
+        self.assertIn("adaptive_policy", recommendation)
+        self.assertIsNotNone(recommendation["recommended_quant"])
+        assert recommendation["recommended_quant"] is not None
+        self.assertIn("evaluation", recommendation["recommended_quant"])
+
     def test_online_learning_loop_updates_and_logs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             config = FrameworkConfig(
@@ -304,8 +349,10 @@ class FrameworkTests(unittest.TestCase):
 
             self.assertIn("train", summary)
             self.assertIn("evaluation", summary)
+            self.assertIn("recommendation", summary)
             self.assertIn("benchmarks", summary)
             self.assertTrue(summary["artifacts"]["training_history"].endswith("_training_history.json"))
+            self.assertTrue(summary["artifacts"]["recommendation"].endswith("_recommendation.json"))
             self.assertTrue(summary["artifacts"]["report"].endswith("_report.md"))
 
     def test_moe_pipeline_writes_moe_benchmarks_and_analysis(self) -> None:
