@@ -18,7 +18,7 @@ dependencies = []
 # Or install a CUDA-matched wheel from https://pytorch.org/get-started/locally/ then: pip install -e .
 torch = ["torch>=2.1"]
 # Local quality: lint + format (not required for simulator-only CI).
-dev = ["ruff>=0.8"]
+dev = ["ruff>=0.15.10"]
 
 [tool.setuptools]
 packages = ["adaptive_quant", "analysis"]
