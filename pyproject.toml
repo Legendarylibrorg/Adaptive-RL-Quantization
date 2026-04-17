@@ -1,0 +1,86 @@
+[build-system]
+# Used only while installing/building the package; not runtime deps. pip fetches this in an isolated env.
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "adaptive-rl-quant"
+version = "0.1.0"
+description = "Train an RL policy to pick quantization settings for llama.cpp-style inference (simulator or real binary); optional PyTorch GPU training."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "Legendarylibrorg" }]
+keywords = [
+    "reinforcement-learning",
+    "quantization",
+    "llama.cpp",
+    "model-compression",
+    "research",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+# Simulator + analysis: stdlib only (e.g. json, tomllib). llama.cpp is an external binary, not a Python dep.
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/Legendarylibrorg/Adaptive-RL-Quantization"
+Repository = "https://github.com/Legendarylibrorg/Adaptive-RL-Quantization"
+Documentation = "https://github.com/Legendarylibrorg/Adaptive-RL-Quantization#readme"
+Issues = "https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/issues"
+Security = "https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/security/policy"
+
+[project.scripts]
+adaptive-rl-quant = "run_research:main"
+adaptive-rl-quant-moe = "run_moe_research:main"
+adaptive-rl-quant-pytorch = "run_pytorch:main"
+adaptive-rl-quant-online = "run_online_learning:main"
+adaptive-rl-quant-multiseed = "run_multiseed:main"
+adaptive-rl-quant-calibrate = "run_calibrate_llama_cpp:main"
+
+[project.optional-dependencies]
+# Sole PyPI runtime extra — PyTorch for training_backend="pytorch" / run_pytorch.py.
+# Easy path: pip install -e ".[torch]"
+# Or install a CUDA-matched wheel from https://pytorch.org/get-started/locally/ then: pip install -e .
+torch = ["torch>=2.11.0"]
+# Local quality: lint + format (not required for simulator-only CI).
+dev = ["ruff>=0.15.10"]
+
+[tool.setuptools]
+packages = ["adaptive_quant", "analysis"]
+py-modules = [
+    "config",
+    "config_4090",
+    "config_4090_universal",
+    "config_gpu",
+    "config_moe",
+    "config_online",
+    "run_calibrate_llama_cpp",
+    "run_moe_research",
+    "run_multiseed",
+    "run_online_learning",
+    "run_pytorch",
+    "run_research",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = [
+    "E501", # line length — project uses long strings and tables
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["adaptive_quant", "analysis"]

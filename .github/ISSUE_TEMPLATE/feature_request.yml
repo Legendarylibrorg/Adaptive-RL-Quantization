@@ -1,0 +1,32 @@
+name: Feature / research idea
+description: Suggest an enhancement, experiment, or documentation improvement
+labels: ["triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: What limitation or research question does this address?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed direction
+      description: High-level design, API sketch, or references.
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints
+      description: Backward compatibility, GPU-only, stdlib-only paths, etc. (optional).
+
+  - type: checkboxes
+    id: willing
+    attributes:
+      label: Contribution
+      options:
+        - label: I am willing to open a PR for this (optional)
