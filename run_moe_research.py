@@ -12,7 +12,7 @@ from config_moe import CONFIG_MOE
 def main() -> None:
     run_research_pipeline_cli(
         fallback=CONFIG_MOE,
-        description="MoE adaptive quantization: train → evaluate → MoE benchmarks → analysis (see config_moe.py or --config).",
+        description="MoE adaptive quantization: train -> evaluate -> MoE benchmarks -> analysis (see config_moe.py or --config).",
     )
 
 
