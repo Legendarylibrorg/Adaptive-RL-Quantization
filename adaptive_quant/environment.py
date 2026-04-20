@@ -52,10 +52,11 @@ class AdaptiveQuantizationEnv:
         self.hardware_profiles = host_aware_hardware_profiles(self.detected_hardware)
         self.backend = LlamaCppBackend(config) if config.backend == "llama_cpp" else SimulatorBackend(config)
         self.expert_bank = ExpertBank(config) if config.moe_enabled else None
-        if enable_logging:
-            self.logger = JsonlLogger(log_path or f"{config.log_dir}/{config.run_name}.jsonl")
-        else:
-            self.logger = NullJsonlLogger()
+        self.logger = (
+            JsonlLogger(log_path or f"{config.log_dir}/{config.run_name}.jsonl")
+            if enable_logging
+            else NullJsonlLogger()
+        )
         self.current_state: EpisodeState | None = None
         self._prompt_cache: dict[str, tuple] = {}
         if config.cache_prompt_features:

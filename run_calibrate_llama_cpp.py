@@ -17,35 +17,6 @@ from adaptive_quant.runner_cli import add_config_file_argument, load_config_or_f
 from adaptive_quant.types import HardwareType, QuantizationDecision, QuantMode
 
 
-def _run_llama_cpp_once(
-    config: FrameworkConfig,
-    *,
-    llama_cpp_binary: str,
-    llama_cpp_model: str,
-    prompt_text: str,
-    ngl: int,
-) -> tuple[float | None, float | None, float | None]:
-    """
-    Returns: (latency_ms_per_token, throughput_tps, memory_mb) where memory_mb is best-effort.
-    """
-    parsed = run_llama_cpp_measurement(
-        config,
-        llama_cpp_binary=llama_cpp_binary,
-        llama_cpp_model=llama_cpp_model,
-        prompt_text=prompt_text,
-        ngl=ngl,
-    )
-    throughput_tps = float(parsed.get("throughput_tps", 0.0))
-    latency_ms_per_token = float(parsed.get("latency_ms_per_token", 0.0))
-    memory_mb = float(parsed.get("memory_mb", 0.0))
-
-    return (
-        latency_ms_per_token if latency_ms_per_token > 0 else None,
-        throughput_tps if throughput_tps > 0 else None,
-        memory_mb if memory_mb > 0 else None,
-    )
-
-
 def _build_calibration_config(base_cfg: FrameworkConfig, seed: int) -> FrameworkConfig:
     return base_cfg.clone(backend="llama_cpp", prompt_split_enabled=False, seed=seed)
 
@@ -87,25 +58,23 @@ def main(argv: Iterable[str] | None = None) -> None:
 
         for episode_i in range(prompt_count):
             state = env.reset(forced_hardware=hw, phase="eval", episode_index=episode_i)
-            prompt_text = state.prompt.text[: config.llama_cpp_max_prompt_chars]
-            lat_ms_tok, tps, mem_mb = _run_llama_cpp_once(
+            parsed = run_llama_cpp_measurement(
                 config,
                 llama_cpp_binary=llama_cpp_binary,
                 llama_cpp_model=llama_cpp_model,
-                prompt_text=prompt_text,
+                prompt_text=state.prompt.text,
                 ngl=state.hardware_profile.ngl,
             )
-
             sim_metrics = sim_backend.evaluate(state, fixed_decision)
             # Convert "ms per token" to "total latency" consistent with env metric definition.
-            if lat_ms_tok is not None:
-                observed_latency.append(lat_ms_tok * max(1, state.input_features.prompt_length))
+            if "latency_ms_per_token" in parsed:
+                observed_latency.append(float(parsed["latency_ms_per_token"]) * max(1, state.input_features.prompt_length))
                 sim_latency.append(float(sim_metrics["latency_ms"]))
-            if tps is not None:
-                observed_throughput.append(tps)
+            if "throughput_tps" in parsed:
+                observed_throughput.append(float(parsed["throughput_tps"]))
                 sim_throughput.append(float(sim_metrics["throughput_tps"]))
-            if mem_mb is not None:
-                observed_memory.append(mem_mb)
+            if "memory_mb" in parsed:
+                observed_memory.append(float(parsed["memory_mb"]))
                 sim_memory.append(float(sim_metrics["memory_mb"]))
 
         by_hw[hw.value] = {

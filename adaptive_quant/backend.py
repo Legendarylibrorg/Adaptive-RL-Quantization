@@ -223,7 +223,7 @@ def run_llama_cpp_measurement(
         prompt_text=prompt_text,
         ngl=ngl,
     )
-    timeout_s = float(getattr(config, "llama_cpp_timeout_s", 30.0))
+    timeout_s = float(config.llama_cpp_timeout_s)
     try:
         completed = subprocess.run(
             command,
@@ -258,7 +258,7 @@ def _llama_cpp_command(
     prompt_text: str,
     ngl: int,
 ) -> list[str]:
-    max_chars = int(getattr(config, "llama_cpp_max_prompt_chars", 4096))
+    max_chars = int(config.llama_cpp_max_prompt_chars)
     if max_chars > 0 and len(prompt_text) > max_chars:
         prompt_text = prompt_text[:max_chars]
     return [
