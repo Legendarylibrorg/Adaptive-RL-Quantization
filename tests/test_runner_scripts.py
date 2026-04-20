@@ -34,19 +34,6 @@ class RunnerScriptCliTests(unittest.TestCase):
             sys.path.pop(0)
         return module
 
-    def _load_secret_scan_module(self):
-        script_path = _REPO_ROOT / "scripts" / "secret_scan.py"
-        sys.path.insert(0, str(script_path.parent))
-        try:
-            spec = importlib.util.spec_from_file_location("secret_scan_module", script_path)
-            self.assertIsNotNone(spec)
-            assert spec is not None and spec.loader is not None
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-        finally:
-            sys.path.pop(0)
-        return module
-
     def _installed_command(self, name: str) -> list[str] | None:
         bin_dir = Path(sysconfig.get_path("scripts"))
         candidates = [
@@ -94,11 +81,6 @@ class RunnerScriptCliTests(unittest.TestCase):
         )
         self.assertIn("github.event.repository.private == false", workflow_text)
         self.assertIn("actions/dependency-review-action@", workflow_text)
-
-    def test_secret_scan_workflow_uses_full_history(self) -> None:
-        workflow_text = (_REPO_ROOT / ".github" / "workflows" / "secret-scan.yml").read_text(encoding="utf-8")
-        self.assertIn("fetch-depth: 0", workflow_text)
-        self.assertIn("scripts/secret_scan.py --history", workflow_text)
 
     def test_pre_commit_config_uses_isolated_python_hook(self) -> None:
         config_text = (_REPO_ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
@@ -182,26 +164,7 @@ class RunnerScriptCliTests(unittest.TestCase):
             timeout=30,
         )
         self.assertEqual(proc.returncode, 0, msg=proc.stderr)
-        self.assertIn("--history", proc.stdout)
         self.assertIn("secret", proc.stdout.lower())
-
-    def test_secret_scan_history_uses_git_log_pickaxe(self) -> None:
-        module = self._load_secret_scan_module()
-        commands: list[list[str]] = []
-
-        def fake_run(cmd, cwd=None, check=None, capture_output=None, text=None):
-            del cwd, check, capture_output, text
-            commands.append(cmd)
-            pattern = cmd[-1]
-            if "github_pat_" in pattern:
-                return subprocess.CompletedProcess(cmd, 0, stdout="deadbeef\n", stderr="")
-            return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
-
-        with mock.patch.object(module.subprocess, "run", side_effect=fake_run):
-            matches = module.scan_history(_REPO_ROOT)
-
-        self.assertIn("history: github_pat: deadbeef", matches)
-        self.assertTrue(any(cmd[:5] == ["git", "log", "--all", "--format=%H", "-G"] for cmd in commands))
 
     def test_verify_hashes_python_wrapper_has_help(self) -> None:
         proc = subprocess.run(

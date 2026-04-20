@@ -189,7 +189,7 @@ Paths are driven by `run_name` and directory fields in config.
 
 - **Secrets:** Do not commit API keys or `.env` files. `.gitignore` excludes `.env`, `.env.*`, `*.pem`, `*.key`, and `secrets/`. Use a local env file or your shell; optionally commit a redacted **`.env.example`** only.
 - **Checkpoints:** Treat downloaded or third-party **`.pt` / pickle checkpoints** as **untrusted code** unless you saved them yourself. The default loader prefers **split checkpoints** with **`weights_only=True`**; legacy single-file loads require an explicit opt-in (`allow_legacy_checkpoint_load`).
-- **Scans:** **`pre_commit_check.py`** runs **`scripts/secret_scan.py`** for a lightweight tracked-file sweep, and the dedicated **Secret Scan** GitHub Actions workflow runs **`python scripts/secret_scan.py --history`** on PRs with full fetch depth to catch high-signal leaks in reachable history too. Enable **GitHub secret scanning** on the org/repo if available for another layer. **`SECURITY.md`** covers private reporting.
+- **Scans:** CI and **`pre_commit_check.py`** run **`scripts/secret_scan.py`** (high-signal tracked-file scan — lightweight, not exhaustive). Enable **GitHub secret scanning** on the org/repo if available; for deeper audits you can additionally run tools like [gitleaks](https://github.com/gitleaks/gitleaks) locally. **`SECURITY.md`** covers private reporting.
 - **Dependency integrity:** CI verifies **`requirements/ci.txt`** against **`security/dependency_hashes.json`**, renders a temporary `--require-hashes` file, and installs only from that verified manifest. Run **`python3 scripts/verify_hashes.py`** locally when you change pinned CI packages.
 
 ---
