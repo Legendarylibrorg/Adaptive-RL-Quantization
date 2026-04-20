@@ -136,7 +136,7 @@ def _run_recommendation_rollout(
 ) -> list[EpisodeResult]:
     env = AdaptiveQuantizationEnv(
         config,
-        log_path=f"{config.log_dir}/{config.run_name}_recommendation_{log_suffix}.jsonl",
+        enable_logging=False,
     )
     previous_action = [0.0, 0.0, 0.0]
     results: list[EpisodeResult] = []

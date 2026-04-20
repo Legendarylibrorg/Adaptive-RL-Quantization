@@ -261,20 +261,27 @@ class BenchmarkSuite:
         *,
         per_hardware: tuple[HardwareType, ...] | None = None,
     ) -> tuple[dict[str, dict[str, object]], dict[str, object]]:
-        trainers = {name: build_trainer(config) for name, config in variants.items()}
-        try:
-            train = {name: trainer.train() for name, trainer in trainers.items()}
-            if per_hardware is None:
-                evaluation: dict[str, object] = {name: trainer.evaluate() for name, trainer in trainers.items()}
-            else:
-                evaluation = {
-                    hardware.value: {name: trainer.evaluate(hardware=hardware) for name, trainer in trainers.items()}
-                    for hardware in per_hardware
-                }
-            return train, evaluation
-        finally:
-            for trainer in trainers.values():
+        train: dict[str, dict[str, object]] = {}
+        evaluation: dict[str, object]
+        if per_hardware is None:
+            evaluation = {}
+        else:
+            evaluation = {hardware.value: {} for hardware in per_hardware}
+
+        for name, config in variants.items():
+            trainer = build_trainer(config)
+            try:
+                train[name] = trainer.train()
+                if per_hardware is None:
+                    evaluation[name] = trainer.evaluate()
+                else:
+                    for hardware in per_hardware:
+                        bucket = evaluation[hardware.value]
+                        assert isinstance(bucket, dict)
+                        bucket[name] = trainer.evaluate(hardware=hardware)
+            finally:
                 self._release_trainer(trainer)
+        return train, evaluation
 
     def _compare_variants(
         self,

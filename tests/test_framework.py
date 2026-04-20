@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import os
 import tempfile
 import unittest
 from dataclasses import replace
 from pathlib import Path
+from unittest import mock
 
 from adaptive_quant.benchmark import BenchmarkSuite
 from adaptive_quant.configuration import FrameworkConfig
@@ -93,6 +95,55 @@ class FrameworkTests(unittest.TestCase):
             self.assertIn("reward_by_hardware", hardware)
             self.assertIn("by_complexity", inputs)
             self.assertIn("learned_episode_count", quant)
+
+    def test_benchmark_releases_each_trainer_before_building_the_next(self) -> None:
+        config = FrameworkConfig(training_episodes=2, evaluation_episodes=1, stability_probe_count=1, run_name="bench_release_test")
+        suite = BenchmarkSuite(config)
+        variants = {
+            "baseline": config.clone(run_name="bench_release_baseline"),
+            "adaptive": config.clone(run_name="bench_release_adaptive"),
+            "learned": config.clone(run_name="bench_release_learned"),
+        }
+        live_trainers = 0
+        max_live_trainers = 0
+        closed: list[str] = []
+
+        class FakeTrainer:
+            def __init__(self, name: str) -> None:
+                nonlocal live_trainers, max_live_trainers
+                self.name = name
+                live_trainers += 1
+                max_live_trainers = max(max_live_trainers, live_trainers)
+
+            def train(self) -> dict[str, object]:
+                return {"run_name": self.name}
+
+            def evaluate(self, hardware: HardwareType | None = None) -> dict[str, object]:
+                return {
+                    "mean_reward": 1.0,
+                    "hardware": hardware.value if hardware is not None else "all",
+                }
+
+            def close(self) -> None:
+                nonlocal live_trainers
+                live_trainers -= 1
+                closed.append(self.name)
+
+        def fake_build_trainer(trainer_config: FrameworkConfig, log_path: str | None = None) -> FakeTrainer:
+            del log_path
+            return FakeTrainer(trainer_config.run_name)
+
+        with mock.patch("adaptive_quant.benchmark.build_trainer", side_effect=fake_build_trainer):
+            train, evaluation = suite._run_variants(variants)
+
+        self.assertEqual(max_live_trainers, 1)
+        self.assertEqual(live_trainers, 0)
+        self.assertEqual(
+            closed,
+            [variant.run_name for variant in variants.values()],
+        )
+        self.assertEqual(train["baseline"]["run_name"], "bench_release_baseline")
+        self.assertEqual(evaluation["learned"]["hardware"], "all")
 
     def test_build_trainer_uses_python_backend_by_default(self) -> None:
         config = FrameworkConfig(training_episodes=2, evaluation_episodes=1, stability_probe_count=1, run_name="factory_test")
@@ -335,6 +386,35 @@ class FrameworkTests(unittest.TestCase):
         self.assertIsNotNone(recommendation["recommended_quant"])
         assert recommendation["recommended_quant"] is not None
         self.assertIn("evaluation", recommendation["recommended_quant"])
+
+    def test_recommend_quantization_does_not_require_writable_log_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            read_only_logs = Path(temp_dir) / "read_only_logs"
+            read_only_logs.mkdir()
+            os.chmod(read_only_logs, 0o555)
+            config = FrameworkConfig(
+                training_episodes=8,
+                evaluation_episodes=4,
+                recommendation_eval_episodes=4,
+                recommendation_candidate_limit=4,
+                stability_probe_count=1,
+                outputs_dir=temp_dir,
+                log_dir=str(read_only_logs),
+                benchmark_dir=f"{temp_dir}/benchmarks",
+                analysis_dir=f"{temp_dir}/analysis",
+                checkpoint_dir=f"{temp_dir}/checkpoints",
+                report_dir=f"{temp_dir}/reports",
+                run_name="recommend_read_only",
+            )
+            trainer = build_trainer(config, log_path=f"{temp_dir}/logs/train.jsonl")
+            try:
+                trainer.train()
+                recommendation = recommend_quantization(trainer, config)
+            finally:
+                trainer.close()
+                os.chmod(read_only_logs, 0o755)
+
+            self.assertGreater(recommendation["candidate_count"], 0)
 
     def test_online_learning_loop_updates_and_logs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -190,43 +190,101 @@ class LlamaCppBackend:
 
     def evaluate(self, state: EpisodeState, decision: QuantizationDecision) -> dict[str, float]:
         llama_cpp_binary, llama_cpp_model = require_llama_cpp_paths(self.config)
-
-        prompt_text = state.prompt.text
-        max_chars = int(getattr(self.config, "llama_cpp_max_prompt_chars", 4096))
-        if max_chars > 0 and len(prompt_text) > max_chars:
-            prompt_text = prompt_text[:max_chars]
-
-        command = [
-            llama_cpp_binary,
-            "-m",
-            llama_cpp_model,
-            "-p",
-            prompt_text,
-            "-ngl",
-            str(state.hardware_profile.ngl),
-            "-t",
-            str(self.config.llama_cpp_threads),
-            "-c",
-            str(self.config.llama_cpp_context),
-            "-n",
-            "64",
-        ]
-        completed = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=float(getattr(self.config, "llama_cpp_timeout_s", 30.0)),
+        parsed = run_llama_cpp_measurement(
+            self.config,
+            llama_cpp_binary=llama_cpp_binary,
+            llama_cpp_model=llama_cpp_model,
+            prompt_text=state.prompt.text,
+            ngl=state.hardware_profile.ngl,
         )
-        combined = ((completed.stdout or "") + "\n" + (completed.stderr or "")).lower()
-        parsed = parse_llama_cpp_metrics(combined)
         metrics = self._simulator.evaluate(state, decision)
 
         if parsed.get("throughput_tps", 0.0) > 0.0:
             metrics["throughput_tps"] = float(parsed["throughput_tps"])
         if parsed.get("latency_ms_per_token", 0.0) > 0.0:
             metrics["latency_ms"] = float(parsed["latency_ms_per_token"]) * max(1, state.input_features.prompt_length)
+        if parsed.get("memory_mb", 0.0) > 0.0:
+            metrics["memory_mb"] = float(parsed["memory_mb"])
         return metrics
+
+
+def run_llama_cpp_measurement(
+    config: FrameworkConfig,
+    *,
+    llama_cpp_binary: str,
+    llama_cpp_model: str,
+    prompt_text: str,
+    ngl: int,
+) -> dict[str, float]:
+    command = _llama_cpp_command(
+        config,
+        llama_cpp_binary=llama_cpp_binary,
+        llama_cpp_model=llama_cpp_model,
+        prompt_text=prompt_text,
+        ngl=ngl,
+    )
+    timeout_s = float(config.llama_cpp_timeout_s)
+    try:
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=timeout_s,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"llama.cpp command timed out after {timeout_s:.1f}s.") from exc
+
+    raw_output = ((completed.stdout or "") + "\n" + (completed.stderr or "")).strip()
+    parsed = parse_llama_cpp_metrics(raw_output.lower())
+    if completed.returncode != 0:
+        raise RuntimeError(
+            f"llama.cpp command failed with exit code {completed.returncode}: "
+            f"{_output_excerpt(raw_output)}"
+        )
+    if not any(key in parsed for key in ("throughput_tps", "latency_ms_per_token")):
+        raise RuntimeError(
+            "llama.cpp output did not include parseable throughput or latency timings: "
+            f"{_output_excerpt(raw_output)}"
+        )
+    return parsed
+
+
+def _llama_cpp_command(
+    config: FrameworkConfig,
+    *,
+    llama_cpp_binary: str,
+    llama_cpp_model: str,
+    prompt_text: str,
+    ngl: int,
+) -> list[str]:
+    max_chars = int(config.llama_cpp_max_prompt_chars)
+    if max_chars > 0 and len(prompt_text) > max_chars:
+        prompt_text = prompt_text[:max_chars]
+    return [
+        llama_cpp_binary,
+        "-m",
+        llama_cpp_model,
+        "-p",
+        prompt_text,
+        "-ngl",
+        str(ngl),
+        "-t",
+        str(config.llama_cpp_threads),
+        "-c",
+        str(config.llama_cpp_context),
+        "-n",
+        "64",
+    ]
+
+
+def _output_excerpt(text: str, *, limit: int = 240) -> str:
+    compact = re.sub(r"\s+", " ", text).strip()
+    if not compact:
+        return "(no output)"
+    if len(compact) <= limit:
+        return compact
+    return compact[: limit - 3] + "..."
 
 
 def require_llama_cpp_paths(config: FrameworkConfig) -> tuple[str, str]:

@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 
 from adaptive_quant.configuration import FrameworkConfig
 
@@ -31,10 +30,10 @@ def load_config_or_fallback(path: str | None, fallback: FrameworkConfig) -> Fram
     """Return FrameworkConfig from file if path is set, else the module preset."""
     if path is None:
         return fallback
-    p = Path(path)
-    if not p.is_file():
-        raise SystemExit(f"Config file not found: {p}")
-    return FrameworkConfig.from_file(p)
+    try:
+        return FrameworkConfig.from_file(path)
+    except (TypeError, ValueError, FileNotFoundError) as exc:
+        raise SystemExit(str(exc)) from exc
 
 
 def run_research_pipeline_cli(

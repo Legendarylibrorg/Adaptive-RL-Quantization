@@ -222,8 +222,8 @@ class FrameworkConfig:
         return config_from_dict(data, base=base, strict=strict)
 
     @classmethod
-    def from_file(cls, path: str | Path, *, strict: bool = False) -> FrameworkConfig:
-        """Load ``.json`` or ``.toml`` with optional ``preset`` key; see ``adaptive_quant.easy_config.load_config``."""
+    def from_file(cls, path: str | Path, *, strict: bool = True) -> FrameworkConfig:
+        """Load ``.json`` or ``.toml`` with optional ``preset`` key; strict by default."""
         from adaptive_quant.easy_config import load_config
 
         return load_config(path, strict=strict)

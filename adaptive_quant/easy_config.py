@@ -108,12 +108,13 @@ def quick_config(**kwargs: Any) -> FrameworkConfig:
     return config_from_dict(kwargs)
 
 
-def load_config(path: str | Path, *, strict: bool = False) -> FrameworkConfig:
+def load_config(path: str | Path, *, strict: bool = True) -> FrameworkConfig:
     """
     Load ``.json`` or ``.toml`` into FrameworkConfig.
 
     Optional top-level string key ``preset`` selects a base profile
     (``default``, ``reproducible``, ``pytorch``, ``minimal``); remaining keys override it.
+    File-backed config loading is strict by default so typos fail fast.
     """
     raw_path = Path(path)
     if not raw_path.is_file():

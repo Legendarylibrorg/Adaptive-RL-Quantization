@@ -9,12 +9,32 @@ import tempfile
 import tomllib
 import unittest
 from pathlib import Path
+from unittest import mock
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 class RunnerScriptCliTests(unittest.TestCase):
-    def _installed_command(self, name: str) -> list[str]:
+    @staticmethod
+    def _pyproject_scripts() -> dict[str, str]:
+        with (_REPO_ROOT / "pyproject.toml").open("rb") as handle:
+            payload = tomllib.load(handle)
+        return payload["project"]["scripts"]
+
+    def _load_setup_from_clone_module(self):
+        script_path = _REPO_ROOT / "scripts" / "setup_from_clone.py"
+        sys.path.insert(0, str(script_path.parent))
+        try:
+            spec = importlib.util.spec_from_file_location("setup_from_clone_module", script_path)
+            self.assertIsNotNone(spec)
+            assert spec is not None and spec.loader is not None
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+        finally:
+            sys.path.pop(0)
+        return module
+
+    def _installed_command(self, name: str) -> list[str] | None:
         bin_dir = Path(sysconfig.get_path("scripts"))
         candidates = [
             bin_dir / name,
@@ -26,7 +46,22 @@ class RunnerScriptCliTests(unittest.TestCase):
                 if candidate.suffix == ".py":
                     return [sys.executable, str(candidate)]
                 return [str(candidate)]
-        self.fail(f"Installed command not found for {name!r} under {bin_dir}")
+        return None
+
+    def _entrypoint_command(self, name: str) -> list[str]:
+        installed = self._installed_command(name)
+        if installed is not None:
+            return installed
+
+        entrypoint = self._pyproject_scripts()[name]
+        module_name, separator, callable_name = entrypoint.partition(":")
+        self.assertEqual(separator, ":")
+        self.assertEqual(callable_name, "main")
+
+        module_path = _REPO_ROOT / f"{module_name}.py"
+        if module_path.is_file():
+            return [sys.executable, str(module_path)]
+        return [sys.executable, "-m", module_name]
 
     def test_ci_uses_hash_verified_bootstrap_install(self) -> None:
         workflow_text = (_REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
@@ -44,6 +79,7 @@ class RunnerScriptCliTests(unittest.TestCase):
         workflow_text = (_REPO_ROOT / ".github" / "workflows" / "dependency-review.yml").read_text(
             encoding="utf-8"
         )
+        self.assertIn("github.event.repository.private == false", workflow_text)
         self.assertIn("actions/dependency-review-action@", workflow_text)
 
     def test_pre_commit_config_uses_isolated_python_hook(self) -> None:
@@ -52,20 +88,49 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertNotIn("language: system", config_text)
 
     def test_setup_from_clone_activation_hint_keeps_nested_path(self) -> None:
-        script_path = _REPO_ROOT / "scripts" / "setup_from_clone.py"
-        sys.path.insert(0, str(script_path.parent))
-        try:
-            spec = importlib.util.spec_from_file_location("setup_from_clone_module", script_path)
-            self.assertIsNotNone(spec)
-            assert spec is not None and spec.loader is not None
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-        finally:
-            sys.path.pop(0)
-
+        module = self._load_setup_from_clone_module()
         hint = module._activation_hint(Path(".venvs") / "project-a")
         self.assertIn(".venvs", hint)
         self.assertIn("project-a", hint)
+
+    def test_setup_from_clone_bootstraps_setuptools_when_missing(self) -> None:
+        module = self._load_setup_from_clone_module()
+        commands: list[tuple[list[str], Path | None]] = []
+        with mock.patch.object(
+            module.subprocess,
+            "run",
+            return_value=subprocess.CompletedProcess(["python"], 1, stdout=b"", stderr=b""),
+        ):
+            with mock.patch.object(module, "run", side_effect=lambda cmd, cwd=None: commands.append((cmd, cwd))):
+                module._ensure_build_backend("/tmp/python")
+        self.assertEqual(
+            commands,
+            [(["/tmp/python", "-m", "pip", "install", "setuptools>=61"], None)],
+        )
+
+    def test_setup_from_clone_editable_install_uses_no_build_isolation(self) -> None:
+        module = self._load_setup_from_clone_module()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            venv_python = root / ".venv" / "bin" / "python"
+            venv_python.parent.mkdir(parents=True, exist_ok=True)
+            venv_python.write_text("", encoding="utf-8")
+            commands: list[tuple[list[str], Path | None]] = []
+            with mock.patch.object(module, "repo_root", return_value=root):
+                with mock.patch.object(module, "venv_python_path", return_value=venv_python):
+                    with mock.patch.object(module, "_ensure_pip"):
+                        with mock.patch.object(module, "_ensure_build_backend"):
+                            with mock.patch.object(
+                                module,
+                                "run",
+                                side_effect=lambda cmd, cwd=None: commands.append((cmd, cwd)),
+                            ):
+                                code = module.main(["--venv-dir", ".venv", "--skip-tests", "--skip-smoke"])
+            self.assertEqual(code, 0)
+            self.assertIn(
+                ([str(venv_python), "-m", "pip", "install", "--no-build-isolation", "-e", "."], root),
+                commands,
+            )
 
     def test_setup_from_clone_python_wrapper_has_help(self) -> None:
         proc = subprocess.run(
@@ -148,17 +213,11 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertIn("run_research", py_modules)
         self.assertIn("config_online", py_modules)
 
-    def test_installed_console_entrypoints_have_help(self) -> None:
-        for command in (
-            "adaptive-rl-quant",
-            "adaptive-rl-quant-pytorch",
-            "adaptive-rl-quant-online",
-            "adaptive-rl-quant-multiseed",
-            "adaptive-rl-quant-calibrate",
-        ):
+    def test_console_entrypoints_have_help(self) -> None:
+        for command in self._pyproject_scripts():
             with self.subTest(command=command):
                 proc = subprocess.run(
-                    [*self._installed_command(command), "--help"],
+                    [*self._entrypoint_command(command), "--help"],
                     cwd=str(_REPO_ROOT),
                     capture_output=True,
                     text=True,
@@ -191,6 +250,23 @@ class RunnerScriptCliTests(unittest.TestCase):
             )
             self.assertNotEqual(proc.returncode, 0)
             self.assertIn("training_backend", proc.stderr)
+
+    def test_run_research_rejects_unknown_config_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "bad.json"
+            path.write_text(
+                json.dumps({"preset": "minimal", "run_name": "cli_bad", "training_episode": 4}),
+                encoding="utf-8",
+            )
+            proc = subprocess.run(
+                [sys.executable, str(_REPO_ROOT / "run_research.py"), "--config", str(path)],
+                cwd=str(_REPO_ROOT),
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            self.assertNotEqual(proc.returncode, 0)
+            self.assertIn("Unknown FrameworkConfig keys", proc.stderr)
 
 
 if __name__ == "__main__":

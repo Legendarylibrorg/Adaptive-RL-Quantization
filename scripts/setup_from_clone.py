@@ -26,6 +26,22 @@ def _ensure_pip(python_bin: str) -> None:
         run([python_bin, str(target)])
 
 
+def _ensure_build_backend(python_bin: str) -> None:
+    probe = subprocess.run(
+        [python_bin, "-c", "import setuptools, setuptools.build_meta"],
+        check=False,
+        capture_output=True,
+    )
+    if probe.returncode == 0:
+        return
+    run([python_bin, "-m", "pip", "install", "setuptools>=61"])
+
+
+def _install_editable(python_bin: str, root: Path) -> None:
+    _ensure_build_backend(python_bin)
+    run([python_bin, "-m", "pip", "install", "--no-build-isolation", "-e", "."], cwd=root)
+
+
 def _activation_hint(venv_dir: Path) -> str:
     root = repo_root()
     try:
@@ -64,7 +80,7 @@ def main(argv: list[str] | None = None) -> int:
 
     _ensure_pip(str(venv_python))
     run([str(venv_python), "-m", "pip", "install", "-U", "pip"], cwd=root)
-    run([str(venv_python), "-m", "pip", "install", "-e", "."], cwd=root)
+    _install_editable(str(venv_python), root)
 
     if not args.skip_tests:
         run([str(venv_python), "-m", "unittest", "discover", "-s", "tests", "-q"], cwd=root)

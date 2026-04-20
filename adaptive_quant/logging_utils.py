@@ -54,6 +54,16 @@ class JsonlLogger:
             self._handle.close()
 
 
+class NullJsonlLogger:
+    path: Path | None = None
+
+    def log(self, record: dict[str, Any]) -> None:
+        return
+
+    def close(self) -> None:
+        return
+
+
 def write_json(path: str | Path, payload: Any) -> None:
     def _write(handle: TextIO) -> None:
         json.dump(to_jsonable(payload), handle, indent=2, sort_keys=True)
