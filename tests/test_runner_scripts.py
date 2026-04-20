@@ -15,6 +15,12 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 class RunnerScriptCliTests(unittest.TestCase):
+    @staticmethod
+    def _pyproject_scripts() -> dict[str, str]:
+        with (_REPO_ROOT / "pyproject.toml").open("rb") as handle:
+            payload = tomllib.load(handle)
+        return payload["project"]["scripts"]
+
     def _load_setup_from_clone_module(self):
         script_path = _REPO_ROOT / "scripts" / "setup_from_clone.py"
         sys.path.insert(0, str(script_path.parent))
@@ -28,7 +34,7 @@ class RunnerScriptCliTests(unittest.TestCase):
             sys.path.pop(0)
         return module
 
-    def _installed_command(self, name: str) -> list[str]:
+    def _installed_command(self, name: str) -> list[str] | None:
         bin_dir = Path(sysconfig.get_path("scripts"))
         candidates = [
             bin_dir / name,
@@ -40,7 +46,22 @@ class RunnerScriptCliTests(unittest.TestCase):
                 if candidate.suffix == ".py":
                     return [sys.executable, str(candidate)]
                 return [str(candidate)]
-        self.fail(f"Installed command not found for {name!r} under {bin_dir}")
+        return None
+
+    def _entrypoint_command(self, name: str) -> list[str]:
+        installed = self._installed_command(name)
+        if installed is not None:
+            return installed
+
+        entrypoint = self._pyproject_scripts()[name]
+        module_name, separator, callable_name = entrypoint.partition(":")
+        self.assertEqual(separator, ":")
+        self.assertEqual(callable_name, "main")
+
+        module_path = _REPO_ROOT / f"{module_name}.py"
+        if module_path.is_file():
+            return [sys.executable, str(module_path)]
+        return [sys.executable, "-m", module_name]
 
     def test_ci_uses_hash_verified_bootstrap_install(self) -> None:
         workflow_text = (_REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
@@ -192,17 +213,11 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertIn("run_research", py_modules)
         self.assertIn("config_online", py_modules)
 
-    def test_installed_console_entrypoints_have_help(self) -> None:
-        for command in (
-            "adaptive-rl-quant",
-            "adaptive-rl-quant-pytorch",
-            "adaptive-rl-quant-online",
-            "adaptive-rl-quant-multiseed",
-            "adaptive-rl-quant-calibrate",
-        ):
+    def test_console_entrypoints_have_help(self) -> None:
+        for command in self._pyproject_scripts():
             with self.subTest(command=command):
                 proc = subprocess.run(
-                    [*self._installed_command(command), "--help"],
+                    [*self._entrypoint_command(command), "--help"],
                     cwd=str(_REPO_ROOT),
                     capture_output=True,
                     text=True,
