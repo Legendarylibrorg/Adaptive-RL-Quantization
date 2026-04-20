@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import importlib.util
+import os
 import subprocess
 import sys
 import sysconfig
@@ -111,6 +112,24 @@ class RunnerScriptCliTests(unittest.TestCase):
         )
         self.assertEqual(proc.returncode, 0, msg=proc.stderr)
         self.assertIn("--requirement", proc.stdout)
+
+    def test_cli_help_is_cp1252_safe(self) -> None:
+        env = dict(os.environ)
+        env["PYTHONIOENCODING"] = "cp1252"
+        env["PYTHONUTF8"] = "0"
+        for script in ("run_research.py", "run_moe_research.py"):
+            with self.subTest(script=script):
+                proc = subprocess.run(
+                    [sys.executable, str(_REPO_ROOT / script), "--help"],
+                    cwd=str(_REPO_ROOT),
+                    capture_output=True,
+                    text=True,
+                    encoding="cp1252",
+                    env=env,
+                    timeout=30,
+                )
+                self.assertEqual(proc.returncode, 0, msg=proc.stderr)
+                self.assertIn("train -> evaluate ->", proc.stdout)
 
     def test_verify_hashes_renders_require_hashes_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

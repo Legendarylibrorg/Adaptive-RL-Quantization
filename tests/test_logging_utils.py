@@ -6,10 +6,28 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from adaptive_quant.logging_utils import write_json, write_text_file
+from adaptive_quant.logging_utils import JsonlLogger, load_jsonl, write_json, write_text_file
 
 
 class LoggingUtilsTests(unittest.TestCase):
+    def test_jsonl_logger_is_lazy_and_appends_records(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "logs" / "events.jsonl"
+            logger = JsonlLogger(str(path))
+            self.assertFalse(path.exists())
+
+            logger.log({"event": "first", "value": 1})
+            logger.close()
+            logger.log({"event": "second", "value": 2})
+
+            self.assertEqual(
+                load_jsonl(str(path)),
+                [
+                    {"event": "first", "value": 1},
+                    {"event": "second", "value": 2},
+                ],
+            )
+
     def test_write_json_creates_parent_dirs_and_serializes_payload(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "nested" / "artifact.json"

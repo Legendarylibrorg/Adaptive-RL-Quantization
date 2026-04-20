@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import atexit
 import json
 import os
 import tempfile
@@ -39,19 +38,16 @@ class JsonlLogger:
     def __init__(self, path: str) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._handle = self.path.open("a", encoding="utf-8", buffering=1)
-        atexit.register(self.close)
 
     def log(self, record: dict[str, Any]) -> None:
-        if self._handle.closed:
-            self._handle = self.path.open("a", encoding="utf-8", buffering=1)
-        self._handle.write(json.dumps(to_jsonable(record), sort_keys=True))
-        self._handle.write("\n")
+        # Re-open per append so temporary test directories and partially initialized
+        # trainers do not keep Windows file handles alive past their cleanup scope.
+        with self.path.open("a", encoding="utf-8", buffering=1) as handle:
+            handle.write(json.dumps(to_jsonable(record), sort_keys=True))
+            handle.write("\n")
 
     def close(self) -> None:
-        if hasattr(self, "_handle") and not self._handle.closed:
-            self._handle.flush()
-            self._handle.close()
+        return None
 
 
 def write_json(path: str | Path, payload: Any) -> None:
