@@ -58,6 +58,7 @@ class RunnerScriptCliTests(unittest.TestCase):
         workflow_text = (_REPO_ROOT / ".github" / "workflows" / "dependency-review.yml").read_text(
             encoding="utf-8"
         )
+        self.assertIn("github.event.repository.private == false", workflow_text)
         self.assertIn("actions/dependency-review-action@", workflow_text)
 
     def test_pre_commit_config_uses_isolated_python_hook(self) -> None:
