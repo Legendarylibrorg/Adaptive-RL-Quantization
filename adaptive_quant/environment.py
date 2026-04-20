@@ -7,7 +7,7 @@ from adaptive_quant.backend import LlamaCppBackend, SimulatorBackend
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.features import estimate_layer_sensitivity, extract_input_features
 from adaptive_quant.hardware import detect_host_hardware, host_aware_hardware_profiles
-from adaptive_quant.logging_utils import JsonlLogger
+from adaptive_quant.logging_utils import JsonlLogger, NullJsonlLogger
 from adaptive_quant.math_utils import variance
 from adaptive_quant.moe import ExpertBank
 from adaptive_quant.prompts import PromptLibrary
@@ -30,7 +30,13 @@ class AdaptiveQuantizationEnv:
     Episodes append structured rows to JSONL for downstream ``analysis/`` tools.
     """
 
-    def __init__(self, config: FrameworkConfig, log_path: str | None = None) -> None:
+    def __init__(
+        self,
+        config: FrameworkConfig,
+        log_path: str | None = None,
+        *,
+        enable_logging: bool = True,
+    ) -> None:
         self.config = config
         self.rng = random.Random(config.seed)
         self.prompt_library = PromptLibrary()
@@ -46,7 +52,10 @@ class AdaptiveQuantizationEnv:
         self.hardware_profiles = host_aware_hardware_profiles(self.detected_hardware)
         self.backend = LlamaCppBackend(config) if config.backend == "llama_cpp" else SimulatorBackend(config)
         self.expert_bank = ExpertBank(config) if config.moe_enabled else None
-        self.logger = JsonlLogger(log_path or f"{config.log_dir}/{config.run_name}.jsonl")
+        if enable_logging:
+            self.logger = JsonlLogger(log_path or f"{config.log_dir}/{config.run_name}.jsonl")
+        else:
+            self.logger = NullJsonlLogger()
         self.current_state: EpisodeState | None = None
         self._prompt_cache: dict[str, tuple] = {}
         if config.cache_prompt_features:

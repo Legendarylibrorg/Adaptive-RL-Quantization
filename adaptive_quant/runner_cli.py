@@ -34,7 +34,10 @@ def load_config_or_fallback(path: str | None, fallback: FrameworkConfig) -> Fram
     p = Path(path)
     if not p.is_file():
         raise SystemExit(f"Config file not found: {p}")
-    return FrameworkConfig.from_file(p)
+    try:
+        return FrameworkConfig.from_file(p)
+    except (TypeError, ValueError, FileNotFoundError) as exc:
+        raise SystemExit(str(exc)) from exc
 
 
 def run_research_pipeline_cli(

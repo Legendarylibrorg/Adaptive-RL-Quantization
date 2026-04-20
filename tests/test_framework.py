@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import tempfile
 import unittest
 from dataclasses import replace
@@ -335,6 +336,35 @@ class FrameworkTests(unittest.TestCase):
         self.assertIsNotNone(recommendation["recommended_quant"])
         assert recommendation["recommended_quant"] is not None
         self.assertIn("evaluation", recommendation["recommended_quant"])
+
+    def test_recommend_quantization_does_not_require_writable_log_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            read_only_logs = Path(temp_dir) / "read_only_logs"
+            read_only_logs.mkdir()
+            os.chmod(read_only_logs, 0o555)
+            config = FrameworkConfig(
+                training_episodes=8,
+                evaluation_episodes=4,
+                recommendation_eval_episodes=4,
+                recommendation_candidate_limit=4,
+                stability_probe_count=1,
+                outputs_dir=temp_dir,
+                log_dir=str(read_only_logs),
+                benchmark_dir=f"{temp_dir}/benchmarks",
+                analysis_dir=f"{temp_dir}/analysis",
+                checkpoint_dir=f"{temp_dir}/checkpoints",
+                report_dir=f"{temp_dir}/reports",
+                run_name="recommend_read_only",
+            )
+            trainer = build_trainer(config, log_path=f"{temp_dir}/logs/train.jsonl")
+            try:
+                trainer.train()
+                recommendation = recommend_quantization(trainer, config)
+            finally:
+                trainer.close()
+                os.chmod(read_only_logs, 0o755)
+
+            self.assertGreater(recommendation["candidate_count"], 0)
 
     def test_online_learning_loop_updates_and_logs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

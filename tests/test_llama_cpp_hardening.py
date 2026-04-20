@@ -84,7 +84,50 @@ class LlamaCppHardeningTests(unittest.TestCase):
             self.assertIn("timeout", kwargs)
             self.assertEqual(float(kwargs["timeout"]), float(config.llama_cpp_timeout_s))
 
+    def test_llama_cpp_backend_raises_on_non_zero_exit(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            binary_path = temp_path / "llama-cli"
+            model_path = temp_path / "model.gguf"
+            binary_path.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            os.chmod(binary_path, 0o755)
+            model_path.write_text("fake", encoding="utf-8")
+
+            config = FrameworkConfig(
+                backend="llama_cpp",
+                llama_cpp_binary=str(binary_path),
+                llama_cpp_model=str(model_path),
+                training_episodes=2,
+                evaluation_episodes=1,
+                stability_probe_count=1,
+                outputs_dir=temp_dir,
+                log_dir=f"{temp_dir}/logs",
+                benchmark_dir=f"{temp_dir}/benchmarks",
+                analysis_dir=f"{temp_dir}/analysis",
+                run_name="llama_cpp_failure_test",
+                seed=7,
+            )
+
+            env = AdaptiveQuantizationEnv(config, log_path=f"{temp_dir}/logs/test.jsonl")
+            state = env.reset(forced_hardware=HardwareType.GPU, forced_prompt_id="very_complex")
+            decision = finalize_decision(QuantizationDecision(mode=QuantMode.DISCRETE, base_bit_width=4), state, config)
+
+            def fake_run(cmd, **kwargs):  # type: ignore[no-untyped-def]
+                return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="fatal backend failure")
+
+            import adaptive_quant.backend as backend_module
+
+            original_run = backend_module.subprocess.run
+            backend_module.subprocess.run = fake_run  # type: ignore[assignment]
+            try:
+                with self.assertRaises(RuntimeError) as ctx:
+                    LlamaCppBackend(config).evaluate(state, decision)
+            finally:
+                backend_module.subprocess.run = original_run  # type: ignore[assignment]
+
+            self.assertIn("exit code 1", str(ctx.exception))
+            self.assertIn("fatal backend failure", str(ctx.exception))
+
 
 if __name__ == "__main__":
     unittest.main()
-

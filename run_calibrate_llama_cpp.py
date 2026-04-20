@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import argparse
-import subprocess
 from pathlib import Path
 from typing import Any, Iterable
 
 from adaptive_quant.backend import (
     SimulatorBackend,
-    parse_llama_cpp_metrics,
     require_llama_cpp_paths,
+    run_llama_cpp_measurement,
 )
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
@@ -29,30 +28,13 @@ def _run_llama_cpp_once(
     """
     Returns: (latency_ms_per_token, throughput_tps, memory_mb) where memory_mb is best-effort.
     """
-    command = [
-        llama_cpp_binary,
-        "-m",
-        llama_cpp_model,
-        "-p",
-        prompt_text,
-        "-ngl",
-        str(ngl),
-        "-t",
-        str(config.llama_cpp_threads),
-        "-c",
-        str(config.llama_cpp_context),
-        "-n",
-        "64",
-    ]
-    completed = subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=float(getattr(config, "llama_cpp_timeout_s", 30.0)),
+    parsed = run_llama_cpp_measurement(
+        config,
+        llama_cpp_binary=llama_cpp_binary,
+        llama_cpp_model=llama_cpp_model,
+        prompt_text=prompt_text,
+        ngl=ngl,
     )
-    combined = ((completed.stdout or "") + "\n" + (completed.stderr or "")).lower()
-    parsed = parse_llama_cpp_metrics(combined)
     throughput_tps = float(parsed.get("throughput_tps", 0.0))
     latency_ms_per_token = float(parsed.get("latency_ms_per_token", 0.0))
     memory_mb = float(parsed.get("memory_mb", 0.0))

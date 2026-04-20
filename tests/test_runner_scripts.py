@@ -192,6 +192,23 @@ class RunnerScriptCliTests(unittest.TestCase):
             self.assertNotEqual(proc.returncode, 0)
             self.assertIn("training_backend", proc.stderr)
 
+    def test_run_research_rejects_unknown_config_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "bad.json"
+            path.write_text(
+                json.dumps({"preset": "minimal", "run_name": "cli_bad", "training_episode": 4}),
+                encoding="utf-8",
+            )
+            proc = subprocess.run(
+                [sys.executable, str(_REPO_ROOT / "run_research.py"), "--config", str(path)],
+                cwd=str(_REPO_ROOT),
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            self.assertNotEqual(proc.returncode, 0)
+            self.assertIn("Unknown FrameworkConfig keys", proc.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

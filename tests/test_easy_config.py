@@ -105,6 +105,14 @@ class EasyConfigTests(unittest.TestCase):
             self.assertEqual(cfg.run_name, "toml_run")
             self.assertEqual(cfg.training_episodes, 42)
 
+    def test_load_config_is_strict_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "bad.json"
+            path.write_text(json.dumps({"run_name": "strict_default", "training_episode": 42}), encoding="utf-8")
+            with self.assertRaises(ValueError) as ctx:
+                load_config(path)
+            self.assertIn("Unknown FrameworkConfig keys", str(ctx.exception))
+
     def test_load_config_rejects_oversized_local_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp, mock.patch(
             "adaptive_quant.logging_utils.MAX_LOCAL_READ_BYTES", 16
