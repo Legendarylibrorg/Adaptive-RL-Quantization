@@ -1,0 +1,3 @@
+# Exact bootstrap dependencies for CI installs.
+# Hashes live in ../security/dependency_hashes.json.
+setuptools==82.0.1

@@ -1,0 +1,65 @@
+# Elevated quality gate: Linux, macOS, Windows; editable install, full test suite, whitespace/scripts.
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python-version: "3.11"
+          - os: ubuntu-latest
+            python-version: "3.12"
+          - os: macos-latest
+            python-version: "3.11"
+          - os: windows-latest
+            python-version: "3.11"
+    steps:
+      # Immutable full SHAs (verify against api.github.com/repos/{actions/checkout,actions/setup-python}/commits/{sha}).
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            requirements/ci.txt
+            security/dependency_hashes.json
+
+      - name: Secret pattern scan (tracked files, no third-party scanner)
+        run: python scripts/secret_scan.py
+
+      - name: Verify dependency hashes
+        run: python scripts/verify_hashes.py --output "${{ runner.temp }}/requirements-ci.txt"
+
+      - name: Install verified bootstrap dependencies
+        run: |
+          python -m pip install --require-hashes -r "${{ runner.temp }}/requirements-ci.txt"
+
+      - name: Install (editable, no build isolation)
+        run: |
+          python -m pip install --no-build-isolation -e .
+
+      - name: Pre-commit checks (syntax, whitespace, tests)
+        run: python scripts/pre_commit_check.py --skip-hash-checks
+
+      - name: Short E2E RL smoke (simulator)
+        run: python run_research.py --config config.e2e_smoke.json

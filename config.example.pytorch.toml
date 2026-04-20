@@ -1,0 +1,10 @@
+# Use: python3 run_pytorch.py --config config.example.pytorch.toml
+# Requires CUDA PyTorch on Linux (see docs/INSTALL.md).
+
+preset = "pytorch"
+run_name = "toml_cuda_example"
+training_episodes = 512
+evaluation_episodes = 128
+torch_preflight = false
+torch_batch_episodes = 128
+torch_minibatch_size = 64
