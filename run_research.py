@@ -14,7 +14,7 @@ def main() -> None:
     run_research_pipeline_cli(
         fallback=CONFIG,
         description=(
-            "Adaptive quantization RL: train → evaluate → benchmarks → analysis "
+            "Adaptive quantization RL: train -> evaluate -> benchmarks -> analysis "
             "(Python trainer; simulator or llama.cpp per config). Run from repo root."
         ),
         config_help_suffix="Overrides `config.py` when set. See config.example.json.",
