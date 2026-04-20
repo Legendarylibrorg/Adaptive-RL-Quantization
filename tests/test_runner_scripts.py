@@ -9,11 +9,25 @@ import tempfile
 import tomllib
 import unittest
 from pathlib import Path
+from unittest import mock
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 class RunnerScriptCliTests(unittest.TestCase):
+    def _load_setup_from_clone_module(self):
+        script_path = _REPO_ROOT / "scripts" / "setup_from_clone.py"
+        sys.path.insert(0, str(script_path.parent))
+        try:
+            spec = importlib.util.spec_from_file_location("setup_from_clone_module", script_path)
+            self.assertIsNotNone(spec)
+            assert spec is not None and spec.loader is not None
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+        finally:
+            sys.path.pop(0)
+        return module
+
     def _installed_command(self, name: str) -> list[str]:
         bin_dir = Path(sysconfig.get_path("scripts"))
         candidates = [
@@ -52,20 +66,49 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertNotIn("language: system", config_text)
 
     def test_setup_from_clone_activation_hint_keeps_nested_path(self) -> None:
-        script_path = _REPO_ROOT / "scripts" / "setup_from_clone.py"
-        sys.path.insert(0, str(script_path.parent))
-        try:
-            spec = importlib.util.spec_from_file_location("setup_from_clone_module", script_path)
-            self.assertIsNotNone(spec)
-            assert spec is not None and spec.loader is not None
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-        finally:
-            sys.path.pop(0)
-
+        module = self._load_setup_from_clone_module()
         hint = module._activation_hint(Path(".venvs") / "project-a")
         self.assertIn(".venvs", hint)
         self.assertIn("project-a", hint)
+
+    def test_setup_from_clone_bootstraps_setuptools_when_missing(self) -> None:
+        module = self._load_setup_from_clone_module()
+        commands: list[tuple[list[str], Path | None]] = []
+        with mock.patch.object(
+            module.subprocess,
+            "run",
+            return_value=subprocess.CompletedProcess(["python"], 1, stdout=b"", stderr=b""),
+        ):
+            with mock.patch.object(module, "run", side_effect=lambda cmd, cwd=None: commands.append((cmd, cwd))):
+                module._ensure_build_backend("/tmp/python")
+        self.assertEqual(
+            commands,
+            [(["/tmp/python", "-m", "pip", "install", "setuptools>=61"], None)],
+        )
+
+    def test_setup_from_clone_editable_install_uses_no_build_isolation(self) -> None:
+        module = self._load_setup_from_clone_module()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            venv_python = root / ".venv" / "bin" / "python"
+            venv_python.parent.mkdir(parents=True, exist_ok=True)
+            venv_python.write_text("", encoding="utf-8")
+            commands: list[tuple[list[str], Path | None]] = []
+            with mock.patch.object(module, "repo_root", return_value=root):
+                with mock.patch.object(module, "venv_python_path", return_value=venv_python):
+                    with mock.patch.object(module, "_ensure_pip"):
+                        with mock.patch.object(module, "_ensure_build_backend"):
+                            with mock.patch.object(
+                                module,
+                                "run",
+                                side_effect=lambda cmd, cwd=None: commands.append((cmd, cwd)),
+                            ):
+                                code = module.main(["--venv-dir", ".venv", "--skip-tests", "--skip-smoke"])
+            self.assertEqual(code, 0)
+            self.assertIn(
+                ([str(venv_python), "-m", "pip", "install", "--no-build-isolation", "-e", "."], root),
+                commands,
+            )
 
     def test_setup_from_clone_python_wrapper_has_help(self) -> None:
         proc = subprocess.run(
