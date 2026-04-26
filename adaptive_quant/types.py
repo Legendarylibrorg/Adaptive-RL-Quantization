@@ -175,6 +175,9 @@ class EpisodeMetrics:
     memory_mb: float
     stability_penalty: float
     reward: float
+    tokens_processed: float = 0.0
+    latency_ms_per_token: float = 0.0
+    compute_route_cost: float = 0.0
     swap_cost_ms: float = 0.0
     cache_miss_count: float = 0.0
     variant_churn: float = 0.0

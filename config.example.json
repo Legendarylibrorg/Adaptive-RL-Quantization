@@ -4,6 +4,8 @@
   "training_episodes": 500,
   "evaluation_episodes": 100,
   "reward_weights": {
-    "beta_throughput": 0.08
+    "beta_throughput": 0.08,
+    "eta_token_latency": 0.05,
+    "theta_compute_route": 0.015
   }
 }
