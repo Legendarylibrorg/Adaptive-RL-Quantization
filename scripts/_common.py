@@ -27,8 +27,21 @@ def resolve_python_bin(root: Path) -> str:
     return sys.executable
 
 
-def run(cmd: list[str], *, cwd: Path | None = None) -> None:
-    subprocess.run(cmd, cwd=str(cwd) if cwd is not None else None, check=True)
+def run(cmd: list[str], *, cwd: Path | None = None, timeout: float | None = None) -> None:
+    """Thin ``subprocess.run`` wrapper that bubbles non-zero exit codes.
+
+    ``timeout`` is opt-in: leave it unset for long-running commands like ``pip
+    install -e .`` or ``unittest discover``; pass a value (seconds) for the
+    fast diagnostic helpers (``git diff``, etc.) so a hung/slow filesystem
+    cannot wedge the dev-tool indefinitely. ``subprocess.TimeoutExpired`` is
+    surfaced to the caller unchanged.
+    """
+    subprocess.run(
+        cmd,
+        cwd=str(cwd) if cwd is not None else None,
+        check=True,
+        timeout=timeout,
+    )
 
 
 def bash_path() -> str | None:

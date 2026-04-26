@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from adaptive_quant.base_trainer import TrainerBase
+from adaptive_quant.base_trainer import TrainerBase, coerce_previous_action
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import enforce_local_read_limit, write_json
 from adaptive_quant.math_utils import mean
@@ -28,10 +28,15 @@ def _checkpoint_meta_path(pt_path: str) -> str:
     return str(p.with_name(f"{p.stem}.checkpoint.json"))
 
 
-def _torch_load_v2_tensor_file(path: str) -> dict[str, Any]:
+def _torch_load_v2_tensor_file(path: str, *, allow_legacy: bool = False) -> dict[str, Any]:
     """
     Load v2 tensor shard: only model_state + optimizer_state tensors.
     Prefer weights_only=True when PyTorch supports it to avoid arbitrary pickle execution.
+
+    If the strict load fails and ``allow_legacy`` is True, fall back to
+    ``weights_only=False`` (legacy pickle path). This widens the trust surface
+    for the file and is therefore opt-in via
+    ``FrameworkConfig.allow_legacy_checkpoint_load``.
     """
     load_kw: dict[str, Any] = {"map_location": "cpu"}
     try:
@@ -43,7 +48,7 @@ def _torch_load_v2_tensor_file(path: str) -> dict[str, Any]:
     try:
         return torch.load(path, **load_kw)
     except Exception:
-        if load_kw.get("weights_only") is True:
+        if load_kw.get("weights_only") is True and allow_legacy:
             return torch.load(path, map_location="cpu", weights_only=False)
         raise
 
@@ -190,13 +195,25 @@ if torch is not None:
             target = self.config.max_training_episodes
             eval_interval = self.config.eval_interval
             ckpt_interval = self.config.checkpoint_interval
+            batch_episodes = max(1, int(self.config.torch_batch_episodes))
+            if eval_interval > 0 and eval_interval < batch_episodes:
+                raise ValueError(
+                    "FrameworkConfig.eval_interval must be >= torch_batch_episodes "
+                    f"(got eval_interval={eval_interval}, torch_batch_episodes={batch_episodes}); "
+                    "the modular trigger expects intervals to be at least one full batch."
+                )
+            if ckpt_interval > 0 and ckpt_interval < batch_episodes:
+                raise ValueError(
+                    "FrameworkConfig.checkpoint_interval must be >= torch_batch_episodes "
+                    f"(got checkpoint_interval={ckpt_interval}, torch_batch_episodes={batch_episodes})."
+                )
 
             while self.global_episode < target:
                 batch_size = min(self.config.torch_batch_episodes, target - self.global_episode)
                 batch_records, batch_rewards = self._collect_batch(batch_size)
                 self._commit_training_batch(batch_records, batch_rewards, all_rewards)
 
-                if self.global_episode % eval_interval < batch_size:
+                if eval_interval > 0 and self.global_episode % eval_interval < batch_size:
                     eval_summary = self.evaluate()
                     print(
                         f"[episode {self.global_episode:,}] "
@@ -372,13 +389,16 @@ if torch is not None:
                 raw_meta = json.loads(meta_path.read_text(encoding="utf-8"))
                 if int(raw_meta.get("format", 0)) != _CHECKPOINT_FORMAT_V2:
                     raise ValueError(f"Unsupported checkpoint metadata format in {meta_path}")
-                tensors = _torch_load_v2_tensor_file(str(pt_path))
+                tensors = _torch_load_v2_tensor_file(
+                    str(pt_path),
+                    allow_legacy=bool(self.config.allow_legacy_checkpoint_load),
+                )
                 self.policy.restore(tensors["model_state"])
                 self.optimizer.load_state_dict(tensors["optimizer_state"])
                 self._optimizer_to_device()
                 self.global_episode = int(raw_meta.get("global_episode", 0))
                 self.update_index = int(raw_meta.get("update_index", 0))
-                self.previous_action = list(raw_meta.get("previous_action", [0.0, 0.0, 0.0]))
+                self.previous_action = coerce_previous_action(raw_meta.get("previous_action"))
                 self.training_history = list(raw_meta.get("training_history", []))
                 return
 
@@ -394,7 +414,7 @@ if torch is not None:
             self._optimizer_to_device()
             self.global_episode = int(checkpoint.get("global_episode", 0))
             self.update_index = int(checkpoint.get("update_index", 0))
-            self.previous_action = list(checkpoint.get("previous_action", [0.0, 0.0, 0.0]))
+            self.previous_action = coerce_previous_action(checkpoint.get("previous_action"))
             self.training_history = list(checkpoint.get("training_history", []))
 
         def _optimizer_to_device(self) -> None:

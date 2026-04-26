@@ -1,5 +1,5 @@
 # Quality gate: hash-verified setuptools → editable install (setuptools build backend) → pre_commit_check (tests, git, syntax) → E2E RL smoke.
-# One job per OS (3.12): Linux is a single row; 3.11+ are still supported in pyproject — add matrix python-version entries here if you need more interpreters on CI.
+# OS coverage on the declared Python (3.12) plus interpreter coverage (3.11/3.13) on Linux to actually exercise the `requires-python = ">=3.11"` floor and ceiling.
 # Windows: git config + safe.directory so `pre_commit_check` git diff --check and subprocess git behave reliably.
 name: CI
 
@@ -30,7 +30,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - { os: ubuntu-latest, python-version: "3.11" }
           - { os: ubuntu-latest, python-version: "3.12" }
+          - { os: ubuntu-latest, python-version: "3.13" }
           - { os: macos-latest, python-version: "3.12" }
           - { os: windows-latest, python-version: "3.12" }
     steps:

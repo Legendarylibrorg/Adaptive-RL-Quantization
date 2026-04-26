@@ -1,6 +1,7 @@
 [build-system]
 # Used only while installing/building the package; not runtime deps. pip fetches this in an isolated env.
-requires = ["setuptools>=61"]
+# setuptools>=77 is required for PEP 639 (`license`/`license-files` metadata).
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,7 +10,9 @@ version = "0.1.0"
 description = "Train an RL policy to pick quantization settings for llama.cpp-style inference (simulator or real binary); optional PyTorch GPU training."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { file = "LICENSE" }
+# PEP 639: SPDX license expression + explicit license file list.
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Legendarylibrorg" }]
 keywords = [
     "reinforcement-learning",
@@ -18,10 +21,10 @@ keywords = [
     "model-compression",
     "research",
 ]
+# PEP 639 deprecates the `License ::` trove classifier when an SPDX expression is set.
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
@@ -79,9 +82,11 @@ target-version = "py311"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "I"]
+select = ["E", "F", "I", "B", "UP"]
 ignore = [
     "E501", # line length — project uses long strings and tables
+    "UP037", # quoted forward references intentionally retained for clarity
+    "UP042", # `(str, Enum)` is intentional — `StrEnum` has subtly different __str__/__format__ semantics
 ]
 
 [tool.ruff.lint.isort]

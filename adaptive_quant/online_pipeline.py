@@ -20,6 +20,7 @@ def run_online_pipeline(
 ) -> dict[str, object]:
     summary_path = config.summary_path()
     trainer = build_trainer(config)
+    git_commit = _git_commit()
     loop: OnlineLearningLoop | None = None
     pipeline_error: BaseException | None = None
     bootstrap_summary: dict[str, object] = {}
@@ -42,7 +43,7 @@ def run_online_pipeline(
         checkpoint_path = maybe_save_final_checkpoint(config, trainer)
         report_path = _write_online_report(
             config,
-            git_commit=_git_commit(),
+            git_commit=git_commit,
             summary_path=summary_path,
             bootstrap_summary=bootstrap_summary,
             online_summary=online_summary,
@@ -63,7 +64,7 @@ def run_online_pipeline(
 
     summary = {
         "config": asdict(config),
-        "git_commit": _git_commit(),
+        "git_commit": git_commit,
         "bootstrap_train": bootstrap_summary,
         "online": online_summary,
         "evaluation": eval_summary,

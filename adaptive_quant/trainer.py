@@ -4,7 +4,7 @@ import json
 import sys
 from pathlib import Path
 
-from adaptive_quant.base_trainer import TrainerBase
+from adaptive_quant.base_trainer import TrainerBase, coerce_previous_action
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import enforce_local_read_limit, write_json
 from adaptive_quant.math_utils import mean
@@ -116,7 +116,7 @@ class Trainer(TrainerBase):
         self.completed_episodes = int(
             payload.get("completed_episodes", len(payload.get("training_history", [])))
         )
-        self.previous_action = list(payload.get("previous_action", [0.0, 0.0, 0.0]))
+        self.previous_action = coerce_previous_action(payload.get("previous_action"))
         self.training_history = list(payload.get("training_history", []))
 
 

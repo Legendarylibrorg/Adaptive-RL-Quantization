@@ -12,13 +12,27 @@ from _common import bash_path, repo_root, resolve_python_bin, run
 from secret_scan import scan_tracked_files
 from verify_hashes import render_hashed_requirements
 
+# Bound the dev-tool git invocations so a hung/slow filesystem (e.g. NFS,
+# WSL2 over a Windows mount) cannot wedge the quality gate indefinitely.
+_GIT_TIMEOUT_S = 30.0
+
 
 def _has_staged_changes(root: Path) -> bool:
-    completed = subprocess.run(
-        ["git", "diff", "--cached", "--quiet"],
-        cwd=str(root),
-        check=False,
-    )
+    """Return True if the staged tree differs from HEAD.
+
+    ``git diff --cached --quiet`` exits 0 (no changes), 1 (changes), or other
+    on a real error; we treat anything that is not exit 1 as "no changes" so
+    a missing/broken git still lets pre-commit continue with its other checks.
+    """
+    try:
+        completed = subprocess.run(
+            ["git", "diff", "--cached", "--quiet"],
+            cwd=str(root),
+            check=False,
+            timeout=_GIT_TIMEOUT_S,
+        )
+    except (OSError, subprocess.TimeoutExpired, subprocess.SubprocessError):
+        return False
     return completed.returncode == 1
 
 
@@ -58,10 +72,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if not args.skip_git_check:
         print("== git diff --check (unstaged whitespace / conflict markers) ==")
-        run(["git", "diff", "--check"], cwd=root)
+        run(["git", "diff", "--check"], cwd=root, timeout=_GIT_TIMEOUT_S)
         if _has_staged_changes(root):
             print("== git diff --cached --check (staged; re-stage after fixes: git add -u) ==")
-            run(["git", "diff", "--cached", "--check"], cwd=root)
+            run(["git", "diff", "--cached", "--check"], cwd=root, timeout=_GIT_TIMEOUT_S)
 
     if not args.skip_secret_scan:
         print("== Secret pattern scan (tracked files; heuristic) ==")

@@ -58,6 +58,7 @@ class AdaptiveQuantizationEnv:
             else NullJsonlLogger()
         )
         self.current_state: EpisodeState | None = None
+        self._current_phase: str = "train"
         self._prompt_cache: dict[str, tuple] = {}
         if config.cache_prompt_features:
             for prompt in self.prompt_library.prompts:
@@ -107,6 +108,7 @@ class AdaptiveQuantizationEnv:
         previous = previous_action or [0.0, 0.0, 0.0]
         input_features, sensitivity = self._get_prompt_context(prompt)
         hardware_profile = self.hardware_profiles[hardware]
+        self._current_phase = phase
         self.current_state = EpisodeState(
             hardware_profile=hardware_profile,
             prompt=prompt,
@@ -128,7 +130,7 @@ class AdaptiveQuantizationEnv:
 
         finalized = finalize_decision(decision, self.current_state, self.config)
         primary_metrics = self.backend.evaluate(self.current_state, finalized)
-        stability_penalty = self._stability_penalty(decision, self.current_state)
+        stability_penalty = self._stability_penalty(finalized, self.current_state)
 
         if stability_penalty > self.config.instability_threshold:
             fallback = finalize_decision(safe_fallback_decision(self.config), self.current_state, self.config)
@@ -257,6 +259,7 @@ class AdaptiveQuantizationEnv:
                 return
         record = {
             "episode": episode_index,
+            "phase": self._current_phase,
             "run_name": self.config.run_name,
             "hardware_mode": result.state.hardware_profile.hardware_type.value,
             "prompt_id": result.state.prompt.prompt_id,

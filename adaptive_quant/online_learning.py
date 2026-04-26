@@ -276,7 +276,7 @@ def build_request_stream(config: FrameworkConfig, request_count: int | None = No
     hardware_options = config.ordered_hardware()
     count = config.online_requests if request_count is None else request_count
     requests: list[OnlineRequest] = []
-    for index in range(count):
+    for _ in range(count):
         prompt = library.prompts[rng.randrange(len(library.prompts))]
         hardware = hardware_options[rng.randrange(len(hardware_options))]
         requests.append(

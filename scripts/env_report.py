@@ -20,9 +20,10 @@ def _git(repo: Path, *args: str) -> str | None:
             capture_output=True,
             text=True,
             check=True,
+            timeout=2.0,
         )
         return p.stdout.strip()
-    except (OSError, subprocess.CalledProcessError):
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return None
 
 

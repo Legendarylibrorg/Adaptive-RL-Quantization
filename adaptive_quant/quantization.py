@@ -214,7 +214,7 @@ def _predicted_moe_swap_cost(indices: list[int], state: EpisodeState, config: Fr
     if state.moe_context is None or not indices:
         return 0.0
     total = 0.0
-    for expert, index in zip(state.moe_context.experts, indices):
+    for expert, index in zip(state.moe_context.experts, indices, strict=False):
         aggressiveness = index / max(1, config.moe_variant_count() - 1)
         if expert.resident_on_device < 0.5:
             total += (1.2 + 3.4 * aggressiveness) * (0.75 + expert.router_probability) * (1.10 - 0.35 * expert.hotness)

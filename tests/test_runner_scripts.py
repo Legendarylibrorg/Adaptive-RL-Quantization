@@ -231,8 +231,9 @@ class RunnerScriptCliTests(unittest.TestCase):
         with (_REPO_ROOT / "pyproject.toml").open("rb") as handle:
             payload = tomllib.load(handle)
         project = payload["project"]
-        self.assertEqual(project["license"]["file"], "LICENSE")
-        self.assertIn("License :: OSI Approved :: MIT License", project["classifiers"])
+        # PEP 639: SPDX expression + explicit license-files entry.
+        self.assertEqual(project["license"], "MIT")
+        self.assertIn("LICENSE", project["license-files"])
         self.assertIn("Repository", project["urls"])
         self.assertIn("Issues", project["urls"])
         scripts = project["scripts"]
