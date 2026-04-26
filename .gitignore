@@ -1,14 +1,47 @@
+# OS / editor cruft
 .DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+*.code-workspace
+.cursor/
+
+# Python bytecode and packaging artifacts
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+*.egg
+build/
+dist/
+pip-wheel-metadata/
+
+# Virtual environments
 .venv/
 .ruff-venv/
 .tools/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pytype/
+.tox/
+.nox/
+
+# Coverage / profiling
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Run artifacts (research outputs are local-only by default)
 outputs/
 runs/
-*.egg-info/
-.cursor/
-*.code-workspace
 
 # Local secrets and credentials (never commit)
 .env
