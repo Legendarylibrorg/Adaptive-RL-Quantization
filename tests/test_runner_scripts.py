@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-import json
+import contextlib
 import importlib.util
+import io
+import json
 import os
 import subprocess
 import sys
@@ -132,7 +134,10 @@ class RunnerScriptCliTests(unittest.TestCase):
                                 "run",
                                 side_effect=lambda cmd, cwd=None: commands.append((cmd, cwd)),
                             ):
-                                code = module.main(["--venv-dir", ".venv", "--skip-tests", "--skip-smoke"])
+                                with contextlib.redirect_stdout(io.StringIO()):
+                                    code = module.main(
+                                        ["--venv-dir", ".venv", "--skip-tests", "--skip-smoke"]
+                                    )
             self.assertEqual(code, 0)
             self.assertIn(
                 ([str(venv_python), "-m", "pip", "install", "--no-build-isolation", "-e", "."], root),

@@ -1,0 +1,53 @@
+# Pin text line endings so the same byte stream lands on Linux, macOS, and
+# Windows checkouts. CI also sets `core.autocrlf=false` on Windows runners,
+# but contributor machines may not — these rules guarantee consistency.
+
+# Default: treat any unmatched file as auto-detected text.
+*               text=auto eol=lf
+
+# Source and project text files: always LF.
+*.py            text eol=lf
+*.pyi           text eol=lf
+*.sh            text eol=lf
+*.bash          text eol=lf
+*.txt           text eol=lf
+*.md            text eol=lf
+*.rst           text eol=lf
+*.json          text eol=lf
+*.jsonl         text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+*.toml          text eol=lf
+*.cfg           text eol=lf
+*.ini           text eol=lf
+*.cff           text eol=lf
+Makefile        text eol=lf
+LICENSE         text eol=lf
+CODEOWNERS      text eol=lf
+.gitignore      text eol=lf
+.gitattributes  text eol=lf
+.editorconfig   text eol=lf
+
+# Windows-only artifacts: keep CRLF when present.
+*.bat           text eol=crlf
+*.cmd           text eol=crlf
+*.ps1           text eol=crlf
+
+# Binary / opaque assets — never line-end convert.
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.svg           binary
+*.pdf           binary
+*.gz            binary
+*.tgz           binary
+*.zip           binary
+*.whl           binary
+*.pt            binary
+*.bin           binary
+*.npz           binary
+
+# Keep generated lockfiles and large fixtures out of GitHub diffs.
+requirements/ci.txt              linguist-generated=true
+security/dependency_hashes.json  linguist-generated=true

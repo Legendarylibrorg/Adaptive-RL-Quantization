@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 import tempfile
@@ -9,6 +10,9 @@ import urllib.request
 from pathlib import Path
 
 from _common import repo_root, run, venv_python_path
+
+_NETWORK_PIP_BOOTSTRAP_ENV = "ADAPTIVE_RL_ALLOW_NETWORK_PIP_BOOTSTRAP"
+_GET_PIP_URL = "https://bootstrap.pypa.io/get-pip.py"
 
 
 def _ensure_pip(python_bin: str) -> None:
@@ -20,9 +24,16 @@ def _ensure_pip(python_bin: str) -> None:
     if ensurepip.returncode == 0:
         return
 
+    if os.environ.get(_NETWORK_PIP_BOOTSTRAP_ENV, "").strip().lower() not in {"1", "true", "yes"}:
+        raise SystemExit(
+            f"pip is missing and `python -m ensurepip` failed for {python_bin!r}. "
+            "Install pip via your OS package manager or rerun this script with "
+            f"{_NETWORK_PIP_BOOTSTRAP_ENV}=1 to download {_GET_PIP_URL} over HTTPS as a last resort."
+        )
+
     with tempfile.TemporaryDirectory() as tmp:
         target = Path(tmp) / "get-pip.py"
-        urllib.request.urlretrieve("https://bootstrap.pypa.io/get-pip.py", target)
+        urllib.request.urlretrieve(_GET_PIP_URL, target)  # noqa: S310 - opt-in HTTPS pip bootstrap
         run([python_bin, str(target)])
 
 

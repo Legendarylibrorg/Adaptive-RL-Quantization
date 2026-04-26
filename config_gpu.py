@@ -1,6 +1,5 @@
 from config import CONFIG
 
-
 CONFIG_GPU = CONFIG.clone(
     training_backend="pytorch",
     continuous_training=False,

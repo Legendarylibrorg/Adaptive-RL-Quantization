@@ -13,7 +13,7 @@ ROOT = repo_root()
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from adaptive_quant.logging_utils import write_text_file
+from adaptive_quant.logging_utils import write_text_file  # noqa: E402
 
 
 @dataclass(frozen=True)

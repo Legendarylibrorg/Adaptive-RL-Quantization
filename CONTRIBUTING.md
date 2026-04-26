@@ -2,7 +2,7 @@
 
 Thank you for helping improve this project. This document is the **contributing policy**: what we expect before you open a pull request, how we handle security and conduct, and how to make reviews straightforward.
 
-**Quick links:** [Changelog](CHANGELOG.md) · [Releasing](RELEASING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security disclosure](SECURITY.md) · [README](README.md) · [CI workflow](.github/workflows/ci.yml)
+**Quick links:** [Changelog](CHANGELOG.md) · [Releasing](RELEASING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security disclosure](SECURITY.md) · [Support / how to ask for help](SUPPORT.md) · [README](README.md) · [CI workflow](.github/workflows/ci.yml)
 
 ---
 
@@ -20,7 +20,7 @@ By contributing, you agree that your contributions are licensed under the same t
 
 ## Security
 
-- **Vulnerabilities:** Do **not** open a public issue. Follow [SECURITY.md](SECURITY.md).
+- **Vulnerabilities:** Do **not** open a public issue. Use the private [GitHub Security Advisory form](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/security/advisories/new) and follow [SECURITY.md](SECURITY.md) (scope, response SLAs, safe harbor, coordinated disclosure).
 - **Secrets:** Never commit API keys, tokens, passwords, or private model paths. Use `.env` (gitignored) or local JSON/TOML configs. See README **Security** notes.
 - **Checkpoints:** Treat downloaded `.pt` / legacy pickle checkpoints as **untrusted** unless you created them locally.
 - **Supply chain:** Keep Python dependency changes reviewable. CI bootstrap packages live in **[`requirements/ci.txt`](requirements/ci.txt)**, their sha256 values live separately in **[`security/dependency_hashes.json`](security/dependency_hashes.json)**, and **[`scripts/verify_hashes.py`](scripts/verify_hashes.py)** should stay green when those pins change.

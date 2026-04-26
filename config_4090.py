@@ -1,6 +1,5 @@
 from config_gpu import CONFIG_GPU
 
-
 CONFIG_4090 = CONFIG_GPU.clone(
     training_host_label="rtx4090",
     benchmark_training_episodes=768,

@@ -1,0 +1,15 @@
+# Machine-readable security disclosure metadata for this repository.
+# RFC 9116 (security.txt) — https://www.rfc-editor.org/rfc/rfc9116
+#
+# This file is unsigned on purpose: this repository is shipped as source code,
+# not hosted as a website, so PGP signing this static text adds little value
+# while complicating contributor edits. The authoritative disclosure policy
+# lives in SECURITY.md at the repository root.
+
+Contact: https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/security/advisories/new
+Policy: https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/blob/main/SECURITY.md
+Acknowledgments: https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/security/advisories
+Preferred-Languages: en
+Canonical: https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/blob/main/.well-known/security.txt
+# Expires must be a future date in ISO 8601 UTC and must be refreshed before it lapses.
+Expires: 2027-04-26T00:00:00.000Z

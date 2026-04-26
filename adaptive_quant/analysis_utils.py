@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import html
 from pathlib import Path
 
 from adaptive_quant.logging_utils import write_text_file
 from adaptive_quant.math_utils import mean
+
+
+def _svg_text(value: object) -> str:
+    """Escape user-controllable text before embedding in SVG to neutralize stored XSS sinks."""
+    return html.escape(str(value), quote=True)
 
 
 def ensure_directory(path: str) -> Path:
@@ -39,8 +45,8 @@ def write_bar_chart(path: str, title: str, values: dict[str, float], y_label: st
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">',
         f'<rect width="{width}" height="{height}" fill="#fbf7ef" />',
-        f'<text x="{width / 2}" y="30" text-anchor="middle" font-size="22" font-family="Georgia">{title}</text>',
-        f'<text x="20" y="{margin - 20}" font-size="14" font-family="Georgia">{y_label}</text>',
+        f'<text x="{width / 2}" y="30" text-anchor="middle" font-size="22" font-family="Georgia">{_svg_text(title)}</text>',
+        f'<text x="20" y="{margin - 20}" font-size="14" font-family="Georgia">{_svg_text(y_label)}</text>',
         f'<line x1="{margin}" y1="{height - margin}" x2="{width - margin}" y2="{height - margin}" stroke="#333" stroke-width="2" />',
         f'<line x1="{margin}" y1="{margin}" x2="{margin}" y2="{height - margin}" stroke="#333" stroke-width="2" />',
     ]
@@ -52,7 +58,7 @@ def write_bar_chart(path: str, title: str, values: dict[str, float], y_label: st
         y = height - margin - bar_height
         color = ["#2a6f97", "#c9713d", "#5b8c5a", "#8f5d8f"][index % 4]
         parts.append(f'<rect x="{x:.1f}" y="{y:.1f}" width="{bar_width:.1f}" height="{bar_height:.1f}" fill="{color}" rx="6" />')
-        parts.append(f'<text x="{x + bar_width / 2:.1f}" y="{height - margin + 20}" text-anchor="middle" font-size="13" font-family="Georgia">{label}</text>')
+        parts.append(f'<text x="{x + bar_width / 2:.1f}" y="{height - margin + 20}" text-anchor="middle" font-size="13" font-family="Georgia">{_svg_text(label)}</text>')
         parts.append(f'<text x="{x + bar_width / 2:.1f}" y="{y - 8:.1f}" text-anchor="middle" font-size="12" font-family="Georgia">{value:.2f}</text>')
 
     parts.append("</svg>")
@@ -79,11 +85,11 @@ def write_scatter_plot(path: str, title: str, points: list[tuple[float, float]],
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">',
         f'<rect width="{width}" height="{height}" fill="#f6fbff" />',
-        f'<text x="{width / 2}" y="30" text-anchor="middle" font-size="22" font-family="Georgia">{title}</text>',
+        f'<text x="{width / 2}" y="30" text-anchor="middle" font-size="22" font-family="Georgia">{_svg_text(title)}</text>',
         f'<line x1="{margin}" y1="{height - margin}" x2="{width - margin}" y2="{height - margin}" stroke="#333" stroke-width="2" />',
         f'<line x1="{margin}" y1="{margin}" x2="{margin}" y2="{height - margin}" stroke="#333" stroke-width="2" />',
-        f'<text x="{width / 2}" y="{height - 18}" text-anchor="middle" font-size="14" font-family="Georgia">{x_label}</text>',
-        f'<text x="16" y="{height / 2}" text-anchor="middle" font-size="14" font-family="Georgia" transform="rotate(-90 16 {height / 2})">{y_label}</text>',
+        f'<text x="{width / 2}" y="{height - 18}" text-anchor="middle" font-size="14" font-family="Georgia">{_svg_text(x_label)}</text>',
+        f'<text x="16" y="{height / 2}" text-anchor="middle" font-size="14" font-family="Georgia" transform="rotate(-90 16 {height / 2})">{_svg_text(y_label)}</text>',
     ]
 
     for point in points:
