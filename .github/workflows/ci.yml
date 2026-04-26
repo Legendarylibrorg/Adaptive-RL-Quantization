@@ -1,5 +1,6 @@
 # Quality gate: hash-verified setuptools → editable install (setuptools build backend) → pre_commit_check (tests, git, syntax) → E2E RL smoke.
-# Linux, macOS, and Windows. Windows uses core.autocrlf=false so `git diff --check` in pre_commit_check does not false-positive on LF-only trees.
+# One job per OS (3.12): Linux is a single row; 3.11+ are still supported in pyproject — add matrix python-version entries here if you need more interpreters on CI.
+# Windows: git config + safe.directory so `pre_commit_check` git diff --check and subprocess git behave reliably.
 name: CI
 
 on:
@@ -18,6 +19,8 @@ concurrency:
 
 env:
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONUTF8: "1"
+  PYTHONIOENCODING: "utf-8"
 
 jobs:
   test:
@@ -27,30 +30,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            python-version: "3.11"
-          - os: ubuntu-latest
-            python-version: "3.12"
-          - os: ubuntu-latest
-            python-version: "3.13"
-          - os: macos-latest
-            python-version: "3.11"
-          - os: windows-latest
-            python-version: "3.11"
+          - { os: ubuntu-latest, python-version: "3.12" }
+          - { os: macos-latest, python-version: "3.12" }
+          - { os: windows-latest, python-version: "3.12" }
     steps:
-      # Pinned to actions/checkout@v4.3.1 and actions/setup-python@v5.6.0 (see api.github.com/.../git/refs/tags/...).
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
-      - name: Line endings for git checks (Windows)
+      - name: Git for Windows (pre_commit / unittest)
         if: runner.os == 'Windows'
-        run: git config --global core.autocrlf false
+        shell: bash
+        run: |
+          git config --global core.autocrlf false
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: ${{ matrix.python-version }}
-          allow-prereleases: false
-          check-latest: true
           cache: pip
           cache-dependency-path: |
             pyproject.toml

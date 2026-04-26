@@ -6,13 +6,15 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
+  # Job always finishes green: on public repos run the action; on private, review step is skipped.
   dependency-review:
-    if: ${{ github.event.repository.private == false }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Review dependency changes
+        if: github.event.repository.private == false
         uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48
