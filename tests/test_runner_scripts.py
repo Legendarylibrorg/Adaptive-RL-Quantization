@@ -71,7 +71,9 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertIn("--no-build-isolation -e .", workflow_text)
         self.assertIn("core.autocrlf false", workflow_text)
         self.assertIn("python -m pip install -U pip", workflow_text)
-        self.assertIn('python-version: "3.13"', workflow_text)
+        self.assertIn("safe.directory", workflow_text)
+        self.assertIn("ubuntu-latest", workflow_text)
+        self.assertIn('python-version: "3.12"', workflow_text)
 
     def test_dependabot_covers_root_and_requirements(self) -> None:
         config_text = (_REPO_ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")

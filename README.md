@@ -115,7 +115,7 @@ Detailed install (distro packages, **WSL2**, SSH clone, llama.cpp): **[docs/INST
 | `CITATION.cff` | Software citation (for papers and “Cite this repository”) |
 | `CODE_OF_CONDUCT.md` | Short rules for issues and pull requests |
 | `SECURITY.md` | Vulnerability reporting (private disclosure) |
-| `.github/workflows/` | CI (Linux/macOS/Windows, Python 3.11–3.13 on Ubuntu, tests, E2E smoke) |
+| `.github/workflows/` | CI (Linux, macOS, Windows on Python 3.12; E2E smoke) |
 | `.github/ISSUE_TEMPLATE/` | Bug report and feature issue forms |
 | `.github/PULL_REQUEST_TEMPLATE.md` | Default PR checklist |
 | `tests/` | `unittest` suite (no GPU required) |
