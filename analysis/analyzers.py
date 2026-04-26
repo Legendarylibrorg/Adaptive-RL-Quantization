@@ -18,6 +18,23 @@ from adaptive_quant.logging_utils import (
 )
 from adaptive_quant.math_utils import mean
 
+DEFAULT_ANALYSIS_PHASE = "eval"
+
+
+def _filter_phase(records: list[dict], phase: str | None) -> list[dict]:
+    """Filter JSONL records by ``phase`` field.
+
+    - ``phase=None`` keeps every record.
+    - Otherwise keep only records whose ``phase`` equals the requested value.
+      If *no* record carries a ``phase`` field (legacy logs), the records are
+      returned unchanged so old logs remain analyzable.
+    """
+    if phase is None:
+        return records
+    if not any("phase" in record for record in records):
+        return records
+    return [record for record in records if record.get("phase") == phase]
+
 
 def _mean_effective_bits(decision: dict) -> float:
     bits = decision.get("effective_layer_bits", [])
@@ -44,12 +61,23 @@ def _by_hardware(records: list[dict], metric_path: tuple[str, ...]) -> dict[str,
     return grouped_mean(records, "hardware_mode", metric_path)
 
 
-def _jsonl_analysis_setup(log_path: str, output_dir: str) -> tuple[list[dict], Path]:
-    return load_jsonl(log_path), ensure_directory(output_dir)
+def _jsonl_analysis_setup(
+    log_path: str,
+    output_dir: str,
+    *,
+    phase: str | None = DEFAULT_ANALYSIS_PHASE,
+) -> tuple[list[dict], Path]:
+    records = _filter_phase(load_jsonl(log_path), phase)
+    return records, ensure_directory(output_dir)
 
 
-def analyze_hardware(log_path: str, output_dir: str) -> dict[str, object]:
-    records, output_root = _jsonl_analysis_setup(log_path, output_dir)
+def analyze_hardware(
+    log_path: str,
+    output_dir: str,
+    *,
+    phase: str | None = DEFAULT_ANALYSIS_PHASE,
+) -> dict[str, object]:
+    records, output_root = _jsonl_analysis_setup(log_path, output_dir, phase=phase)
     reward_by_hardware = _by_hardware(records, ("metrics", "reward"))
     latency_by_hardware = _by_hardware(records, ("metrics", "latency_ms"))
     throughput_by_hardware = _by_hardware(records, ("metrics", "throughput_tps"))
@@ -77,8 +105,13 @@ def _complexity_bucket(score: float) -> str:
     return "high"
 
 
-def analyze_inputs(log_path: str, output_dir: str) -> dict[str, object]:
-    records, output_root = _jsonl_analysis_setup(log_path, output_dir)
+def analyze_inputs(
+    log_path: str,
+    output_dir: str,
+    *,
+    phase: str | None = DEFAULT_ANALYSIS_PHASE,
+) -> dict[str, object]:
+    records, output_root = _jsonl_analysis_setup(log_path, output_dir, phase=phase)
     buckets: dict[str, list[dict]] = {"low": [], "medium": [], "high": []}
     points: list[tuple[float, float]] = []
     for record in records:
@@ -118,8 +151,13 @@ def analyze_inputs(log_path: str, output_dir: str) -> dict[str, object]:
     return summary
 
 
-def analyze_moe_cache(log_path: str, output_dir: str) -> dict[str, object]:
-    records, output_root = _jsonl_analysis_setup(log_path, output_dir)
+def analyze_moe_cache(
+    log_path: str,
+    output_dir: str,
+    *,
+    phase: str | None = DEFAULT_ANALYSIS_PHASE,
+) -> dict[str, object]:
+    records, output_root = _jsonl_analysis_setup(log_path, output_dir, phase=phase)
     cache_vs_latency: list[tuple[float, float]] = []
     entropy_vs_reward: list[tuple[float, float]] = []
     swap_costs, cache_misses = [], []
@@ -153,8 +191,13 @@ def analyze_moe_cache(log_path: str, output_dir: str) -> dict[str, object]:
     return summary
 
 
-def analyze_moe_experts(log_path: str, output_dir: str) -> dict[str, object]:
-    records, output_root = _jsonl_analysis_setup(log_path, output_dir)
+def analyze_moe_experts(
+    log_path: str,
+    output_dir: str,
+    *,
+    phase: str | None = DEFAULT_ANALYSIS_PHASE,
+) -> dict[str, object]:
+    records, output_root = _jsonl_analysis_setup(log_path, output_dir, phase=phase)
     variant_usage: dict[str, float] = {}
     expert_frequency: dict[str, float] = {}
     sensitivity_vs_aggressiveness: list[tuple[float, float]] = []
@@ -165,7 +208,7 @@ def analyze_moe_experts(log_path: str, output_dir: str) -> dict[str, object]:
         decision = record.get("decision") or {}
         variant_names = decision.get("moe_variant_names") or []
         router_entropy_vals.append(float(moe_context.get("router_entropy", 0.0)))
-        for expert, variant_name in zip(experts, variant_names):
+        for expert, variant_name in zip(experts, variant_names, strict=False):
             expert_key = f"expert_{int(expert.get('expert_index', 0))}"
             expert_frequency[expert_key] = expert_frequency.get(expert_key, 0.0) + 1.0
             variant_usage[variant_name] = variant_usage.get(variant_name, 0.0) + 1.0
@@ -193,8 +236,13 @@ def analyze_moe_experts(log_path: str, output_dir: str) -> dict[str, object]:
     return summary
 
 
-def analyze_quant(log_path: str, output_dir: str) -> dict[str, object]:
-    records, output_root = _jsonl_analysis_setup(log_path, output_dir)
+def analyze_quant(
+    log_path: str,
+    output_dir: str,
+    *,
+    phase: str | None = DEFAULT_ANALYSIS_PHASE,
+) -> dict[str, object]:
+    records, output_root = _jsonl_analysis_setup(log_path, output_dir, phase=phase)
     learned = [r for r in records if r.get("decision", {}).get("mode") == "learned"]
     scale_values = [float(r["decision"].get("scale_factor", 0.0)) for r in learned]
     clip_values = [float(r["decision"].get("clipping_range", 0.0)) for r in learned]
@@ -246,8 +294,15 @@ def analyze_training_dynamics(history_path: str, output_dir: str) -> dict[str, o
     return summary
 
 
-def analyze_online(log_path: str, output_dir: str) -> dict[str, object]:
-    records, output_root = _jsonl_analysis_setup(log_path, output_dir)
+def analyze_online(
+    log_path: str,
+    output_dir: str,
+    *,
+    phase: str | None = None,
+) -> dict[str, object]:
+    """Online telemetry has its own ``served_metrics`` shape and no train/eval split,
+    so phase filtering defaults to ``None`` here."""
+    records, output_root = _jsonl_analysis_setup(log_path, output_dir, phase=phase)
     reward_by_hardware = _by_hardware(records, ("served_metrics", "reward"))
     accept_rate = _mean_flag_rate(records, "accepted_candidate")
     update_rate = _mean_flag_rate(records, "online_update_applied")
@@ -268,26 +323,89 @@ def analyze_online(log_path: str, output_dir: str) -> dict[str, object]:
     return summary
 
 
-_CLI: dict[str, tuple[str, object, str]] = {
-    "hardware_generalization": ("python3 analysis/hardware_generalization.py <log_path> <output_dir>", analyze_hardware, "Wrote hardware analysis to"),
-    "input_adaptation": ("python3 analysis/input_adaptation.py <log_path> <output_dir>", analyze_inputs, "Wrote input adaptation analysis to"),
-    "moe_cache_behavior": ("python3 analysis/moe_cache_behavior.py <log_path> <output_dir>", analyze_moe_cache, "Wrote MoE cache analysis to"),
-    "moe_expert_behavior": ("python3 analysis/moe_expert_behavior.py <log_path> <output_dir>", analyze_moe_experts, "Wrote MoE expert analysis to"),
-    "quant_function_behavior": ("python3 analysis/quant_function_behavior.py <log_path> <output_dir>", analyze_quant, "Wrote quant function analysis to"),
-    "training_dynamics": ("python3 analysis/training_dynamics.py <history_path> <output_dir>", analyze_training_dynamics, "Wrote training dynamics analysis to"),
-    "online_learning": ("python3 analysis/online_learning.py <log_path> <output_dir>", analyze_online, "Wrote online analysis to"),
+_CLI: dict[str, tuple[str, object, str, bool]] = {
+    "hardware_generalization": (
+        "python3 analysis/hardware_generalization.py <log_path> <output_dir> [--phase eval|train|all]",
+        analyze_hardware,
+        "Wrote hardware analysis to",
+        True,
+    ),
+    "input_adaptation": (
+        "python3 analysis/input_adaptation.py <log_path> <output_dir> [--phase eval|train|all]",
+        analyze_inputs,
+        "Wrote input adaptation analysis to",
+        True,
+    ),
+    "moe_cache_behavior": (
+        "python3 analysis/moe_cache_behavior.py <log_path> <output_dir> [--phase eval|train|all]",
+        analyze_moe_cache,
+        "Wrote MoE cache analysis to",
+        True,
+    ),
+    "moe_expert_behavior": (
+        "python3 analysis/moe_expert_behavior.py <log_path> <output_dir> [--phase eval|train|all]",
+        analyze_moe_experts,
+        "Wrote MoE expert analysis to",
+        True,
+    ),
+    "quant_function_behavior": (
+        "python3 analysis/quant_function_behavior.py <log_path> <output_dir> [--phase eval|train|all]",
+        analyze_quant,
+        "Wrote quant function analysis to",
+        True,
+    ),
+    "training_dynamics": (
+        "python3 analysis/training_dynamics.py <history_path> <output_dir>",
+        analyze_training_dynamics,
+        "Wrote training dynamics analysis to",
+        False,
+    ),
+    "online_learning": (
+        "python3 analysis/online_learning.py <log_path> <output_dir>",
+        analyze_online,
+        "Wrote online analysis to",
+        False,
+    ),
 }
 
 
+def _parse_phase_argv(argv: list[str], usage: str) -> tuple[list[str], str | None]:
+    phase: str | None = DEFAULT_ANALYSIS_PHASE
+    positional: list[str] = []
+    i = 0
+    while i < len(argv):
+        token = argv[i]
+        if token == "--phase":
+            if i + 1 >= len(argv):
+                raise SystemExit(f"Usage: {usage}")
+            value = argv[i + 1].strip().lower()
+            phase = None if value == "all" else value
+            i += 2
+            continue
+        if token.startswith("--phase="):
+            value = token.split("=", 1)[1].strip().lower()
+            phase = None if value == "all" else value
+            i += 1
+            continue
+        positional.append(token)
+        i += 1
+    return positional, phase
+
+
 def run_cli(key: str) -> None:
-    usage, fn, msg = _CLI[key]
-    if len(sys.argv) != 3:
+    usage, fn, msg, supports_phase = _CLI[key]
+    argv = list(sys.argv[1:])
+    if supports_phase:
+        argv, phase = _parse_phase_argv(argv, usage)
+    else:
+        phase = None
+    if len(argv) != 2:
         raise SystemExit(f"Usage: {usage}")
-    for label, raw in (("log/history", sys.argv[1]), ("output", sys.argv[2])):
+    for label, raw in (("log/history", argv[0]), ("output", argv[1])):
         if any(c in raw for c in "\n\r\x00"):
             raise SystemExit(f"Invalid characters in {label} path.")
-    out = fn(sys.argv[1], sys.argv[2])
-    print(f"{msg} {Path(sys.argv[2]).resolve()}")
+    out = fn(argv[0], argv[1], phase=phase) if supports_phase else fn(argv[0], argv[1])
+    print(f"{msg} {Path(argv[1]).resolve()}")
     print(out)
 
 

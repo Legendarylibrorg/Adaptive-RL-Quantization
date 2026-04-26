@@ -363,8 +363,9 @@ def _git_commit() -> str | None:
             check=False,
             capture_output=True,
             text=True,
+            timeout=2.0,
         )
-    except OSError:
+    except (OSError, subprocess.TimeoutExpired, subprocess.SubprocessError):
         return None
     if completed.returncode != 0:
         return None

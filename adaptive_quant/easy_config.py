@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 import warnings
+from collections.abc import Mapping
 from dataclasses import fields, replace
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from adaptive_quant.configuration import FrameworkConfig, RewardWeights
 from adaptive_quant.logging_utils import enforce_local_read_limit

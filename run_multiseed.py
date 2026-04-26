@@ -3,8 +3,9 @@ from __future__ import annotations
 import argparse
 import math
 import statistics
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Iterable
+from typing import Any
 
 from adaptive_quant.logging_utils import md_table, write_json, write_text_file
 from adaptive_quant.math_utils import fmt_float, sample_std

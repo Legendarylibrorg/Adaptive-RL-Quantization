@@ -90,11 +90,41 @@ sudo apt update
 sudo apt install -y git curl python3 python3-venv
 ```
 
-**Fedora:**
+**Fedora / RHEL / CentOS Stream / Rocky / AlmaLinux:**
 
 ```bash
-sudo dnf install -y git curl python3 python3-venv
+sudo dnf install -y git curl python3
+# `python3 -m venv` is part of the base python3 package on dnf-based distros.
 ```
+
+**openSUSE / SUSE Linux Enterprise:**
+
+```bash
+sudo zypper install -y git curl python3 python3-pip
+```
+
+**Arch / Manjaro:**
+
+```bash
+sudo pacman -Syu --needed git curl python
+# `python` on Arch is Python 3; venv is bundled with the python package.
+```
+
+**Alpine (musl):**
+
+```bash
+sudo apk add git curl python3 py3-pip bash
+# bash is only required if you use the optional .sh wrappers under scripts/.
+# The Python entry points (`python3 scripts/setup_from_clone.py`) work without bash.
+```
+
+**NixOS / nix-env:**
+
+```bash
+nix-shell -p git curl python311 python311Packages.pip --run "python3 scripts/setup_from_clone.py"
+```
+
+The Python scripts under `scripts/` (`setup_from_clone.py`, `pre_commit_check.py`, `secret_scan.py`, `verify_hashes.py`, `env_report.py`) only require **`python3 >= 3.11`** and **`git`**. The `.sh` wrappers add bash convenience for Linux/macOS shells but are not required: every `.sh` wrapper just `exec`s the matching `.py` file, so you can always invoke the Python script directly on minimal images (e.g. distroless, Alpine without bash).
 
 Verify:
 

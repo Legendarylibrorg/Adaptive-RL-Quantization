@@ -3,11 +3,12 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import asdict, is_dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, TextIO
+from typing import Any, TextIO
 
 # Local-use bounds (stdlib only): avoid accidental multi-GB reads on analysis / small JSON sidecars.
 MAX_LOCAL_READ_BYTES = 256 << 20

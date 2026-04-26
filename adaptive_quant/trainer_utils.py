@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Callable, TypeVar
+from collections.abc import Callable
+from typing import TypeVar
 
 from adaptive_quant.math_utils import mean
 from adaptive_quant.types import EpisodeResult, HardwareType, QuantizationDecision

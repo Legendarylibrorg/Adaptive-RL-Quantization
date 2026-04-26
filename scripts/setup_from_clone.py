@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
+import re
+import ssl
 import subprocess
 import sys
 import tempfile
@@ -12,7 +15,33 @@ from pathlib import Path
 from _common import repo_root, run, venv_python_path
 
 _NETWORK_PIP_BOOTSTRAP_ENV = "ADAPTIVE_RL_ALLOW_NETWORK_PIP_BOOTSTRAP"
+_NETWORK_PIP_BOOTSTRAP_SHA_ENV = "ADAPTIVE_RL_PIP_BOOTSTRAP_SHA256"
 _GET_PIP_URL = "https://bootstrap.pypa.io/get-pip.py"
+_GET_PIP_TIMEOUT_S = 30.0
+# Refuse to download more than this many bytes; current get-pip.py is ~2 MiB.
+_GET_PIP_MAX_BYTES = 16 << 20
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def _hash_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _require_expected_sha256(raw: str | None) -> str:
+    if not raw:
+        raise SystemExit(
+            f"{_NETWORK_PIP_BOOTSTRAP_ENV}=1 also requires {_NETWORK_PIP_BOOTSTRAP_SHA_ENV} "
+            f"to be set to the expected sha256 of {_GET_PIP_URL}. Compute it once and pin it: "
+            f"e.g. `curl -fsSL {_GET_PIP_URL} | shasum -a 256` (or sha256sum on Linux). "
+            "This avoids running an unverified bootstrap script over the network."
+        )
+    candidate = raw.strip().lower()
+    if not _SHA256_RE.match(candidate):
+        raise SystemExit(
+            f"{_NETWORK_PIP_BOOTSTRAP_SHA_ENV} must be a 64-character hex sha256 digest; "
+            f"got {raw!r}."
+        )
+    return candidate
 
 
 def _ensure_pip(python_bin: str) -> None:
@@ -28,12 +57,37 @@ def _ensure_pip(python_bin: str) -> None:
         raise SystemExit(
             f"pip is missing and `python -m ensurepip` failed for {python_bin!r}. "
             "Install pip via your OS package manager or rerun this script with "
-            f"{_NETWORK_PIP_BOOTSTRAP_ENV}=1 to download {_GET_PIP_URL} over HTTPS as a last resort."
+            f"{_NETWORK_PIP_BOOTSTRAP_ENV}=1 (and {_NETWORK_PIP_BOOTSTRAP_SHA_ENV} pinned to the "
+            f"expected sha256) to download {_GET_PIP_URL} over HTTPS as a last resort."
         )
 
+    expected_sha256 = _require_expected_sha256(os.environ.get(_NETWORK_PIP_BOOTSTRAP_SHA_ENV))
+
+    if not _GET_PIP_URL.startswith("https://"):
+        raise SystemExit(
+            f"Refusing to bootstrap pip from non-HTTPS URL: {_GET_PIP_URL!r}"
+        )
+    ssl_context = ssl.create_default_context()
     with tempfile.TemporaryDirectory() as tmp:
         target = Path(tmp) / "get-pip.py"
-        urllib.request.urlretrieve(_GET_PIP_URL, target)  # noqa: S310 - opt-in HTTPS pip bootstrap
+        with urllib.request.urlopen(  # noqa: S310 - opt-in HTTPS pip bootstrap
+            _GET_PIP_URL,
+            timeout=_GET_PIP_TIMEOUT_S,
+            context=ssl_context,
+        ) as response:
+            payload = response.read(_GET_PIP_MAX_BYTES + 1)
+        if len(payload) > _GET_PIP_MAX_BYTES:
+            raise SystemExit(
+                f"Refusing to execute {_GET_PIP_URL}: payload exceeds "
+                f"{_GET_PIP_MAX_BYTES} byte cap (got >= {len(payload)})."
+            )
+        actual_sha256 = _hash_bytes(payload)
+        if actual_sha256 != expected_sha256:
+            raise SystemExit(
+                f"sha256 mismatch for {_GET_PIP_URL}: expected {expected_sha256}, got "
+                f"{actual_sha256}. Refusing to execute an unverified bootstrap script."
+            )
+        target.write_bytes(payload)
         run([python_bin, str(target)])
 
 

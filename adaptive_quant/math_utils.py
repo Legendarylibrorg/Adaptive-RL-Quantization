@@ -4,7 +4,7 @@ import hashlib
 import math
 import random
 import statistics
-from typing import Sequence
+from collections.abc import Sequence
 
 
 def clamp(value: float, lower: float, upper: float) -> float:
@@ -34,7 +34,7 @@ def variance(values: Sequence[float]) -> float:
 
 
 def dot(left: Sequence[float], right: Sequence[float]) -> float:
-    return sum(lhs * rhs for lhs, rhs in zip(left, right))
+    return sum(lhs * rhs for lhs, rhs in zip(left, right, strict=False))
 
 
 def norm(values: Sequence[float]) -> float:

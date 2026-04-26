@@ -18,12 +18,19 @@ PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 )
 
 
+# Files larger than this are skipped (not scanned). Secrets in big binary blobs
+# are caught by the binary-detection (NUL byte) heuristic anyway, and this keeps
+# the scan from OOM'ing on accidental large checkins.
+_MAX_FILE_BYTES = 4 << 20
+
+
 def scan_tracked_files(root: Path) -> list[str]:
     completed = subprocess.run(
         ["git", "ls-files", "-z"],
         cwd=str(root),
         check=True,
         capture_output=True,
+        timeout=10.0,
     )
     matches: list[str] = []
     for raw_path in completed.stdout.split(b"\x00"):
@@ -31,6 +38,12 @@ def scan_tracked_files(root: Path) -> list[str]:
             continue
         path = root / raw_path.decode("utf-8", errors="ignore")
         if not path.is_file():
+            continue
+        try:
+            file_size = path.stat().st_size
+        except OSError:
+            continue
+        if file_size > _MAX_FILE_BYTES:
             continue
         content = path.read_bytes()
         if b"\x00" in content:

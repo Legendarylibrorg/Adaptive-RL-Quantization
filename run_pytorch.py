@@ -6,8 +6,8 @@ Presets tune VRAM-aware batching (``gpu``, ``3090``, ``4090``, ``4090-universal`
 from __future__ import annotations
 
 import argparse
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
 
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.research_pipeline import run_pipeline_entrypoint

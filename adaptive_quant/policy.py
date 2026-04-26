@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import math
 import random
 from dataclasses import dataclass
 
@@ -37,7 +38,7 @@ class CategoricalHead:
         self.bias = [0.0] * output_dim
 
     def logits(self, state_vector: list[float]) -> list[float]:
-        return [dot(weights, state_vector) + bias for weights, bias in zip(self.weights, self.bias)]
+        return [dot(weights, state_vector) + bias for weights, bias in zip(self.weights, self.bias, strict=True)]
 
     def sample(self, state_vector: list[float], rng: random.Random, deterministic: bool = False) -> tuple[int, list[float]]:
         probabilities = softmax(self.logits(state_vector))
@@ -60,7 +61,7 @@ class GaussianHead:
         self.stddev = stddev
 
     def means(self, state_vector: list[float]) -> list[float]:
-        return [dot(weights, state_vector) + bias for weights, bias in zip(self.weights, self.bias)]
+        return [dot(weights, state_vector) + bias for weights, bias in zip(self.weights, self.bias, strict=True)]
 
     def sample(
         self,
@@ -74,7 +75,7 @@ class GaussianHead:
             raw_samples = list(raw_means)
         else:
             raw_samples = [gaussian_sample(mean_value, self.stddev, rng) for mean_value in raw_means]
-        mapped = [_map_to_bounds(stable_sigmoid(sample), lower, upper) for sample, (lower, upper) in zip(raw_samples, bounds)]
+        mapped = [_map_to_bounds(stable_sigmoid(sample), lower, upper) for sample, (lower, upper) in zip(raw_samples, bounds, strict=True)]
         return mapped, raw_samples, raw_means
 
     def update(self, state_vector: list[float], raw_samples: list[float], raw_means: list[float], advantage: float, learning_rate: float) -> None:
@@ -429,11 +430,31 @@ def _validate_head_payload_sequence(
         )
 
 
+def _finite_float(value: object, *, label: str) -> float:
+    """Coerce a checkpoint-encoded number to ``float`` while rejecting NaN/Inf.
+
+    Loading a JSON-encoded ``"Infinity"`` / ``"NaN"`` would otherwise inject
+    poison values into policy weights and silently break training downstream;
+    untrusted checkpoints can therefore use this to wedge a session.
+    """
+    if isinstance(value, bool):
+        raise TypeError(f"{label} must be numeric, got bool")
+    if not isinstance(value, (int, float)):
+        raise TypeError(f"{label} must be numeric, got {type(value).__name__}")
+    f = float(value)
+    if not math.isfinite(f):
+        raise ValueError(f"{label} must be finite, got {f!r}")
+    return f
+
+
 def _restore_categorical_head(head: CategoricalHead, payload: object) -> None:
     if not isinstance(payload, dict):
         raise TypeError("categorical head payload must be a dict")
-    head.weights = [[float(value) for value in row] for row in payload["weights"]]
-    head.bias = [float(value) for value in payload["bias"]]
+    head.weights = [
+        [_finite_float(value, label=f"weights[{i}][{j}]") for j, value in enumerate(row)]
+        for i, row in enumerate(payload["weights"])
+    ]
+    head.bias = [_finite_float(value, label=f"bias[{i}]") for i, value in enumerate(payload["bias"])]
 
 
 def _categorical_head_from_payload(payload: object) -> CategoricalHead:
@@ -479,9 +500,18 @@ def _gaussian_head_from_payload(payload: object) -> GaussianHead:
         raise TypeError("gaussian head payload must be a dict")
     input_dim = len(payload["weights"][0]) if payload["weights"] else 0
     output_dim = len(payload["weights"])
-    head = GaussianHead(input_dim, output_dim, random.Random(0), float(payload["stddev"]))
-    head.weights = [[float(value) for value in row] for row in payload["weights"]]
-    head.bias = [float(value) for value in payload["bias"]]
+    stddev = _finite_float(payload["stddev"], label="gaussian.stddev")
+    if stddev < 0.0:
+        raise ValueError(f"gaussian.stddev must be >= 0, got {stddev!r}")
+    head = GaussianHead(input_dim, output_dim, random.Random(0), stddev)
+    head.weights = [
+        [_finite_float(value, label=f"gaussian.weights[{i}][{j}]") for j, value in enumerate(row)]
+        for i, row in enumerate(payload["weights"])
+    ]
+    head.bias = [
+        _finite_float(value, label=f"gaussian.bias[{i}]")
+        for i, value in enumerate(payload["bias"])
+    ]
     return head
 
 
@@ -511,6 +541,9 @@ def _value_head_from_payload(payload: object) -> ValueHead:
     if not isinstance(payload, dict):
         raise TypeError("value head payload must be a dict")
     head = ValueHead(len(payload["weights"]), random.Random(0))
-    head.weights = [float(value) for value in payload["weights"]]
-    head.bias = float(payload["bias"])
+    head.weights = [
+        _finite_float(value, label=f"value.weights[{i}]")
+        for i, value in enumerate(payload["weights"])
+    ]
+    head.bias = _finite_float(payload["bias"], label="value.bias")
     return head

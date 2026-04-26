@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import math
+from typing import Any
+
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.trainer_utils import (
@@ -8,6 +11,40 @@ from adaptive_quant.trainer_utils import (
     summarize_episode_results,
 )
 from adaptive_quant.types import EpisodeResult, HardwareType
+
+# Length of ``previous_action`` feedback vector emitted by ``feedback_vector``
+# (bits / scale / clip). Persisted in checkpoints; validated on resume.
+_PREVIOUS_ACTION_LEN = 3
+
+
+def coerce_previous_action(value: Any) -> list[float]:
+    """Validate a ``previous_action`` payload loaded from a checkpoint.
+
+    A malicious or truncated checkpoint could otherwise inject NaN/Inf or a
+    differently-sized list, which silently propagates into the next state vector.
+    """
+    if value is None:
+        return [0.0] * _PREVIOUS_ACTION_LEN
+    if not isinstance(value, list):
+        raise TypeError(
+            f"previous_action must be a list of {_PREVIOUS_ACTION_LEN} finite floats, "
+            f"got {type(value).__name__}"
+        )
+    if len(value) != _PREVIOUS_ACTION_LEN:
+        raise ValueError(
+            f"previous_action must have length {_PREVIOUS_ACTION_LEN}, got {len(value)}"
+        )
+    coerced: list[float] = []
+    for index, item in enumerate(value):
+        if isinstance(item, bool) or not isinstance(item, (int, float)):
+            raise TypeError(
+                f"previous_action[{index}] must be numeric, got {type(item).__name__}"
+            )
+        f = float(item)
+        if not math.isfinite(f):
+            raise ValueError(f"previous_action[{index}] must be finite, got {f!r}")
+        coerced.append(f)
+    return coerced
 
 
 class TrainerBase:

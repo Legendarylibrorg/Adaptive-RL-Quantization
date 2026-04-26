@@ -12,11 +12,18 @@ from adaptive_quant.types import HardwareType
 try:
     import torch
 
-    from adaptive_quant.torch_trainer import TorchTrainer, _checkpoint_meta_path
+    from adaptive_quant.torch_policy import TorchActorCritic
+    from adaptive_quant.torch_trainer import (
+        TorchTrainer,
+        _checkpoint_meta_path,
+        _torch_load_v2_tensor_file,
+    )
 except ImportError:  # pragma: no cover
     torch = None  # type: ignore[assignment]
     TorchTrainer = None  # type: ignore[misc,assignment]
+    TorchActorCritic = None  # type: ignore[misc,assignment]
     _checkpoint_meta_path = None  # type: ignore[misc,assignment]
+    _torch_load_v2_tensor_file = None  # type: ignore[misc,assignment]
 
 
 class PythonCheckpointSafeTests(unittest.TestCase):
@@ -143,6 +150,24 @@ class TorchCheckpointSafeTests(unittest.TestCase):
             self.assertEqual(t2.previous_action, [0.1, 0.2, 0.3])
             self.assertEqual(t2.training_history, [{"step": 1.0}])
 
+    def test_v2_loader_does_not_fall_back_to_pickle_by_default(self) -> None:
+        """A corrupt v2 tensor file must not silently re-attempt with weights_only=False."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            ckpt = Path(temp_dir) / "broken.pt"
+            ckpt.write_bytes(b"this is not a torch file")
+            # The exact exception type comes from torch's pickle/zip parser; we only require
+            # that the loader fails fast rather than silently re-trying with legacy pickle.
+            with self.assertRaises(Exception):  # noqa: B017 - intentionally broad
+                _torch_load_v2_tensor_file(str(ckpt))
+
+    def test_v2_loader_allow_legacy_does_not_silently_succeed_on_garbage(self) -> None:
+        """allow_legacy=True relaxes the fallback path but still surfaces unparsable files."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            ckpt = Path(temp_dir) / "broken.pt"
+            ckpt.write_bytes(b"this is not a torch file")
+            with self.assertRaises(Exception):  # noqa: B017 - intentionally broad
+                _torch_load_v2_tensor_file(str(ckpt), allow_legacy=True)
+
     def test_legacy_checkpoint_refused_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             ckpt = Path(temp_dir) / "legacy.pt"
@@ -205,6 +230,69 @@ class TorchCheckpointSafeTests(unittest.TestCase):
                 finally:
                     trainer.close()
                 self.assertIn("mean_reward", summary)
+
+    def test_torch_actor_critic_forward_shape_cpu(self) -> None:
+        """Smoke test the actor-critic on CPU: heads emit the expected per-batch dimensions."""
+        config = FrameworkConfig(
+            training_backend="pytorch",
+            training_episodes=1,
+            evaluation_episodes=1,
+            stability_probe_count=1,
+            run_name="actor_shape",
+            torch_compile=False,
+            torch_preflight=False,
+            torch_mlp_depth=1,
+            torch_hidden_dim=16,
+            seed=11,
+        )
+        state_dim = config.state_vector_dim()
+        num_bits = len(config.discrete_bit_widths)
+        num_modes = len(config.supported_modes())
+        model = TorchActorCritic(config)
+        model.eval()
+        with torch.no_grad():
+            x = torch.zeros(3, state_dim, dtype=torch.float32)
+            out = model(x)
+        self.assertEqual(out["mode_logits"].shape, (3, num_modes))
+        self.assertEqual(out["discrete_logits"].shape, (3, num_bits))
+        self.assertEqual(out["group_logits"].shape, (3, config.num_groups, num_bits))
+        self.assertEqual(out["layer_logits"].shape, (3, config.num_layers, num_bits))
+        self.assertEqual(out["learned_mean"].shape, (3, 3))
+        self.assertEqual(out["learned_std"].shape, (3, 3))
+        self.assertEqual(out["value"].shape, (3,))
+
+    def test_train_continuous_rejects_eval_interval_smaller_than_batch(self) -> None:
+        """The continuous-training guard refuses configs that would skip the eval trigger."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = FrameworkConfig(
+                training_backend="pytorch",
+                continuous_training=True,
+                max_training_episodes=4,
+                evaluation_episodes=1,
+                stability_probe_count=1,
+                replay_buffer_capacity=0,
+                run_name="eval_interval_guard",
+                outputs_dir=temp_dir,
+                log_dir=f"{temp_dir}/logs",
+                benchmark_dir=f"{temp_dir}/benchmarks",
+                analysis_dir=f"{temp_dir}/analysis",
+                checkpoint_dir=f"{temp_dir}/ckpt",
+                torch_compile=False,
+                torch_preflight=False,
+                torch_batch_episodes=4,
+                torch_minibatch_size=2,
+                torch_update_epochs=1,
+                eval_interval=2,
+                checkpoint_interval=0,
+                seed=303,
+            )
+            trainer = TorchTrainer(config, log_path=f"{temp_dir}/logs/g.jsonl")
+            try:
+                with self.assertRaises(ValueError) as ctx:
+                    trainer.train()
+                self.assertIn("eval_interval", str(ctx.exception))
+            finally:
+                trainer.close()
 
     def test_torch_deterministic_train_smoke(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
