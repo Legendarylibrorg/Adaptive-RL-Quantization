@@ -41,6 +41,7 @@ Configuration also lives in:
 - [`config_moe.py`](../config_moe.py)
 - [`config_online.py`](../config_online.py)
 - [`config_gpu.py`](../config_gpu.py)
+- [`config_3090.py`](../config_3090.py)
 - [`config_4090.py`](../config_4090.py)
 - [`config_4090_universal.py`](../config_4090_universal.py)
 - [`adaptive_quant/configuration.py`](../adaptive_quant/configuration.py)
@@ -201,6 +202,11 @@ Auto-tuned GPU training:
 - keep `torch_gpu_profile="auto"` unless you want to force a profile
 - keep `cache_prompt_features=True`
 - keep `torch_preflight=True`
+
+RTX 3090 training:
+
+- use [`config_3090.py`](../config_3090.py) (or `adaptive-rl-quant-pytorch --preset 3090`)
+- same hygiene as other CUDA presets: `torch_preflight=True`, `cache_prompt_features=True`
 
 RTX 4090 training:
 

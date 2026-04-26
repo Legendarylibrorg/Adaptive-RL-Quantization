@@ -26,6 +26,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
@@ -59,6 +60,7 @@ dev = ["ruff>=0.15.10"]
 packages = ["adaptive_quant", "analysis"]
 py-modules = [
     "config",
+    "config_3090",
     "config_4090",
     "config_4090_universal",
     "config_gpu",

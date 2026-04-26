@@ -4,7 +4,7 @@
 .PHONY: help
 .PHONY: install install-dev install-torch
 .PHONY: run reproduce smoke run-config moe multiseed multiseed-smoke
-.PHONY: pytorch 4090 4090-universal
+.PHONY: pytorch 3090 4090 4090-universal
 .PHONY: online calibrate
 .PHONY: test test-quiet lint format check secret-scan doctor
 .PHONY: outputs-clean clean-venv
@@ -19,7 +19,7 @@ CFG := $(wildcard config*.py)
 MULTISEED_PRESET ?= dense
 MULTISEED_SEEDS ?= 13,17,23
 
-# PyTorch entrypoint preset: gpu | 4090 | 4090-universal
+# PyTorch entrypoint preset: gpu | 3090 | 4090 | 4090-universal
 PYTORCH_PRESET ?= gpu
 
 help:
@@ -40,7 +40,8 @@ help:
 	@echo "  make multiseed-smoke  two seeds, low episodes (quick sanity)"
 	@echo ""
 	@echo "[CUDA — install torch first: make install-torch]"
-	@echo "  make pytorch          PYTORCH_PRESET=gpu (default) | 4090 | 4090-universal"
+	@echo "  make pytorch          PYTORCH_PRESET=gpu (default) | 3090 | 4090 | 4090-universal"
+	@echo "  make 3090             same as pytorch with preset 3090 (RTX 3090)"
 	@echo "  make 4090             same as pytorch with preset 4090"
 	@echo "  make 4090-universal   multi-hardware 4090-host preset"
 	@echo ""
@@ -100,6 +101,9 @@ multiseed-smoke:
 
 pytorch:
 	$(PY) run_pytorch.py --preset "$(PYTORCH_PRESET)"
+
+3090:
+	$(PY) run_pytorch.py --preset 3090
 
 4090:
 	$(PY) run_pytorch.py --preset 4090

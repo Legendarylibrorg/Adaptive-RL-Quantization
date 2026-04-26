@@ -2,13 +2,13 @@
 
 Thank you for helping improve this project. This document is the **contributing policy**: what we expect before you open a pull request, how we handle security and conduct, and how to make reviews straightforward.
 
-**Quick links:** [Code of Conduct](CODE_OF_CONDUCT.md) · [Security disclosure](SECURITY.md) · [README](README.md) · [CI workflow](.github/workflows/ci.yml)
+**Quick links:** [Changelog](CHANGELOG.md) · [Releasing](RELEASING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security disclosure](SECURITY.md) · [README](README.md) · [CI workflow](.github/workflows/ci.yml)
 
 ---
 
 ## Code of conduct
 
-All contributors are expected to follow the **[Code of Conduct](CODE_OF_CONDUCT.md)**. Unacceptable behavior may be reported to repository maintainers through appropriate **private** channels. **Do not** use public issues for security reports—use [SECURITY.md](SECURITY.md).
+Read **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)**. Report problems to maintainers in private. **Do not** use public issues for security—use [SECURITY.md](SECURITY.md).
 
 ---
 
@@ -122,6 +122,7 @@ For **upstream** alignment, note the repo’s relationship to the upstream proje
 
 ## Maintainer notes (informational)
 
+- **First / routine releases:** follow [`RELEASING.md`](RELEASING.md) (pre-release checklist, tag, GitHub Release body, security settings).
 - **CI** uses `permissions: contents: read`, workflow concurrency, a Python version matrix, and hash-verified bootstrap dependencies from `requirements/ci.txt`.
 - **E2E smoke** is intentionally short; full research budgets live in `config*.py` / JSON presets.
 - **GPU pipelines** (e.g. `run_pytorch.py`, `scripts/run_4090_pipeline.sh`) are validated on appropriate hardware, not in default CI.

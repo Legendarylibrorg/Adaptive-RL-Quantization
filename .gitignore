@@ -4,7 +4,6 @@ __pycache__/
 .venv/
 .ruff-venv/
 outputs/
-eval loop trainer/
 *.egg-info/
 .cursor/
 *.code-workspace
