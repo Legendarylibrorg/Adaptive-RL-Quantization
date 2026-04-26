@@ -151,7 +151,6 @@ class AdaptiveQuantizationEnv:
             reward=reward,
             tokens_processed=primary_metrics.get("tokens_processed", 0.0),
             latency_ms_per_token=primary_metrics.get("latency_ms_per_token", 0.0),
-            compute_route_cost=primary_metrics.get("compute_route_cost", 0.0),
             swap_cost_ms=primary_metrics.get("swap_cost_ms", 0.0),
             cache_miss_count=primary_metrics.get("cache_miss_count", 0.0),
             variant_churn=primary_metrics.get("variant_churn", 0.0),
@@ -216,7 +215,6 @@ class AdaptiveQuantizationEnv:
             - weights.delta_memory * metrics["memory_mb"]
             - weights.epsilon_instability * stability_penalty
             - weights.eta_token_latency * metrics.get("latency_ms_per_token", 0.0)
-            - weights.theta_compute_route * metrics.get("compute_route_cost", 0.0)
             - self.config.moe_swap_penalty * metrics.get("swap_cost_ms", 0.0)
             - self.config.moe_cache_miss_penalty * metrics.get("cache_miss_count", 0.0)
             - self.config.moe_variant_churn_penalty * metrics.get("variant_churn", 0.0)

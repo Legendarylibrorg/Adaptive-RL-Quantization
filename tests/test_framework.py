@@ -239,7 +239,7 @@ class FrameworkTests(unittest.TestCase):
 
     def test_token_efficiency_reward_penalizes_slow_routes(self) -> None:
         base = FrameworkConfig(stability_probe_count=1, run_name="route_eff_reward", training_episodes=1, evaluation_episodes=1)
-        w = replace(base.reward_weights, eta_token_latency=0.5, theta_compute_route=0.25)
+        w = replace(base.reward_weights, eta_token_latency=0.5)
         cfg = base.clone(reward_weights=w)
         env = AdaptiveQuantizationEnv(cfg, log_path=f"{tempfile.gettempdir()}/route_eff_reward.jsonl")
         fast_metrics = {
@@ -248,29 +248,26 @@ class FrameworkTests(unittest.TestCase):
             "perplexity": 8.0,
             "memory_mb": 900.0,
             "latency_ms_per_token": 1.0,
-            "compute_route_cost": 20.0,
         }
         slow_metrics = {
             **fast_metrics,
             "latency_ms_per_token": 5.0,
-            "compute_route_cost": 44.0,
         }
 
         self.assertLess(env._compute_reward(slow_metrics, 0.0), env._compute_reward(fast_metrics, 0.0))
 
-    def test_backend_reports_route_efficiency_metrics(self) -> None:
-        config = FrameworkConfig(training_episodes=2, evaluation_episodes=1, stability_probe_count=1, run_name="route_eff_metrics")
-        env = AdaptiveQuantizationEnv(config, log_path=f"{tempfile.gettempdir()}/route_eff_metrics.jsonl")
+    def test_backend_reports_per_token_latency_metrics(self) -> None:
+        config = FrameworkConfig(training_episodes=2, evaluation_episodes=1, stability_probe_count=1, run_name="per_tok_metrics")
+        env = AdaptiveQuantizationEnv(config, log_path=f"{tempfile.gettempdir()}/per_tok_metrics.jsonl")
         state = env.reset(forced_hardware=HardwareType.GPU, forced_prompt_id="very_complex")
         decision = QuantizationDecision(mode=QuantMode.LEARNED, precision_level=0.25)
         result = env.evaluate_current(decision)
 
         self.assertEqual(result.metrics.tokens_processed, float(state.input_features.prompt_length))
         self.assertGreater(result.metrics.latency_ms_per_token, 0.0)
-        self.assertGreater(result.metrics.compute_route_cost, 0.0)
         self.assertIn("latency_ms_per_token", training_row(1.0, result))
         summary = summarize_episode_results([result])
-        self.assertIn("mean_compute_route_cost", summary)
+        self.assertIn("mean_tokens_processed", summary)
         self.assertGreater(summary["mean_latency_ms_per_token"], 0.0)
 
     def test_single_probe_stability_short_circuits_to_zero(self) -> None:

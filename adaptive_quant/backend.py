@@ -23,29 +23,14 @@ class BackendMetrics(Protocol):
     memory_mb: float
     tokens_processed: float
     latency_ms_per_token: float
-    compute_route_cost: float
 
 
-def route_efficiency_metrics(
-    state: EpisodeState,
-    decision: QuantizationDecision,
-    latency_ms: float,
-) -> dict[str, float]:
-    tokens_processed = float(max(1, state.input_features.prompt_length))
-    avg_bits = mean(decision.effective_layer_bits) if decision.effective_layer_bits else float(decision.base_bit_width or 8)
-    mode_multiplier = {
-        QuantMode.DISCRETE: 1.00,
-        QuantMode.GROUPED: 0.96,
-        QuantMode.PER_LAYER: 0.98,
-        QuantMode.DYNAMIC: 0.92,
-        QuantMode.LEARNED: 0.86,
-    }.get(decision.mode, 1.0)
-    complexity_multiplier = 1.0 + state.input_features.complexity_score * 0.45
-    hardware_factor = max(0.25, state.hardware_profile.compute_factor)
+def per_token_latency_fields(state: EpisodeState, latency_ms: float) -> dict[str, float]:
+    """Normalize wall-clock latency by prompt length for logging and optional reward (see reward_weights.eta_token_latency)."""
+    tokens = float(max(1, state.input_features.prompt_length))
     return {
-        "tokens_processed": tokens_processed,
-        "latency_ms_per_token": float(latency_ms) / tokens_processed,
-        "compute_route_cost": tokens_processed * (avg_bits / 8.0) * complexity_multiplier * mode_multiplier / hardware_factor,
+        "tokens_processed": tokens,
+        "latency_ms_per_token": float(latency_ms) / tokens,
     }
 
 
@@ -172,7 +157,7 @@ class SimulatorBackend:
                 metrics["throughput_tps"] = clamp(metrics["throughput_tps"] * throughput_mul, 0.1, 100_000.0)
             if memory_mul > 0:
                 metrics["memory_mb"] = clamp(metrics["memory_mb"] * memory_mul, 50.0, 512_000.0)
-        metrics.update(route_efficiency_metrics(state, decision, metrics["latency_ms"]))
+        metrics.update(per_token_latency_fields(state, metrics["latency_ms"]))
         return metrics
 
     def _apply_moe_adjustments(
@@ -232,7 +217,7 @@ class LlamaCppBackend:
             metrics["latency_ms"] = float(parsed["latency_ms_per_token"]) * max(1, state.input_features.prompt_length)
         if parsed.get("memory_mb", 0.0) > 0.0:
             metrics["memory_mb"] = float(parsed["memory_mb"])
-        metrics.update(route_efficiency_metrics(state, decision, metrics["latency_ms"]))
+        metrics.update(per_token_latency_fields(state, metrics["latency_ms"]))
         return metrics
 
 
