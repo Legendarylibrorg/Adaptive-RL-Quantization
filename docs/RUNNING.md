@@ -25,6 +25,7 @@ Artifacts and API: [USAGE.md](USAGE.md).
 | MoE + file | `adaptive-rl-quant-moe --config moe.json` |
 | NVIDIA GPU (auto profile) | `adaptive-rl-quant-pytorch --preset gpu` |
 | GPU + file (**replaces** `--preset`) | `adaptive-rl-quant-pytorch --config cuda_run.toml` |
+| RTX 3090 preset | `adaptive-rl-quant-pytorch --preset 3090` or `make 3090` |
 | RTX 4090 preset | `adaptive-rl-quant-pytorch --preset 4090` |
 | Linux 4090 checks + run | `bash scripts/run_4090_pipeline.sh` |
 | 4090 host, universal-policy naming | `adaptive-rl-quant-pytorch --preset 4090-universal` |
@@ -41,6 +42,7 @@ adaptive-rl-quant
 adaptive-rl-quant --config ./my_settings.json
 adaptive-rl-quant-moe
 adaptive-rl-quant-pytorch --preset gpu
+adaptive-rl-quant-pytorch --preset 3090
 adaptive-rl-quant-pytorch --config ./gpu_settings.toml
 adaptive-rl-quant-online --config ./online.toml
 adaptive-rl-quant-multiseed --preset moe --seeds 13,17,23
@@ -59,6 +61,7 @@ Source-checkout equivalents:
 python3 run_research.py --config ./my_settings.json
 python3 run_moe_research.py
 python3 run_pytorch.py --preset gpu
+python3 run_pytorch.py --preset 3090
 python3 run_online_learning.py --config ./online.toml
 python3 run_multiseed.py --preset moe --seeds 13,17,23
 python3 run_calibrate_llama_cpp.py --config ./paths_only.json

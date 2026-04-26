@@ -42,6 +42,8 @@ GPU_PROFILES: dict[str, GpuProfile] = {
             "torch_entropy_coef": 0.008,
             "torch_preflight_batch_size": 6144,
             "torch_preflight_min_free_memory_gb": 9.0,
+            "benchmark_training_episodes": 640,
+            "benchmark_evaluation_episodes": 80,
         },
     ),
     "rtx4080": GpuProfile(

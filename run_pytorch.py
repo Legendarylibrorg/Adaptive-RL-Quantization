@@ -1,6 +1,6 @@
 """Entrypoint: same **research pipeline** as ``run_research.py`` but with ``training_backend="pytorch"``.
 
-Presets tune VRAM-aware batching (``gpu``, ``4090``, ``4090-universal``); pass ``--config`` to replace presets.
+Presets tune VRAM-aware batching (``gpu``, ``3090``, ``4090``, ``4090-universal``); pass ``--config`` to replace presets.
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ from typing import Iterable
 
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.research_pipeline import run_pipeline_entrypoint
+from config_3090 import CONFIG_3090
 from config_4090 import CONFIG_4090
 from config_4090_universal import CONFIG_4090_UNIVERSAL
 from config_gpu import CONFIG_GPU
@@ -28,6 +29,7 @@ class _PytorchPreset:
 def _preset_map() -> dict[str, _PytorchPreset]:
     return {
         "gpu": _PytorchPreset(CONFIG_GPU, None),
+        "3090": _PytorchPreset(CONFIG_3090, CONFIG_3090.torch_gpu_profile),
         "4090": _PytorchPreset(CONFIG_4090, CONFIG_4090.torch_gpu_profile),
         "4090-universal": _PytorchPreset(
             CONFIG_4090_UNIVERSAL,
@@ -59,8 +61,8 @@ def main(argv: Iterable[str] | None = None) -> None:
         choices=sorted(presets.keys()),
         default="gpu",
         help=(
-            "Used only when --config is omitted: gpu=auto VRAM profile; 4090=fixed RTX 4090 preset; "
-            "4090-universal=multi-hardware policy trained on a 4090-class host (see config_4090_universal.py)."
+            "Used when --config is omitted: gpu=auto-detected VRAM profile; 3090/4090=fixed host presets; "
+            "4090-universal=multi-hardware policy on a 4090-class host (see config_4090_universal.py)."
         ),
     )
     args = parser.parse_args(list(argv) if argv is not None else None)

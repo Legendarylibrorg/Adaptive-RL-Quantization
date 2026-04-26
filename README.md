@@ -1,6 +1,6 @@
 # Adaptive RL Quantization with llama.cpp
 
-[![CI](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/actions/workflows/ci.yml/badge.svg)](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/actions/workflows/ci.yml) **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md) · **Code of Conduct:** [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) · **Security:** [SECURITY.md](SECURITY.md)
+[![CI](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/actions/workflows/ci.yml/badge.svg)](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/actions/workflows/ci.yml) **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md) · **Changelog:** [CHANGELOG.md](CHANGELOG.md) · **Code of Conduct:** [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) · **Security:** [SECURITY.md](SECURITY.md)
 
 ### What this pushes
 
@@ -111,9 +111,11 @@ Detailed install (distro packages, **WSL2**, SSH clone, llama.cpp): **[docs/INST
 | `analysis/` | Post-hoc analysis CLIs |
 | `docs/` | Install, running, config reference, troubleshooting |
 | `CONTRIBUTING.md` | Contributing policy, PR expectations, local quality gate |
-| `CODE_OF_CONDUCT.md` | Community standards ([Contributor Covenant](https://www.contributor-covenant.org/) 2.1) |
+| `CHANGELOG.md`, `RELEASING.md` | Version history and release process |
+| `CITATION.cff` | Software citation (for papers and “Cite this repository”) |
+| `CODE_OF_CONDUCT.md` | Short rules for issues and pull requests |
 | `SECURITY.md` | Vulnerability reporting (private disclosure) |
-| `.github/workflows/` | CI (Linux/macOS/Windows, Python 3.11/3.12, tests, E2E smoke) |
+| `.github/workflows/` | CI (Linux/macOS/Windows, Python 3.11–3.13 on Ubuntu, tests, E2E smoke) |
 | `.github/ISSUE_TEMPLATE/` | Bug report and feature issue forms |
 | `.github/PULL_REQUEST_TEMPLATE.md` | Default PR checklist |
 | `tests/` | `unittest` suite (no GPU required) |
@@ -149,6 +151,7 @@ Programmatically: `FrameworkConfig.from_file("path.json")`, `load_config()` from
 | Same with your own file | `adaptive-rl-quant --config path.json` |
 | MoE preset | `adaptive-rl-quant-moe` |
 | NVIDIA GPU (auto VRAM profile) | `adaptive-rl-quant-pytorch --preset gpu` |
+| RTX 3090 preset | `adaptive-rl-quant-pytorch --preset 3090` (or `make 3090`) |
 | RTX 4090 preset | `adaptive-rl-quant-pytorch --preset 4090` |
 | 4090 checks + unittest + run | `bash scripts/run_4090_pipeline.sh` |
 | Multi-seed aggregation | `adaptive-rl-quant-multiseed --preset dense --seeds 13,17,23` |
@@ -207,3 +210,6 @@ Paths are driven by `run_name` and directory fields in config.
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | CUDA / preflight |
 | [docs/ONLINE.md](docs/ONLINE.md) | Online loop |
 | [docs/PAPER.md](docs/PAPER.md) | Research summary |
+| [CHANGELOG.md](CHANGELOG.md) | Version history |
+| [RELEASING.md](RELEASING.md) | Tags and optional PyPI release |
+| [CITATION.cff](CITATION.cff) | Citation metadata (GitHub “Cite this repository”) |

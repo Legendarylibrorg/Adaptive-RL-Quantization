@@ -291,6 +291,7 @@ class FrameworkTests(unittest.TestCase):
 
     def test_gpu_profile_inference_and_application(self) -> None:
         self.assertEqual(infer_gpu_profile("NVIDIA GeForce RTX 4090", 24.0), "rtx4090")
+        self.assertEqual(infer_gpu_profile("NVIDIA GeForce RTX 3090", 24.0), "rtx3090")
         self.assertEqual(infer_gpu_profile("NVIDIA A100-SXM4-80GB", 80.0), "a100_80gb")
         self.assertEqual(infer_gpu_profile("Generic 12GB GPU", 12.0), "rtx4070")
 
@@ -316,6 +317,22 @@ class FrameworkTests(unittest.TestCase):
         self.assertGreater(profiles[HardwareType.CPU].memory_budget_mb, 7_500.0)
         self.assertGreater(profiles[HardwareType.GPU].compute_factor, 1.85)
         self.assertGreater(profiles[HardwareType.GPU].preferred_bits, profiles[HardwareType.CPU].preferred_bits)
+
+    def test_host_aware_3090_uses_ampere_template_not_fallback(self) -> None:
+        detected = DetectedHardware(
+            system="linux",
+            machine="x86_64",
+            cpu_count=16,
+            total_memory_gb=32.0,
+            accelerator_type=HardwareType.GPU,
+            accelerator_name="NVIDIA GeForce RTX 3090",
+            accelerator_memory_gb=24.0,
+            accelerator_profile="rtx3090",
+            cuda_available=True,
+        )
+        profiles = host_aware_hardware_profiles(detected)
+        self.assertEqual(profiles[HardwareType.GPU].name, "rtx3090")
+        self.assertGreater(profiles[HardwareType.GPU].compute_factor, 1.85)
 
     def test_build_request_stream_preserves_library_prompt_ids(self) -> None:
         config = FrameworkConfig(

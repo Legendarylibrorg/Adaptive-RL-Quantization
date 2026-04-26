@@ -98,6 +98,13 @@ _GPU_PROFILE_SIM_PRESETS: dict[str, dict[str, float]] = {
         "preferred_bits": 5.4,
         "kernel_uniformity_preference": 0.86,
     },
+    "rtx3090": {
+        "compute_factor": 1.90,
+        "throughput_bias": 2.01,
+        "latency_bias": 0.74,
+        "preferred_bits": 5.5,
+        "kernel_uniformity_preference": 0.88,
+    },
     "rtx4090": {
         "compute_factor": 2.00,
         "throughput_bias": 2.12,

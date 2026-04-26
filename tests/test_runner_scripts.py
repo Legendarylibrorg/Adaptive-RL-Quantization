@@ -69,10 +69,14 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertIn("scripts/verify_hashes.py", workflow_text)
         self.assertIn("--require-hashes", workflow_text)
         self.assertIn("--no-build-isolation -e .", workflow_text)
+        self.assertIn("core.autocrlf false", workflow_text)
+        self.assertIn("python -m pip install -U pip", workflow_text)
+        self.assertIn('python-version: "3.13"', workflow_text)
 
     def test_dependabot_covers_root_and_requirements(self) -> None:
         config_text = (_REPO_ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
         self.assertIn("package-ecosystem: pip", config_text)
+        self.assertIn("package-ecosystem: github-actions", config_text)
         self.assertIn('directory: "/"', config_text)
         self.assertIn('directory: "/requirements"', config_text)
 
@@ -254,6 +258,7 @@ class RunnerScriptCliTests(unittest.TestCase):
             timeout=30,
         )
         self.assertEqual(proc.returncode, 0, msg=proc.stderr)
+        self.assertIn("3090", proc.stdout)
         self.assertIn("4090-universal", proc.stdout)
 
     def test_run_pytorch_config_requires_pytorch_backend(self) -> None:

@@ -5,6 +5,7 @@ The PyTorch path now supports more than one GPU target.
 Use the installed GPU command from the repo root:
 
 - `adaptive-rl-quant-pytorch --preset gpu` — auto-detect GPU → tuned profile
+- `adaptive-rl-quant-pytorch --preset 3090` — fixed RTX 3090 profile ([`config_3090.py`](../config_3090.py))
 - `adaptive-rl-quant-pytorch --preset 4090` — fixed RTX 4090 profile
 - `adaptive-rl-quant-pytorch --preset 4090-universal` — multi-hardware universal policy on a 4090-class host ([`config_4090_universal.py`](../config_4090_universal.py))
 
