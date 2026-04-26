@@ -1,6 +1,5 @@
 from config import CONFIG
 
-
 CONFIG_MOE = CONFIG.clone(
     moe_enabled=True,
     moe_num_experts=16,

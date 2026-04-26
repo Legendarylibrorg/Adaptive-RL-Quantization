@@ -3,7 +3,9 @@ __pycache__/
 *.pyc
 .venv/
 .ruff-venv/
+.tools/
 outputs/
+runs/
 *.egg-info/
 .cursor/
 *.code-workspace

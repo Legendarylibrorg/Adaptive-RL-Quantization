@@ -87,7 +87,6 @@ def _collect_policy_rollout(
         hardware=hardware,
         episodes=episodes,
         episode_offset=4_000_000,
-        log_suffix="policy",
         act_fn=lambda state: trainer.act_online(state, deterministic=True)[0],
         on_result=_capture_candidate,
     )
@@ -111,7 +110,6 @@ def _evaluate_fixed_candidate(
         hardware=hardware,
         episodes=episodes,
         episode_offset=5_000_000,
-        log_suffix="fixed",
         act_fn=lambda _state: deepcopy(template),
     )
     return {
@@ -130,7 +128,6 @@ def _run_recommendation_rollout(
     hardware: HardwareType,
     episodes: int,
     episode_offset: int,
-    log_suffix: str,
     act_fn,
     on_result=None,
 ) -> list[EpisodeResult]:

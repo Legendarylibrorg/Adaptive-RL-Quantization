@@ -1,6 +1,5 @@
 from config import CONFIG
 
-
 CONFIG_ONLINE = CONFIG.clone(
     training_episodes=160,
     evaluation_episodes=48,

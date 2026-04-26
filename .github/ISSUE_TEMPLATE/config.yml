@@ -1,8 +1,14 @@
 blank_issues_enabled: true
 contact_links:
-  - name: Security disclosure
+  - name: Report a security vulnerability (private)
+    url: https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/security/advisories/new
+    about: Open a private GitHub Security Advisory. Do NOT file public issues for undisclosed vulnerabilities.
+  - name: Security policy (SECURITY.md)
     url: https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/blob/main/SECURITY.md
-    about: Read SECURITY.md — do not file public issues for undisclosed vulnerabilities.
+    about: Disclosure scope, response SLAs, safe harbor, and coordinated disclosure.
+  - name: Getting help (SUPPORT.md)
+    url: https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/blob/main/SUPPORT.md
+    about: Where to ask "how do I…?" questions and how to file a useful bug.
   - name: Contributing policy
     url: https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/blob/main/CONTRIBUTING.md
     about: PR expectations, local checks, and code of conduct.

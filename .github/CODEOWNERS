@@ -1,0 +1,41 @@
+# CODEOWNERS — automatic review routing for security-sensitive
+# and open-source-policy paths in this repository.
+#
+# Syntax: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-security/customizing-your-repository/about-code-owners
+#
+# The default owner is the org that publishes this repository. Replace
+# `@Legendarylibrorg` with a more specific maintainer team if/when one is
+# created. Never put untrusted accounts here — CODEOWNERS entries are
+# auto-requested as reviewers and can affect merge gating.
+
+* @Legendarylibrorg
+
+# --- Open-source policy & community files ---
+/LICENSE                  @Legendarylibrorg
+/SECURITY.md              @Legendarylibrorg
+/SUPPORT.md               @Legendarylibrorg
+/CODE_OF_CONDUCT.md       @Legendarylibrorg
+/CONTRIBUTING.md          @Legendarylibrorg
+/RELEASING.md             @Legendarylibrorg
+/CHANGELOG.md             @Legendarylibrorg
+/CITATION.cff             @Legendarylibrorg
+/.well-known/             @Legendarylibrorg
+
+# --- CI, supply chain, and dependency hygiene ---
+/.github/                 @Legendarylibrorg
+/.github/workflows/       @Legendarylibrorg
+/.github/dependabot.yml   @Legendarylibrorg
+/requirements/            @Legendarylibrorg
+/security/                @Legendarylibrorg
+/pyproject.toml           @Legendarylibrorg
+
+# --- Security-sensitive code paths ---
+/scripts/secret_scan.py     @Legendarylibrorg
+/scripts/verify_hashes.py   @Legendarylibrorg
+/scripts/setup_from_clone.py @Legendarylibrorg
+/scripts/pre_commit_check.py @Legendarylibrorg
+/adaptive_quant/configuration.py  @Legendarylibrorg
+/adaptive_quant/easy_config.py    @Legendarylibrorg
+/adaptive_quant/torch_trainer.py  @Legendarylibrorg
+/adaptive_quant/analysis_utils.py @Legendarylibrorg
+/adaptive_quant/logging_utils.py  @Legendarylibrorg

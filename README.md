@@ -1,6 +1,6 @@
 # Adaptive RL Quantization with llama.cpp
 
-[![CI](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/actions/workflows/ci.yml/badge.svg)](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/actions/workflows/ci.yml) **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md) · **Changelog:** [CHANGELOG.md](CHANGELOG.md) · **Code of Conduct:** [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) · **Security:** [SECURITY.md](SECURITY.md)
+[![CI](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/actions/workflows/ci.yml/badge.svg)](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/actions/workflows/ci.yml) **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md) · **Support:** [SUPPORT.md](SUPPORT.md) · **Changelog:** [CHANGELOG.md](CHANGELOG.md) · **Code of Conduct:** [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) · **Security:** [SECURITY.md](SECURITY.md) · **Report a vulnerability:** [private advisory](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/security/advisories/new)
 
 ### What this pushes
 
@@ -114,10 +114,13 @@ Detailed install (distro packages, **WSL2**, SSH clone, llama.cpp): **[docs/INST
 | `CHANGELOG.md`, `RELEASING.md` | Version history and release process |
 | `CITATION.cff` | Software citation (for papers and “Cite this repository”) |
 | `CODE_OF_CONDUCT.md` | Short rules for issues and pull requests |
-| `SECURITY.md` | Vulnerability reporting (private disclosure) |
+| `SECURITY.md` | Vulnerability reporting (private disclosure, scope, SLAs, safe harbor) |
+| `SUPPORT.md` | Where to ask for help and how to file a useful bug |
+| `.well-known/security.txt` | Machine-readable disclosure metadata (RFC 9116) |
 | `.github/workflows/` | CI (Linux, macOS, Windows on Python 3.12; E2E smoke) |
 | `.github/ISSUE_TEMPLATE/` | Bug report and feature issue forms |
 | `.github/PULL_REQUEST_TEMPLATE.md` | Default PR checklist |
+| `.github/CODEOWNERS` | Reviewer routing for security-sensitive paths |
 | `tests/` | `unittest` suite (no GPU required) |
 
 ---
@@ -190,6 +193,7 @@ Paths are driven by `run_name` and directory fields in config.
 
 ## Security
 
+- **Vulnerability reporting:** **Do not** open a public issue for security problems. Use the private [GitHub Security Advisories form](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/security/advisories/new) and follow [SECURITY.md](SECURITY.md). Machine-readable disclosure metadata lives at [`.well-known/security.txt`](.well-known/security.txt) (RFC 9116).
 - **Secrets:** Do not commit API keys or `.env` files. `.gitignore` excludes `.env`, `.env.*`, `*.pem`, `*.key`, and `secrets/`. Use a local env file or your shell; optionally commit a redacted **`.env.example`** only.
 - **Checkpoints:** Treat downloaded or third-party **`.pt` / pickle checkpoints** as **untrusted code** unless you saved them yourself. The default loader prefers **split checkpoints** with **`weights_only=True`**; legacy single-file loads require an explicit opt-in (`allow_legacy_checkpoint_load`).
 - **Scans:** CI and **`pre_commit_check.py`** run **`scripts/secret_scan.py`** (high-signal tracked-file scan — lightweight, not exhaustive). Enable **GitHub secret scanning** on the org/repo if available; for deeper audits you can additionally run tools like [gitleaks](https://github.com/gitleaks/gitleaks) locally. **`SECURITY.md`** covers private reporting.
