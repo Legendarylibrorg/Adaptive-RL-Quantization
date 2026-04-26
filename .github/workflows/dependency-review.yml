@@ -9,11 +9,11 @@ permissions:
   pull-requests: read
 
 jobs:
-  # Always run a green job: on public repos, review; on private, only checkout (step below skipped).
+  # Job always finishes green: on public repos run the action; on private, review step is skipped.
   dependency-review:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Review dependency changes
         if: github.event.repository.private == false
