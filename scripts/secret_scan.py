@@ -14,7 +14,15 @@ PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("generic_private_key_block", re.compile(r"BEGIN\s+PRIVATE\s+KEY")),
     ("github_token", re.compile(r"ghp_[0-9A-Za-z]{36}")),
     ("github_pat", re.compile(r"github_pat_[0-9A-Za-z_]{20,}")),
+    ("github_oauth", re.compile(r"gho_[0-9A-Za-z]{36}")),
     ("aws_access_key", re.compile(r"AKIA[0-9A-Z]{16}")),
+    ("gcp_api_key", re.compile(r"AIza[0-9A-Za-z_-]{35}")),
+    ("slack_token", re.compile(r"xox[abprs]-[0-9A-Za-z-]{10,}")),
+    ("gitlab_pat", re.compile(r"glpat-[0-9A-Za-z_-]{20,}")),
+    ("pypi_token", re.compile(r"pypi-AgE[0-9A-Za-z_-]{40,}")),
+    ("huggingface_token", re.compile(r"\bhf_[A-Za-z0-9]{30,}\b")),
+    ("anthropic_api_key", re.compile(r"\bsk-ant-(?:api|admin)\d+-[A-Za-z0-9_-]{20,}")),
+    ("openai_api_key", re.compile(r"\bsk-(?:proj-)?[A-Za-z0-9_-]{40,}\b")),
 )
 
 

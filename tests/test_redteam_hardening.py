@@ -24,7 +24,7 @@ from adaptive_quant.policy import (
     _gaussian_head_from_payload,
     _value_head_from_payload,
 )
-from adaptive_quant.research_pipeline import _git_commit
+from adaptive_quant.research_pipeline import git_commit_hash
 from adaptive_quant.trainer import Trainer
 
 
@@ -198,7 +198,7 @@ class GitInvocationTimeoutTests(unittest.TestCase):
 
         research_pipeline.subprocess.run = fake_run  # type: ignore[assignment]
         try:
-            self.assertIsNone(_git_commit())
+            self.assertIsNone(git_commit_hash())
         finally:
             research_pipeline.subprocess.run = original_run  # type: ignore[assignment]
 
