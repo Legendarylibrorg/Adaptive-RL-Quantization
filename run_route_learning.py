@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from collections.abc import Iterable
 from pathlib import Path
@@ -295,7 +296,10 @@ def _cmd_register(catalog_path: Path, args: argparse.Namespace) -> None:
     )
     catalog.add(route, replace_existing=args.replace)
     catalog.save(str(catalog_path))
-    print(f"Registered route {route.route_id!r} → {catalog_path}")
+    # Keep stdout stable for scripting (JSON / table output). Emit human-status only when interactive
+    # or explicitly requested (keeps unittest/CI quiet).
+    if sys.stderr.isatty() or os.environ.get("ADAPTIVE_RL_QUANT_VERBOSE", "").strip() == "1":
+        print(f"Registered route {route.route_id!r} → {catalog_path}", file=sys.stderr)
 
 
 def _cmd_remove(catalog_path: Path, args: argparse.Namespace) -> None:
