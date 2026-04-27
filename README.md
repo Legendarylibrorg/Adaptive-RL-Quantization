@@ -6,6 +6,8 @@
 
 Most deployments still treat quantization as a **one-time export**: pick a preset, ship it, hope it holds on every device and every prompt. This repo treats it as a **closed-loop control problem**: an agent observes **where the model runs** and **what it is asked to do**, then **acts**—bit widths, grouping, dynamic schedules, and (if you turn it on) **learned continuous controls** over scale, clip, and effective precision. The goal is not a single blessed `.gguf`; it is a **policy** you can train, evaluate, ablate, and (optionally) ground against a real **`llama.cpp`-class** binary.
 
+**Scope note:** the core loop learns **quantization decisions** and evaluates them via the simulator and/or `llama.cpp`. It does **not** implement a general-purpose “quantize a PyTorch LLM in-place” layer-wrapping toolkit.
+
 **What you can stress-test here**
 
 - **Universal vs narrow policies** — train across **GPU / CPU / low-resource** profiles so one controller sees more than a single silicon story.

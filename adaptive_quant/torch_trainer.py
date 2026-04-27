@@ -93,8 +93,35 @@ if torch is not None:
             self.size = min(self.size + 1, self.capacity)
 
         def push_batch(self, records_batch: list[dict[str, Any]]) -> None:
-            for rec in records_batch:
-                self.push(rec["state_vector"], rec["reward"], rec["log_prob"], rec["value"], rec)
+            if not records_batch:
+                return
+
+            # Batch tensor updates to reduce Python overhead and device sync points.
+            state_vectors = [rec["state_vector"] for rec in records_batch]
+            rewards = [rec["reward"] for rec in records_batch]
+            log_probs = [rec["log_prob"] for rec in records_batch]
+            values = [rec["value"] for rec in records_batch]
+
+            batch_states = torch.tensor(state_vectors, dtype=torch.float32, device=self.device)
+            batch_rewards = torch.tensor(rewards, dtype=torch.float32, device=self.device)
+            batch_log_probs = torch.tensor(log_probs, dtype=torch.float32, device=self.device)
+            batch_values = torch.tensor(values, dtype=torch.float32, device=self.device)
+
+            n = int(batch_states.shape[0])
+            base = int(self.cursor % self.capacity)
+            indices = (torch.arange(n, device=self.device) + base) % self.capacity
+
+            self.states[indices] = batch_states
+            self.rewards[indices] = batch_rewards
+            self.log_probs[indices] = batch_log_probs
+            self.values[indices] = batch_values
+
+            for offset, rec in enumerate(records_batch):
+                idx = int((base + offset) % self.capacity)
+                self.records[idx] = rec
+
+            self.cursor += n
+            self.size = min(self.size + n, self.capacity)
 
         def sample(self, batch_size: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, list[dict[str, Any]]]:
             n = min(batch_size, self.size)

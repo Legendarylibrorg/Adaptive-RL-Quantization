@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from adaptive_quant.configuration import FrameworkConfig
+from adaptive_quant.guardrails import passes_online_guardrails
 from adaptive_quant.logging_utils import JsonlLogger, to_jsonable, write_json
 from adaptive_quant.math_utils import mean
 from adaptive_quant.prompts import PromptLibrary
@@ -54,8 +55,16 @@ class OnlineLearningLoop:
         self._owns_trainer = trainer is None
         self.rng = random.Random(config.seed + 1201)
         self.prompt_library = PromptLibrary()
-        self.telemetry_logger = JsonlLogger(config.online_telemetry_path())
-        self.replay_logger = JsonlLogger(config.online_replay_path())
+        self.telemetry_logger = JsonlLogger(
+            config.online_telemetry_path(),
+            buffered=bool(config.jsonl_buffered),
+            flush_every=int(config.jsonl_flush_every),
+        )
+        self.replay_logger = JsonlLogger(
+            config.online_replay_path(),
+            buffered=bool(config.jsonl_buffered),
+            flush_every=int(config.jsonl_flush_every),
+        )
         self.replay_buffer = ReplayBuffer(config.online_replay_capacity, self.rng)
         self.previous_action = zero_previous_action()
         self._max_bits = max(config.discrete_bit_widths)
@@ -275,17 +284,19 @@ class OnlineLearningLoop:
         return PromptSample(prompt_id=prompt_id, text=request.prompt_text, domain=request.prompt_domain)
 
     def _passes_guardrails(self, candidate_result, baseline_result) -> bool:
-        if candidate_result.decision.unstable or candidate_result.decision.fallback_applied:
-            return False
-        if candidate_result.metrics.reward < baseline_result.metrics.reward - self.config.online_reward_guard:
-            return False
-        if candidate_result.metrics.latency_ms > baseline_result.metrics.latency_ms * self.config.online_max_latency_ratio:
-            return False
-        if candidate_result.metrics.memory_mb > baseline_result.metrics.memory_mb * self.config.online_max_memory_ratio:
-            return False
-        if candidate_result.metrics.perplexity > baseline_result.metrics.perplexity + self.config.online_max_perplexity_delta:
-            return False
-        return True
+        return passes_online_guardrails(
+            config=self.config,
+            candidate_reward=float(candidate_result.metrics.reward),
+            baseline_reward=float(baseline_result.metrics.reward),
+            candidate_latency_ms=float(candidate_result.metrics.latency_ms),
+            baseline_latency_ms=float(baseline_result.metrics.latency_ms),
+            candidate_memory_mb=float(candidate_result.metrics.memory_mb),
+            baseline_memory_mb=float(baseline_result.metrics.memory_mb),
+            candidate_perplexity=float(candidate_result.metrics.perplexity),
+            baseline_perplexity=float(baseline_result.metrics.perplexity),
+            candidate_unstable=bool(candidate_result.decision.unstable),
+            candidate_fallback_applied=bool(candidate_result.decision.fallback_applied),
+        )
 
     def _maybe_update_policy(self) -> dict[str, float] | None:
         if not self.config.online_learning:

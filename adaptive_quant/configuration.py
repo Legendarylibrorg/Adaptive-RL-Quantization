@@ -82,6 +82,10 @@ class FrameworkConfig:
     run_name: str = "adaptive_universal_policy"
     cache_prompt_features: bool = True
     log_every_n_episodes: int = 1
+    # Optional: keep JSONL file handles open for faster long runs.
+    # Default remains conservative (re-open per write) for portability and test friendliness.
+    jsonl_buffered: bool = False
+    jsonl_flush_every: int = 1
     write_training_history: bool = True
     write_research_report: bool = True
     resume_from_checkpoint: str | None = None
@@ -109,6 +113,10 @@ class FrameworkConfig:
     llama_cpp_timeout_s: float = 30.0
     llama_cpp_max_prompt_chars: int = 4096
     llama_cpp_generate_tokens: int = 64
+    # Optional: cache llama.cpp subprocess measurements to avoid repeated calls (useful for stability probes).
+    # Disabled by default because it trades memory for speed and can hide nondeterministic backend behavior.
+    llama_cpp_cache_enabled: bool = False
+    llama_cpp_cache_max_entries: int = 256
     # Optional external quality sidecar. Supports JSON or JSONL rows keyed by prompt_id.
     # Default metric name is "perplexity" because the reward treats lower values as better.
     external_quality_path: str | None = None
@@ -197,6 +205,8 @@ class FrameworkConfig:
         _validate_positive_int("recommendation_eval_episodes", self.recommendation_eval_episodes)
         _validate_positive_int("recommendation_candidate_limit", self.recommendation_candidate_limit)
         _validate_positive_int("llama_cpp_generate_tokens", self.llama_cpp_generate_tokens)
+        _validate_positive_int("jsonl_flush_every", self.jsonl_flush_every)
+        _validate_positive_int("llama_cpp_cache_max_entries", self.llama_cpp_cache_max_entries)
 
     def rl_train_deterministic(self) -> bool:
         """True when train rollouts use greedy (argmax) actions for reproducible bandit-style experiments."""
