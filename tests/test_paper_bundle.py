@@ -9,6 +9,7 @@ from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import JsonlLogger, read_json
 from adaptive_quant.paper_bundle import (
     aggregate_values,
+    create_multiseed_paper_bundle,
     create_pipeline_paper_bundle,
 )
 
@@ -78,6 +79,44 @@ class PaperBundleTests(unittest.TestCase):
         self.assertLess(float(stats["ci95_low"]), float(stats["mean"]))
         self.assertGreater(float(stats["ci95_high"]), float(stats["mean"]))
         self.assertGreater(float(stats["effect_size_vs_zero"]), 0.0)
+
+    def test_multiseed_bundle_writes_manifest_stats_and_claims(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            cfg = FrameworkConfig(
+                run_name="multiseed_base",
+                outputs_dir=str(tmpdir / "outputs"),
+                log_dir=str(tmpdir / "outputs" / "logs"),
+                benchmark_dir=str(tmpdir / "outputs" / "benchmarks"),
+                analysis_dir=str(tmpdir / "outputs" / "analysis"),
+                checkpoint_dir=str(tmpdir / "outputs" / "checkpoints"),
+                report_dir=str(tmpdir / "outputs" / "reports"),
+                detect_host_hardware=False,
+            )
+            payload = {
+                "run_name": "multiseed_base_multiseed",
+                "git_commit": "abc123",
+                "config": {"run_name": cfg.run_name, "backend": cfg.backend},
+                "seeds": [1, 2],
+                "aggregates": {"evaluation.mean_reward": aggregate_values([1.0, 2.0])},
+            }
+
+            artifacts = create_multiseed_paper_bundle(
+                config=cfg,
+                run_name="multiseed_base_multiseed",
+                aggregate_payload=payload,
+                aggregate_stats=payload["aggregates"],
+                report_path=str(tmpdir / "outputs" / "reports" / "multiseed.md"),
+            )
+
+            for path in artifacts.values():
+                self.assertTrue(Path(path).exists(), path)
+
+            manifest = read_json(artifacts["manifest"], label="Multiseed manifest")
+            self.assertEqual(manifest["git_commit"], "abc123")
+            self.assertEqual(manifest["seeds"], [1, 2])
+            stats = read_json(artifacts["aggregate_stats_json"], label="Aggregate stats")
+            self.assertIn("evaluation.mean_reward", stats)
 
 
 if __name__ == "__main__":

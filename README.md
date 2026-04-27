@@ -31,7 +31,7 @@ Headline quantitative stories in **[docs/PAPER.md](docs/PAPER.md)** are written 
 | **PyTorch / CUDA** | Same repo + **CUDA-enabled PyTorch** on **Linux + NVIDIA** (recommended for that path) |
 
 **Install (after activating a venv):** `python3 -m pip install -U pip` then **`python3 -m pip install -e .`**. GPU training: **`python3 -m pip install -e ".[torch]"`** or install a matching [torch](https://pytorch.org/get-started/locally/) wheel first, then **`python3 -m pip install -e .`**. On Windows, substitute `py -3.11 -m pip` or `python -m pip`.
-Editable installs expose console commands: `adaptive-rl-quant`, `adaptive-rl-quant-moe`, `adaptive-rl-quant-pytorch`, `adaptive-rl-quant-online`, `adaptive-rl-quant-multiseed`, and `adaptive-rl-quant-calibrate`.
+Editable installs expose console commands: `adaptive-rl-quant`, `adaptive-rl-quant-moe`, `adaptive-rl-quant-pytorch`, `adaptive-rl-quant-online`, `adaptive-rl-quant-multiseed`, `adaptive-rl-quant-calibrate`, and `adaptive-rl-quant-route`.
 
 The simulator path is supported on **Linux, macOS, and Windows**. GPU workflows still target **Linux + NVIDIA** unless noted, and **WSL2 is the recommended Windows path** when you want Linux-parity tooling and layout.
 
@@ -159,6 +159,7 @@ Programmatically: `FrameworkConfig.from_file("path.json")`, `load_config()` from
 | 4090 checks + unittest + run | `bash scripts/run_4090_pipeline.sh` |
 | Multi-seed aggregation | `adaptive-rl-quant-multiseed --preset dense --seeds 13,17,23` |
 | Calibrate simulator from llama.cpp | `adaptive-rl-quant-calibrate` (binary + model in config) |
+| GGUF route catalog + contextual bandit | `adaptive-rl-quant-route --catalog outputs/routes/catalog.json seed` |
 | Online / continual experiment | `adaptive-rl-quant-online` |
 
 Full descriptions: **[docs/RUNNING.md](docs/RUNNING.md)**. Pass **`--help`** on any installed command for `-c` / `--config`. Source-checkout equivalents remain available as `python3 run_*.py`.
@@ -171,6 +172,7 @@ adaptive-rl-quant-online --help
 adaptive-rl-quant-pytorch --help
 adaptive-rl-quant-multiseed --help
 adaptive-rl-quant-calibrate --help
+adaptive-rl-quant-route --help
 python3 -m unittest discover -s tests -q
 ```
 
@@ -186,6 +188,7 @@ Under **`outputs/`**:
 - `analysis/<run_name>/` — JSON + figures
 - `checkpoints/` — policy checkpoints (PyTorch)
 - `reports/` — Markdown reports
+- `paper_bundles/<run_name>/` — manifest, metric CSV/JSON, flattened telemetry, appendix, and claims validation for citation/review
 
 Paths are driven by `run_name` and directory fields in config.
 
@@ -213,6 +216,8 @@ Paths are driven by `run_name` and directory fields in config.
 | [docs/GPU_PROFILES.md](docs/GPU_PROFILES.md) | VRAM / preset table |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | CUDA / preflight |
 | [docs/ONLINE.md](docs/ONLINE.md) | Online loop |
+| [docs/ROUTES.md](docs/ROUTES.md) | GGUF route catalogs and contextual route bandits |
+| [docs/LOCAL_RESEARCH.md](docs/LOCAL_RESEARCH.md) | Local `llama.cpp` evidence and paper bundles |
 | [docs/PAPER.md](docs/PAPER.md) | Research summary |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
 | [RELEASING.md](RELEASING.md) | Tags and optional PyPI release |

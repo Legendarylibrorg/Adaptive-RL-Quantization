@@ -3,13 +3,13 @@ from __future__ import annotations
 import argparse
 import math
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Any
 
 from adaptive_quant.logging_utils import md_table, write_json, write_text_file
 from adaptive_quant.math_utils import fmt_float
 from adaptive_quant.paper_bundle import aggregate_values, create_multiseed_paper_bundle
-from adaptive_quant.research_pipeline import run_pipeline_entrypoint
+from adaptive_quant.research_pipeline import git_commit_hash, run_pipeline_entrypoint
 from config import CONFIG as CONFIG_DENSE
 from config_moe import CONFIG_MOE
 
@@ -270,11 +270,17 @@ def main(argv: Iterable[str] | None = None) -> None:
         "run_name": multiseed_run_name,
         "preset": args.preset,
         "base_run_name": base_run_name,
+        "config": asdict(base_config),
+        "git_commit": git_commit_hash(),
         "seeds": seeds,
         "per_seed": [
             {"seed": seed, "run_name": f"{base_run_name}_seed{seed}", "summary_path": path}
             for seed, path in zip(seeds, per_seed_paths)
         ],
+        "artifacts": {
+            "per_seed_summaries": per_seed_paths,
+            "report": output_md_path,
+        },
         "aggregates": {
             k: v.to_dict()
             for k, v in aggregated.items()
@@ -288,7 +294,7 @@ def main(argv: Iterable[str] | None = None) -> None:
         aggregate_stats=aggregate_payload["aggregates"],
         report_path=output_md_path,
     )
-    aggregate_payload["artifacts"] = {"paper_bundle": paper_bundle}
+    aggregate_payload["artifacts"]["paper_bundle"] = paper_bundle
     write_json(output_json_path, aggregate_payload)
     _write_multiseed_report(
         run_name=multiseed_run_name,

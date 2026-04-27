@@ -20,7 +20,7 @@ later for inference-time recommendations.
 from __future__ import annotations
 
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +32,7 @@ from adaptive_quant.math_utils import mean
 from adaptive_quant.model_routes import ModelRoute, RouteCatalog
 from adaptive_quant.paper_bundle import create_pipeline_paper_bundle
 from adaptive_quant.prompts import PromptLibrary
+from adaptive_quant.research_pipeline import git_commit_hash
 from adaptive_quant.route_policy import RouteBandit, RouteContext, RouteSelection
 from adaptive_quant.types import (
     EpisodeState,
@@ -410,6 +411,8 @@ def save_bandit_artifacts(
 
     summary_payload: dict[str, Any] = {
         "run_name": config.run_name,
+        "config": asdict(config),
+        "git_commit": git_commit_hash(),
         "training_backend": config.training_backend,
         "backend": config.backend,
         "catalog_size": len(catalog),

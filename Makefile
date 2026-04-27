@@ -5,7 +5,7 @@
 .PHONY: install install-dev install-torch
 .PHONY: run reproduce smoke run-config moe multiseed multiseed-smoke
 .PHONY: pytorch 3090 4090 4090-universal
-.PHONY: online calibrate
+.PHONY: online calibrate route-help
 .PHONY: test test-quiet lint format check secret-scan doctor
 .PHONY: outputs-clean clean-venv
 
@@ -48,6 +48,7 @@ help:
 	@echo "[Other runners]"
 	@echo "  make online           supported online adaptation pipeline"
 	@echo "  make calibrate        llama.cpp calibration (needs binary+model in config)"
+	@echo "  make route-help       GGUF route catalog + contextual bandit help"
 	@echo ""
 	@echo "[Quality]"
 	@echo "  make test | test-quiet | secret-scan | lint | format | check"
@@ -118,6 +119,9 @@ online:
 
 calibrate:
 	$(PY) run_calibrate_llama_cpp.py
+
+route-help:
+	$(PY) run_route_learning.py --help
 
 # --- Quality ---
 
