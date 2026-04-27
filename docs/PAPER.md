@@ -25,6 +25,8 @@ The repository now supports this framing in three increasingly expressive regime
 2. learned quantization functions with continuous control,
 3. MoE-aware packed expert variant selection.
 
+In the current implementation, the **stdlib / simulator-first** training loop is deliberately **one-step** (a contextual bandit style update) so it is cheap, deterministic when configured, and easy to audit. The **PyTorch/CUDA** training backend is where longer-horizon or heavier-weight policy gradient variants (PPO/VPG/AWR) belong.
+
 The core experimental story in this paper is **evaluation-first**: define what constitutes evidence, define the deployment-relevant metrics, and define the architecture that makes real-hardware measurement feasible and reproducible. The project includes a CUDA path tuned for RTX 4090-class hardware and `adaptive-rl-quant-pytorch --preset 4090-universal` for “train on a 4090, learn a universal policy,” but the emphasis of this draft is how to validate transfer and systems impact on real hardware rather than on simulated aggregates.
 
 ### 1.1 Status of Evidence (Read This First)

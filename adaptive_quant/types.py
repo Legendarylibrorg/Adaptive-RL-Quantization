@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, TypedDict
 
 from adaptive_quant.math_utils import mean
 
@@ -199,3 +199,29 @@ class OnlineRequest:
     hardware: HardwareType = HardwareType.GPU
     prompt_id: str | None = None
     prompt_domain: str = "online"
+
+
+class BackendMetricRequired(TypedDict):
+    latency_ms: float
+    throughput_tps: float
+    perplexity: float
+    memory_mb: float
+
+
+class BackendMetricDict(BackendMetricRequired, total=False):
+    """Backend evaluation outputs used to compute rewards and build EpisodeMetrics.
+
+    Required keys are the cross-backend contract; optional keys may be absent depending on backend.
+    This is implemented without ``typing.NotRequired`` so the module remains importable on older
+    Python interpreters even if they are not supported for full runs.
+    """
+
+    tokens_processed: float
+    latency_ms_per_token: float
+    swap_cost_ms: float
+    cache_miss_count: float
+    variant_churn: float
+    latency_source: str
+    throughput_source: str
+    memory_source: str
+    perplexity_source: str

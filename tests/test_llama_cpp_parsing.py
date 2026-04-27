@@ -30,6 +30,15 @@ class LlamaCppParsingTests(unittest.TestCase):
         self.assertIn("latency_ms_per_token", parsed)
         self.assertNotIn("memory_mb", parsed)
 
+    def test_parse_metrics_extracts_memory_only_with_memory_labels(self) -> None:
+        text = """
+        something about the model 4096 mb tokenizer cache (not memory usage)
+        kv cache: 2048 mb
+        prompt eval time = 123.00 ms / 50 tokens ( 2.46 ms per token,  406.50 tok/s)
+        """
+        parsed = parse_llama_cpp_metrics(text.lower())
+        self.assertAlmostEqual(parsed["memory_mb"], 2048.0, places=3)
+
 
 if __name__ == "__main__":
     unittest.main()
