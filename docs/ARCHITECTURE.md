@@ -22,6 +22,7 @@ The code is intentionally split into a small number of layers so experiments sta
 - `run_online_learning.py`: online adaptation pipeline
 - `run_multiseed.py`: repeated runs and aggregation
 - `run_calibrate_llama_cpp.py`: simulator calibration from local `llama.cpp` measurements
+- `run_route_learning.py`: GGUF route catalog and contextual bandit workflow
 
 These files should stay thin wrappers around package code.
 
@@ -33,6 +34,7 @@ Installed console commands map onto those wrappers:
 - `adaptive-rl-quant-online`
 - `adaptive-rl-quant-multiseed`
 - `adaptive-rl-quant-calibrate`
+- `adaptive-rl-quant-route`
 
 ## 2. Configuration layer
 

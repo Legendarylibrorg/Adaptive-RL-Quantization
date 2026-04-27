@@ -75,8 +75,6 @@ class OnlineLearningLoop:
         self.best_policy_snapshot = self.trainer.snapshot_policy()
         self.router: EfficientTaskRouter | None = None
         if config.router_enabled:
-            if str(getattr(config, "backend", "")).strip().lower() != "router":
-                raise ValueError("router_enabled=True requires config.backend='router' to enable per-route backend dispatch.")
             self.router = EfficientTaskRouter(config)
         self._router_baseline_perplexity: dict[str, float] = {}
 
@@ -107,7 +105,7 @@ class OnlineLearningLoop:
             bits = route.quant_bits or int(self.config.safe_default_bits)
             metadata = {"head": "router", "route": route.key, "route_backend": route.backend}
             if route.backend == "llama_cpp":
-                metadata["llama_cpp_model"] = route.model_id
+                metadata["llama_cpp_model_path"] = route.model_id
             elif route.backend == "hf":
                 metadata["hf_model"] = route.model_id
             candidate_decision = QuantizationDecision(mode=QuantMode.DISCRETE, base_bit_width=int(bits), metadata=metadata)
@@ -213,6 +211,8 @@ class OnlineLearningLoop:
             "prompt_domain": prompt.domain,
             "input_features": state.input_features,
             "decision": served_result.decision,
+            "candidate_decision": candidate_result.decision,
+            "baseline_decision": baseline_decision if baseline_result is not None else None,
             "served_metrics": served_result.metrics,
             "candidate_metrics": candidate_result.metrics,
             "baseline_metrics": baseline_result.metrics if baseline_result is not None else None,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import gc
+import warnings
 
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
@@ -245,11 +246,14 @@ class BenchmarkSuite:
         gc.collect()
         try:
             import torch as _torch
+        except ImportError:
+            return
 
+        try:
             if _torch.cuda.is_available():
                 _torch.cuda.empty_cache()
-        except Exception:
-            pass
+        except Exception as exc:
+            warnings.warn(f"Unable to clear CUDA cache after benchmark trainer release: {exc}", UserWarning, stacklevel=2)
 
     def _run_variants(
         self,

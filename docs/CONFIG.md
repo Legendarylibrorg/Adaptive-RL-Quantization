@@ -193,7 +193,7 @@ MoE-specific:
 Local laptop or quick CI-style validation:
 
 - `training_backend="python"`
-- `backend="simulator"`
+- `backend="simulator"` (valid measurement backends are `simulator` and `llama_cpp`)
 - small `training_episodes`
 - start from [`config.py`](../config.py)
 
@@ -242,6 +242,8 @@ Real llama.cpp experiments:
 - set `backend="llama_cpp"`
 - set `llama_cpp_binary`
 - set `llama_cpp_model`
+
+Online routing is controlled separately by `router_enabled` and `router_routes`. It is not a separate `backend` value; routes are evaluated through the configured measurement backend.
 
 ## Common edits
 
