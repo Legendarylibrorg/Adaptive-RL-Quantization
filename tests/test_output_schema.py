@@ -75,7 +75,8 @@ class OutputSchemaTests(unittest.TestCase):
             self.assertIsInstance(recommendation["adaptive_policy"], dict)
 
             # The returned in-memory summary should match the serialized one on key metadata.
-            self.assertEqual(returned["artifacts"]["recommendation"], str(rec_path))
+            returned_rec = Path(returned["artifacts"]["recommendation"])
+            self.assertEqual(returned_rec.resolve(), rec_path.resolve())
 
 
 if __name__ == "__main__":
