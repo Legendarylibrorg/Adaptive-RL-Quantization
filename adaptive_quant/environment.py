@@ -14,6 +14,7 @@ from adaptive_quant.prompts import PromptLibrary
 from adaptive_quant.quantization import finalize_decision, safe_fallback_decision
 from adaptive_quant.trainer_utils import zero_previous_action
 from adaptive_quant.types import (
+    BackendMetricDict,
     EpisodeMetrics,
     EpisodeResult,
     EpisodeState,
@@ -220,7 +221,7 @@ class AdaptiveQuantizationEnv:
         sensitivity = estimate_layer_sensitivity(prompt, input_features, self.config.num_layers)
         return input_features, sensitivity
 
-    def _compute_reward(self, metrics: dict[str, float], stability_penalty: float) -> float:
+    def _compute_reward(self, metrics: BackendMetricDict, stability_penalty: float) -> float:
         weights = self.config.reward_weights
         reward = (
             -weights.alpha_latency * metrics["latency_ms"]

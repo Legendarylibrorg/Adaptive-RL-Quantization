@@ -19,6 +19,8 @@ Most deployments still treat quantization as a **one-time export**: pick a prese
 
 Train → evaluate → benchmark suite → analysis artifacts under **`outputs/`** (JSON, JSONL, inline SVG, optional Markdown reports). **/stdlib simulator** is the default path (CI-friendly, no PyTorch). **Optional:** drive the same loop with a local **llama.cpp** binary + GGUF, or scale policy learning with **PyTorch + CUDA** (`run_pytorch.py` presets). Same `FrameworkConfig` surface either way.
 
+The default simulator trainer is intentionally **one-step / contextual-bandit-friendly** (REINFORCE-style updates with a value baseline) so runs stay fast and auditable; the PyTorch path adds GPU-scale optimizers (PPO/VPG/AWR) when you need them.
+
 Runs now also **detect the host hardware** (safe fallback to static defaults when probing is unavailable) and emit an **RL-backed quantization recommendation** for the detected target class under the benchmark artifacts.
 
 **Where the boundary is**

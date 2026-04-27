@@ -6,14 +6,14 @@ import subprocess
 import math
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
-from typing import Protocol
+from typing import Any, Protocol
 
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import load_jsonl, read_json
 from adaptive_quant.math_utils import clamp, mean, variance
 from adaptive_quant.moe import ExpertBank
 from adaptive_quant.types import (
+    BackendMetricDict,
     EpisodeState,
     HardwareType,
     QuantizationDecision,
@@ -21,7 +21,13 @@ from adaptive_quant.types import (
 )
 
 
-def build_backend(config: FrameworkConfig):
+class Backend(Protocol):
+    """Evaluation backend interface (simulator or llama.cpp)."""
+
+    def evaluate(self, state: EpisodeState, decision: QuantizationDecision) -> BackendMetricDict: ...
+
+
+def build_backend(config: FrameworkConfig) -> Backend:
     """Build the measurement backend configured for an experiment."""
     backend = config.backend.strip().lower()
     if backend == "simulator":
@@ -29,15 +35,6 @@ def build_backend(config: FrameworkConfig):
     if backend == "llama_cpp":
         return LlamaCppBackend(config)
     raise ValueError(f"Unsupported backend {config.backend!r}; expected 'simulator' or 'llama_cpp'.")
-
-
-class BackendMetrics(Protocol):
-    latency_ms: float
-    throughput_tps: float
-    perplexity: float
-    memory_mb: float
-    tokens_processed: float
-    latency_ms_per_token: float
 
 
 def per_token_latency_fields(state: EpisodeState, latency_ms: float) -> dict[str, float]:
@@ -55,7 +52,7 @@ class SimulatorBackend:
         self.expert_bank = ExpertBank(config) if config.moe_enabled else None
         self.external_quality = ExternalQualityScores.from_config(config)
 
-    def evaluate(self, state: EpisodeState, decision: QuantizationDecision) -> dict[str, float]:
+    def evaluate(self, state: EpisodeState, decision: QuantizationDecision) -> BackendMetricDict:
         hardware = state.hardware_profile
         avg_bits = mean(decision.effective_layer_bits)
         bit_variance = variance(decision.effective_layer_bits)
@@ -151,7 +148,7 @@ class SimulatorBackend:
                 memory_mb,
             )
 
-        metrics = {
+        metrics: BackendMetricDict = {
             "latency_ms": clamp(latency_ms, 5.0, 20_000.0),
             "throughput_tps": clamp(throughput_tps, 1.0, 10_000.0),
             "perplexity": clamp(perplexity, 3.0, 100.0),
@@ -226,7 +223,7 @@ class LlamaCppBackend:
         self._simulator = SimulatorBackend(config)
         self.external_quality = ExternalQualityScores.from_config(config)
 
-    def evaluate(self, state: EpisodeState, decision: QuantizationDecision) -> dict[str, float]:
+    def evaluate(self, state: EpisodeState, decision: QuantizationDecision) -> BackendMetricDict:
         llama_cpp_binary, llama_cpp_model = require_llama_cpp_paths(
             self.config,
             model_override=decision.metadata.get("llama_cpp_model_path"),
@@ -298,7 +295,7 @@ class ExternalQualityScores:
 
 
 def apply_external_quality(
-    metrics: dict[str, float],
+    metrics: BackendMetricDict,
     state: EpisodeState,
     external_quality: ExternalQualityScores | None,
 ) -> None:
@@ -479,6 +476,51 @@ def _extract_numeric(text: str, marker: str, default: float) -> float:
         return default
 
 
+def _extract_memory_mb(text: str, default: float = 0.0) -> float:
+    """
+    Best-effort extraction for memory usage lines in llama.cpp output.
+
+    We intentionally avoid the old "find any number before 'mb'" behavior because many logs
+    contain unrelated "mb" tokens that would poison the metrics (e.g. batch sizes, model info).
+    """
+    if not text:
+        return default
+
+    # Common llama.cpp / system patterns tend to include a memory label near the unit.
+    # Examples we try to match:
+    #   "mem: 1234.5 mb"
+    #   "memory 1234 mb"
+    #   "rss 512 mb"
+    #   "kv cache: 2048 mb"
+    #   "cuda memory: 4096 MiB"
+    label = r"(?:mem(?:ory)?|rss|resident|kv(?:\s+cache)?|cuda(?:\s+memory)?|gpu(?:\s+memory)?)"
+    unit = r"(?:mib|mb)"
+
+    patterns = [
+        # label ... number unit
+        re.compile(rf"{label}[^0-9]{{0,64}}(?P<num>{_NUMBER_RE})\s*(?P<unit>{unit})\b"),
+        # number unit ... label
+        re.compile(rf"(?P<num>{_NUMBER_RE})\s*(?P<unit>{unit})\b[^a-z]{{0,64}}{label}\b"),
+    ]
+
+    last_value = default
+    for pattern in patterns:
+        for match in pattern.finditer(text):
+            raw = match.group("num")
+            raw_unit = (match.group("unit") or "").lower()
+            try:
+                value = float(raw)
+            except ValueError:
+                continue
+            if value <= 0.0:
+                continue
+            # MiB and MB are close enough for this coarse telemetry; keep the number as "MB-like".
+            if raw_unit not in ("mb", "mib"):
+                continue
+            last_value = value
+    return last_value
+
+
 def parse_llama_cpp_metrics(text: str) -> dict[str, float]:
     """
     Best-effort parser for common llama.cpp CLI output.
@@ -489,7 +531,7 @@ def parse_llama_cpp_metrics(text: str) -> dict[str, float]:
     """
     throughput_tps = _extract_numeric(text, "tok/s", default=0.0)
     latency_ms_per_token = _extract_numeric(text, "ms per token", default=0.0)
-    memory_mb = _extract_numeric(text, "mb", default=0.0)
+    memory_mb = _extract_memory_mb(text, default=0.0)
     result: dict[str, float] = {}
     if throughput_tps > 0.0:
         result["throughput_tps"] = throughput_tps
