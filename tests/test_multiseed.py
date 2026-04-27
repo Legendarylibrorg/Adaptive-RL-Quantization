@@ -26,8 +26,12 @@ class MultiSeedRunnerTests(unittest.TestCase):
 
         summary_path = Path("outputs/benchmarks/test_multiseed_multiseed_summary.json")
         report_path = Path("outputs/reports/test_multiseed_multiseed_report.md")
+        bundle_dir = Path("outputs/paper_bundles/test_multiseed_multiseed")
         self.assertTrue(summary_path.exists(), "Expected multiseed JSON summary to be written")
         self.assertTrue(report_path.exists(), "Expected multiseed markdown report to be written")
+        self.assertTrue(bundle_dir.exists(), "Expected multiseed paper bundle to be written")
+        self.assertTrue((bundle_dir / "manifest.json").exists(), "Expected multiseed manifest")
+        self.assertTrue((bundle_dir / "aggregate_stats.json").exists(), "Expected aggregate stats")
 
 
 if __name__ == "__main__":

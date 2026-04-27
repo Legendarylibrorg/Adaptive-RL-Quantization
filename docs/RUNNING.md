@@ -32,6 +32,8 @@ Artifacts and API: [USAGE.md](USAGE.md).
 | Multi-seed (`dense` or `moe`) | `adaptive-rl-quant-multiseed --preset dense --seeds 13,17,23,29,31` |
 | Calibrate simulator from llama.cpp | `adaptive-rl-quant-calibrate` |
 | Calibrate + custom base config | `adaptive-rl-quant-calibrate --config my_base.json` |
+| GGUF route catalog + contextual bandit | `adaptive-rl-quant-route --catalog outputs/routes/catalog.json seed` |
+| Route-bandit training | `adaptive-rl-quant-route --catalog outputs/routes/catalog.json train --config local_llama.json --iterations 128 --evaluate` |
 | Online experiment | `adaptive-rl-quant-online` |
 | Online + file | `adaptive-rl-quant-online --config online.toml` |
 
@@ -47,6 +49,7 @@ adaptive-rl-quant-pytorch --config ./gpu_settings.toml
 adaptive-rl-quant-online --config ./online.toml
 adaptive-rl-quant-multiseed --preset moe --seeds 13,17,23
 adaptive-rl-quant-calibrate --config ./paths_only.json
+adaptive-rl-quant-route --catalog outputs/routes/catalog.json --help
 adaptive-rl-quant --help
 adaptive-rl-quant-online --help
 adaptive-rl-quant-pytorch --help
@@ -65,6 +68,7 @@ python3 run_pytorch.py --preset 3090
 python3 run_online_learning.py --config ./online.toml
 python3 run_multiseed.py --preset moe --seeds 13,17,23
 python3 run_calibrate_llama_cpp.py --config ./paths_only.json
+python3 run_route_learning.py --catalog outputs/routes/catalog.json --help
 ```
 
 Before committing (whitespace, syntax, tests): `python3 scripts/pre_commit_check.py` on Unix-like hosts; on Windows use `py -3.11 scripts/pre_commit_check.py` or `python scripts/pre_commit_check.py`. On Linux/macOS, `bash scripts/pre_commit_check.sh` is a wrapper around the same Python implementation.
@@ -80,10 +84,11 @@ Fixed horizons and episode counts live in each `config*.py`. For long PyTorch ru
 - **`adaptive-rl-quant-pytorch`** (via [`run_pytorch.py`](../run_pytorch.py)): CUDA preflight first (when enabled), then the same pipeline with a smaller benchmark budget than training.
 - **`adaptive-rl-quant-moe`** (via [`run_moe_research.py`](../run_moe_research.py)): MoE benchmarks and extra MoE analysis.
 - **`adaptive-rl-quant-online`** (via [`run_online_learning.py`](../run_online_learning.py)): offline warm-start, then simulated serving + replay + rollback with the same summary/report/checkpoint pattern as other entrypoints.
+- **`adaptive-rl-quant-route`** (via [`run_route_learning.py`](../run_route_learning.py)): manages GGUF route catalogs and trains a contextual bandit over route choices. See [ROUTES.md](ROUTES.md) and [LOCAL_RESEARCH.md](LOCAL_RESEARCH.md).
 
 ## Outputs
 
-`outputs/logs/`, `outputs/benchmarks/` (including `*_preflight.json` on GPU), `outputs/analysis/<run_name>/`, `outputs/checkpoints/`, `outputs/reports/`.
+`outputs/logs/`, `outputs/benchmarks/` (including `*_preflight.json` on GPU), `outputs/analysis/<run_name>/`, `outputs/checkpoints/`, `outputs/reports/`, and `outputs/paper_bundles/<run_name>/`.
 
 ## llama.cpp
 

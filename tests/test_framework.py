@@ -535,6 +535,12 @@ class FrameworkTests(unittest.TestCase):
             self.assertTrue(summary["artifacts"]["recommendation"].endswith("_recommendation.json"))
             self.assertTrue(summary["artifacts"]["report"].endswith("_report.md"))
 
+    def test_research_pipeline_preserves_trainer_build_error(self) -> None:
+        config = FrameworkConfig(training_episodes=1, evaluation_episodes=1, run_name="build_error_test")
+        with mock.patch("adaptive_quant.trainer.build_trainer", side_effect=RuntimeError("build failed")):
+            with self.assertRaisesRegex(RuntimeError, "build failed"):
+                ResearchPipeline(config).run()
+
     def test_online_pipeline_writes_summary_history_checkpoint_and_report(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             config = FrameworkConfig(

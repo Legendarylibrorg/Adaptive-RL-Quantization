@@ -61,7 +61,7 @@ torch = ["torch>=2.11.0"]
 dev = ["ruff>=0.15.10"]
 
 [tool.setuptools]
-packages = ["adaptive_quant", "analysis"]
+packages = ["adaptive_quant", "adaptive_quant.routes", "analysis"]
 py-modules = [
     "config",
     "config_3090",

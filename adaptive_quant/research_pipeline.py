@@ -26,7 +26,7 @@ class ResearchPipeline:
     def run(self) -> dict[str, object]:
         config, gpu_profile_report = self._resolve_config()
         git_commit = git_commit_hash()
-        trainer = self._build_trainer(config)
+        trainer = None
         preflight_report = None
         train_summary: dict[str, object] = {}
         eval_summary: dict[str, object] = {}
@@ -37,6 +37,7 @@ class ResearchPipeline:
         recommendation_path: str | None = None
         pipeline_error: BaseException | None = None
         try:
+            trainer = self._build_trainer(config)
             if config.training_backend == "pytorch" and config.torch_preflight:
                 from adaptive_quant.torch_preflight import run_torch_preflight
 
@@ -55,7 +56,8 @@ class ResearchPipeline:
         except BaseException as exc:
             pipeline_error = exc
         finally:
-            trainer.close()
+            if trainer is not None:
+                trainer.close()
         if pipeline_error is not None:
             raise pipeline_error
 

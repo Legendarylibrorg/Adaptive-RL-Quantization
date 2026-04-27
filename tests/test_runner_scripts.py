@@ -240,6 +240,9 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertEqual(scripts["adaptive-rl-quant"], "run_research:main")
         self.assertEqual(scripts["adaptive-rl-quant-pytorch"], "run_pytorch:main")
         self.assertEqual(scripts["adaptive-rl-quant-online"], "run_online_learning:main")
+        self.assertEqual(scripts["adaptive-rl-quant-route"], "run_route_learning:main")
+        packages = payload["tool"]["setuptools"]["packages"]
+        self.assertIn("adaptive_quant.routes", packages)
         py_modules = payload["tool"]["setuptools"]["py-modules"]
         self.assertIn("run_research", py_modules)
         self.assertIn("config_online", py_modules)

@@ -146,6 +146,7 @@ The current results come from the offline benchmark artifacts produced by:
 - `outputs/benchmarks/adaptive_moe_policy_summary.json`
 - `outputs/benchmarks/*_benchmarks.json` (the benchmark comparison suite)
 - `outputs/reports/*_report.md` (a human-readable report that links figures)
+- `outputs/paper_bundles/<run_name>/` (manifest, metric tables, telemetry export, appendix, and claims validation)
 
 The dense benchmark compares:
 
@@ -175,6 +176,8 @@ adaptive-rl-quant-moe
 ```
 
 Then inspect the generated benchmark JSON and report under `outputs/benchmarks/` and `outputs/reports/`.
+For citation or review, prefer the matching `outputs/paper_bundles/<run_name>/manifest.json`,
+`metrics_summary.csv`, and `claims_validation.md` so metric provenance and evidence level travel with the numbers.
 
 For more meaningful and publishable numbers (mean/std across randomness), run multi-seed aggregates:
 
