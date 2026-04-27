@@ -156,40 +156,6 @@ def _hash_features(text: str, *, dim: int) -> list[float]:
     return _stable_l2_normalize(vec)
 
 
-def _hf_embedding_features(model_id: str, text: str) -> list[float]:
-    """Return a normalized embedding vector using a Hugging Face model (lazy imports)."""
-    try:
-        import torch
-        from transformers import AutoModel, AutoTokenizer
-    except Exception as exc:  # pragma: no cover
-        raise RuntimeError(
-            "router_feature_backend='hf' requires 'transformers' and 'torch'. "
-            "Install them (and set router_hf_embedding_model) or use router_feature_backend='hash'."
-        ) from exc
-
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    tokenizer = AutoTokenizer.from_pretrained(model_id)
-    model = AutoModel.from_pretrained(model_id)
-    model.eval()
-    model.to(device)
-
-    with torch.no_grad():
-        batch = tokenizer(text or "", return_tensors="pt", truncation=True, max_length=256)
-        batch = {k: v.to(device) for k, v in batch.items()}
-        out = model(**batch)
-        hidden = out.last_hidden_state  # (B, T, H)
-        mask = batch.get("attention_mask")
-        if mask is None:
-            pooled = hidden.mean(dim=1)
-        else:
-            mask_f = mask.unsqueeze(-1).to(hidden.dtype)
-            summed = (hidden * mask_f).sum(dim=1)
-            denom = mask_f.sum(dim=1).clamp(min=1.0)
-            pooled = summed / denom
-        vec = pooled[0].detach().float().cpu().tolist()
-    return _stable_l2_normalize([float(x) for x in vec])
-
-
 def _finite(value: float, *, label: str) -> float:
     v = float(value)
     if not math.isfinite(v):

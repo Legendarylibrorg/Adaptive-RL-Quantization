@@ -22,11 +22,13 @@ from adaptive_quant.types import (
 
 
 def build_backend(config: FrameworkConfig):
-    """Backend factory used by route-learning pipelines.
-
-    Unknown backends fall back to the simulator so stdlib-only workflows remain usable.
-    """
-    return LlamaCppBackend(config) if config.backend == "llama_cpp" else SimulatorBackend(config)
+    """Build the measurement backend configured for an experiment."""
+    backend = config.backend.strip().lower()
+    if backend == "simulator":
+        return SimulatorBackend(config)
+    if backend == "llama_cpp":
+        return LlamaCppBackend(config)
+    raise ValueError(f"Unsupported backend {config.backend!r}; expected 'simulator' or 'llama_cpp'.")
 
 
 class BackendMetrics(Protocol):

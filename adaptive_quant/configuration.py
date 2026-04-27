@@ -188,6 +188,7 @@ class FrameworkConfig:
         _validate_optional_filesystem_path("llama_cpp_binary", self.llama_cpp_binary)
         _validate_optional_filesystem_path("llama_cpp_model", self.llama_cpp_model)
         _validate_optional_filesystem_path("external_quality_path", self.external_quality_path)
+        _validate_backend(self.backend)
         _validate_torch_policy_algorithm(self.torch_policy_algorithm)
         _validate_env_sampling_mode(self.env_sampling_mode)
         _validate_rl_train_policy_mode(self.rl_train_policy_mode)
@@ -325,10 +326,19 @@ class FrameworkConfig:
 
 _RUN_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
+_BACKENDS = frozenset({"simulator", "llama_cpp"})
 _TORCH_POLICY_ALGORITHMS = frozenset({"ppo", "vpg", "awr"})
 _ENV_SAMPLING_MODES = frozenset({"random", "sequential", "forced"})
 _RL_TRAIN_POLICY_MODES = frozenset({"stochastic", "deterministic"})
 _STABILITY_PROBE_SAMPLING = frozenset({"random", "deterministic"})
+
+
+def _validate_backend(name: str) -> None:
+    if not isinstance(name, str):
+        raise TypeError("backend must be a string")
+    key = name.strip().lower()
+    if key not in _BACKENDS:
+        raise ValueError(f"backend must be one of {sorted(_BACKENDS)}, got {name!r}")
 
 
 def _validate_env_sampling_mode(name: str) -> None:

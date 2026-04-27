@@ -211,6 +211,8 @@ class FrameworkTests(unittest.TestCase):
 
     def test_research_env_config_validators(self) -> None:
         with self.assertRaises(ValueError):
+            FrameworkConfig(run_name="bad_backend", backend="llama-cpp")
+        with self.assertRaises(ValueError):
             FrameworkConfig(run_name="bad_env_mode", env_sampling_mode="unknown")
         with self.assertRaises(ValueError):
             FrameworkConfig(run_name="bad_policy_mode", rl_train_policy_mode="maybe")
