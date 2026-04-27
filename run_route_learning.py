@@ -45,6 +45,7 @@ from adaptive_quant.route_pipeline import (
     recommend_route,
     save_bandit_artifacts,
     train_route_bandit,
+    validate_local_route_models,
 )
 from adaptive_quant.runner_cli import add_config_file_argument, load_config_or_fallback
 from adaptive_quant.types import HardwareType
@@ -93,6 +94,11 @@ def main(argv: Iterable[str] | None = None) -> None:
     )
     register_parser.add_argument("--parameters-b", type=float, default=None, help="Parameter count in billions.")
     register_parser.add_argument("--size-mb", type=float, default=None, help="On-disk file size in MB.")
+    register_parser.add_argument(
+        "--local-path",
+        default=None,
+        help="Path to an already-downloaded local GGUF file for real llama.cpp route research.",
+    )
     register_parser.add_argument(
         "--hardware-hint",
         action="append",
@@ -164,6 +170,11 @@ def main(argv: Iterable[str] | None = None) -> None:
         default=None,
         metavar="PATH",
         help="Path to a previously written *_route_bandit.json to warm-start from.",
+    )
+    train_parser.add_argument(
+        "--require-local-models",
+        action="store_true",
+        help="Require every catalog route to have an existing local GGUF path before training.",
     )
 
     recommend_parser = sub.add_parser("recommend", help="Print the best route for a context.")
@@ -280,6 +291,7 @@ def _cmd_register(catalog_path: Path, args: argparse.Namespace) -> None:
         hardware_hints=tuple(args.hardware_hint) if args.hardware_hint else ("any",),
         domain_hints=tuple(args.domain_hint) if args.domain_hint else (),
         notes=args.notes,
+        local_path=str(Path(args.local_path)) if args.local_path else None,
     )
     catalog.add(route, replace_existing=args.replace)
     catalog.save(str(catalog_path))
@@ -349,6 +361,11 @@ def _cmd_download(catalog_path: Path, args: argparse.Namespace) -> None:
 def _cmd_train(catalog_path: Path, args: argparse.Namespace) -> None:
     catalog = _load_catalog(catalog_path)
     config = _resolve_config(args.config)
+    if config.backend == "llama_cpp" or args.require_local_models:
+        try:
+            validate_local_route_models(catalog)
+        except FileNotFoundError as exc:
+            raise SystemExit(str(exc)) from exc
     bandit = make_bandit(catalog, config, ucb_c=float(args.ucb_c))
     if args.resume is not None:
         _, resumed = load_bandit_artifact(args.resume)

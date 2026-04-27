@@ -50,6 +50,7 @@ adaptive-rl-quant-pytorch = "run_pytorch:main"
 adaptive-rl-quant-online = "run_online_learning:main"
 adaptive-rl-quant-multiseed = "run_multiseed:main"
 adaptive-rl-quant-calibrate = "run_calibrate_llama_cpp:main"
+adaptive-rl-quant-route = "run_route_learning:main"
 
 [project.optional-dependencies]
 # Sole PyPI runtime extra — PyTorch for training_backend="pytorch" / run_pytorch.py.
@@ -74,6 +75,7 @@ py-modules = [
     "run_multiseed",
     "run_online_learning",
     "run_pytorch",
+    "run_route_learning",
     "run_research",
 ]
 

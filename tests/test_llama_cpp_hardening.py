@@ -84,6 +84,68 @@ class LlamaCppHardeningTests(unittest.TestCase):
             self.assertIn("timeout", kwargs)
             self.assertEqual(float(kwargs["timeout"]), float(config.llama_cpp_timeout_s))
 
+    def test_llama_cpp_backend_uses_route_local_model_and_generate_tokens(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            binary_path = temp_path / "llama-cli"
+            fallback_model = temp_path / "fallback.gguf"
+            route_model = temp_path / "route-q4.gguf"
+            binary_path.write_text("#!/bin/sh\necho 'tok/s 123.0\\nms per token 0.5'\n", encoding="utf-8")
+            os.chmod(binary_path, 0o755)
+            fallback_model.write_text("fallback", encoding="utf-8")
+            route_model.write_text("route", encoding="utf-8")
+
+            config = FrameworkConfig(
+                backend="llama_cpp",
+                llama_cpp_binary=str(binary_path),
+                llama_cpp_model=str(fallback_model),
+                llama_cpp_generate_tokens=17,
+                training_episodes=2,
+                evaluation_episodes=1,
+                stability_probe_count=1,
+                outputs_dir=temp_dir,
+                log_dir=f"{temp_dir}/logs",
+                benchmark_dir=f"{temp_dir}/benchmarks",
+                analysis_dir=f"{temp_dir}/analysis",
+                run_name="llama_cpp_route_model_test",
+                seed=5,
+            )
+
+            env = AdaptiveQuantizationEnv(config, log_path=f"{temp_dir}/logs/test.jsonl")
+            state = env.reset(forced_hardware=HardwareType.GPU, forced_prompt_id="very_complex")
+            decision = finalize_decision(
+                QuantizationDecision(
+                    mode=QuantMode.DISCRETE,
+                    base_bit_width=4,
+                    metadata={"llama_cpp_model_path": str(route_model)},
+                ),
+                state,
+                config,
+            )
+
+            captured: dict[str, object] = {}
+
+            def fake_run(cmd, **kwargs):  # type: ignore[no-untyped-def]
+                captured["cmd"] = cmd
+                return subprocess.CompletedProcess(cmd, 0, stdout="tok/s 100.0\nms per token 1.0\n", stderr="")
+
+            import adaptive_quant.backend as backend_module
+
+            original_run = backend_module.subprocess.run
+            backend_module.subprocess.run = fake_run  # type: ignore[assignment]
+            try:
+                metrics = LlamaCppBackend(config).evaluate(state, decision)
+            finally:
+                backend_module.subprocess.run = original_run  # type: ignore[assignment]
+
+            cmd = captured.get("cmd")
+            self.assertIsInstance(cmd, list)
+            assert isinstance(cmd, list)
+            self.assertEqual(cmd[cmd.index("-m") + 1], str(route_model.resolve()))
+            self.assertEqual(cmd[cmd.index("-n") + 1], "17")
+            self.assertEqual(metrics["latency_source"], "llama_cpp")
+            self.assertEqual(metrics["perplexity_source"], "simulator")
+
     def test_llama_cpp_backend_raises_on_non_zero_exit(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)

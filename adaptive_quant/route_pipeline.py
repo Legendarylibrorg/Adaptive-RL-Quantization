@@ -30,6 +30,7 @@ from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.logging_utils import JsonlLogger, read_json, write_json
 from adaptive_quant.math_utils import mean
 from adaptive_quant.model_routes import ModelRoute, RouteCatalog
+from adaptive_quant.paper_bundle import create_pipeline_paper_bundle
 from adaptive_quant.prompts import PromptLibrary
 from adaptive_quant.route_policy import RouteBandit, RouteContext, RouteSelection
 from adaptive_quant.types import (
@@ -86,19 +87,45 @@ def build_route_decision(route: ModelRoute, config: FrameworkConfig) -> Quantiza
     still get the usual latency / throughput / perplexity formulas.
     """
     bits = float(route.effective_bits or config.safe_default_bits)
+    metadata: dict[str, Any] = {
+        "route_id": route.route_id,
+        "repo_id": route.repo_id,
+        "quant_label": route.quant_label,
+        "average_bits": bits,
+        "bit_variance": 0.0,
+        "route_origin": "model_routes",
+    }
+    if route.local_path:
+        metadata["llama_cpp_model_path"] = route.local_path
+
     return QuantizationDecision(
         mode=QuantMode.DISCRETE,
         base_bit_width=int(round(bits)),
         effective_layer_bits=[bits] * config.num_layers,
-        metadata={
-            "route_id": route.route_id,
-            "repo_id": route.repo_id,
-            "quant_label": route.quant_label,
-            "average_bits": bits,
-            "bit_variance": 0.0,
-            "route_origin": "model_routes",
-        },
+        metadata=metadata,
     )
+
+
+def validate_local_route_models(catalog: RouteCatalog) -> None:
+    """Ensure every route has a usable local GGUF path before real llama.cpp measurements."""
+    missing: list[str] = []
+    invalid: list[str] = []
+    for route in catalog.routes:
+        if not route.local_path:
+            missing.append(route.route_id)
+            continue
+        path = Path(route.local_path)
+        if not path.is_file():
+            invalid.append(f"{route.route_id}: {path}")
+    if missing or invalid:
+        details: list[str] = []
+        if missing:
+            details.append(f"missing local_path for routes: {', '.join(sorted(missing))}")
+        if invalid:
+            details.append(f"local_path is not a file: {'; '.join(sorted(invalid))}")
+        raise FileNotFoundError(
+            "llama.cpp route research requires local GGUF files; " + " | ".join(details)
+        )
 
 
 def evaluate_route(
@@ -387,14 +414,25 @@ def save_bandit_artifacts(
         "backend": config.backend,
         "catalog_size": len(catalog),
         "bandit_report": bandit.report(),
+        "artifacts": {
+            "bandit": bandit_path,
+            "summary": summary_path,
+            "route_telemetry": f"{config.log_dir}/{config.run_name}_route_telemetry.jsonl",
+        },
     }
     if training_summary is not None:
         summary_payload["training"] = training_summary.to_dict()
     if evaluation is not None:
         summary_payload["evaluation"] = evaluation
+    paper_bundle = create_pipeline_paper_bundle(
+        config=config,
+        summary=summary_payload,
+        telemetry_path=f"{config.log_dir}/{config.run_name}_route_telemetry.jsonl",
+    )
+    summary_payload["artifacts"]["paper_bundle"] = paper_bundle
     write_json(summary_path, summary_payload)
 
-    return {"bandit": bandit_path, "summary": summary_path}
+    return {"bandit": bandit_path, "summary": summary_path, "paper_bundle": paper_bundle["paper_bundle_dir"]}
 
 
 def load_bandit_artifact(path: str | Path) -> tuple[RouteCatalog, RouteBandit]:
