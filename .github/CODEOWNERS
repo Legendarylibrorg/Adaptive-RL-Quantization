@@ -3,39 +3,39 @@
 #
 # Syntax: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-security/customizing-your-repository/about-code-owners
 #
-# The default owner is the org that publishes this repository. Replace
-# `@Legendarylibrorg` with a more specific maintainer team if/when one is
-# created. Never put untrusted accounts here — CODEOWNERS entries are
+# The default owner is the maintainer account. Replace `@Legendarylibr`
+# with a more specific `@Legendarylibrorg/<team>` if/when one is
+# created. Never put untrusted accounts here - CODEOWNERS entries are
 # auto-requested as reviewers and can affect merge gating.
 
-* @Legendarylibrorg
+* @Legendarylibr
 
 # --- Open-source policy & community files ---
-/LICENSE                  @Legendarylibrorg
-/SECURITY.md              @Legendarylibrorg
-/SUPPORT.md               @Legendarylibrorg
-/CODE_OF_CONDUCT.md       @Legendarylibrorg
-/CONTRIBUTING.md          @Legendarylibrorg
-/RELEASING.md             @Legendarylibrorg
-/CHANGELOG.md             @Legendarylibrorg
-/CITATION.cff             @Legendarylibrorg
-/.well-known/             @Legendarylibrorg
+/LICENSE                  @Legendarylibr
+/SECURITY.md              @Legendarylibr
+/SUPPORT.md               @Legendarylibr
+/CODE_OF_CONDUCT.md       @Legendarylibr
+/CONTRIBUTING.md          @Legendarylibr
+/RELEASING.md             @Legendarylibr
+/CHANGELOG.md             @Legendarylibr
+/CITATION.cff             @Legendarylibr
+/.well-known/             @Legendarylibr
 
 # --- CI, supply chain, and dependency hygiene ---
-/.github/                 @Legendarylibrorg
-/.github/workflows/       @Legendarylibrorg
-/.github/dependabot.yml   @Legendarylibrorg
-/requirements/            @Legendarylibrorg
-/security/                @Legendarylibrorg
-/pyproject.toml           @Legendarylibrorg
+/.github/                 @Legendarylibr
+/.github/workflows/       @Legendarylibr
+/.github/dependabot.yml   @Legendarylibr
+/requirements/            @Legendarylibr
+/security/                @Legendarylibr
+/pyproject.toml           @Legendarylibr
 
 # --- Security-sensitive code paths ---
-/scripts/secret_scan.py     @Legendarylibrorg
-/scripts/verify_hashes.py   @Legendarylibrorg
-/scripts/setup_from_clone.py @Legendarylibrorg
-/scripts/pre_commit_check.py @Legendarylibrorg
-/adaptive_quant/configuration.py  @Legendarylibrorg
-/adaptive_quant/easy_config.py    @Legendarylibrorg
-/adaptive_quant/torch_trainer.py  @Legendarylibrorg
-/adaptive_quant/analysis_utils.py @Legendarylibrorg
-/adaptive_quant/logging_utils.py  @Legendarylibrorg
+/scripts/secret_scan.py     @Legendarylibr
+/scripts/verify_hashes.py   @Legendarylibr
+/scripts/setup_from_clone.py @Legendarylibr
+/scripts/pre_commit_check.py @Legendarylibr
+/adaptive_quant/configuration.py  @Legendarylibr
+/adaptive_quant/easy_config.py    @Legendarylibr
+/adaptive_quant/torch_trainer.py  @Legendarylibr
+/adaptive_quant/analysis_utils.py @Legendarylibr
+/adaptive_quant/logging_utils.py  @Legendarylibr
