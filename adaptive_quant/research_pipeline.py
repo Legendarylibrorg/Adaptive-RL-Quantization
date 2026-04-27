@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
+import warnings
 from dataclasses import asdict
 from pathlib import Path
 
@@ -35,7 +37,7 @@ class ResearchPipeline:
         history_path: str | None = None
         checkpoint_path: str | None = None
         recommendation_path: str | None = None
-        pipeline_error: BaseException | None = None
+        pipeline_error: Exception | None = None
         try:
             trainer = self._build_trainer(config)
             if config.training_backend == "pytorch" and config.torch_preflight:
@@ -53,7 +55,9 @@ class ResearchPipeline:
             write_json(recommendation_path, recommendation_summary)
             history_path = write_training_history(config, trainer)
             checkpoint_path = maybe_save_final_checkpoint(config, trainer)
-        except BaseException as exc:
+        except KeyboardInterrupt:
+            raise
+        except Exception as exc:
             pipeline_error = exc
         finally:
             if trainer is not None:
@@ -63,6 +67,7 @@ class ResearchPipeline:
 
         from adaptive_quant.benchmark import BenchmarkSuite
 
+        _warn_if_benchmarks_are_large(config)
         benchmark_summary = BenchmarkSuite(config).run()
         analysis = self._run_analysis(config, history_path)
         report_path = self._write_report(
@@ -410,6 +415,34 @@ def run_pipeline_entrypoint(
         print("GPU profile:", summary["gpu_profile"])
     print_pipeline_footer(config, summary, mode=footer_mode)
     return summary
+
+
+def _warn_if_benchmarks_are_large(config: FrameworkConfig) -> None:
+    """
+    Benchmarks train multiple variants and can multiply an already-large training budget.
+    This warns (once per process) when the effective work is likely to be surprising.
+    """
+    bench_train = config.training_episodes if config.benchmark_training_episodes is None else config.benchmark_training_episodes
+    bench_eval = config.evaluation_episodes if config.benchmark_evaluation_episodes is None else config.benchmark_evaluation_episodes
+    # Conservative estimate of how many separate train() calls BenchmarkSuite will run when moe is off.
+    # (single_vs_multi: 2) + (static_vs_dynamic: 2) + (discrete_vs_learned: 2) = 6; plus evaluation passes.
+    variant_trains = 6 + (3 if config.moe_enabled else 0)
+    estimated_train_episodes = int(bench_train) * int(variant_trains)
+    if estimated_train_episodes < 25_000 and int(bench_eval) <= 1_000:
+        return
+    message = (
+        "Benchmark suite may be expensive: it trains multiple variants.\n"
+        f"- benchmark_training_episodes={bench_train}\n"
+        f"- variants_trained≈{variant_trains}\n"
+        f"- estimated_train_episodes≈{estimated_train_episodes:,}\n"
+        f"- benchmark_evaluation_episodes={bench_eval}\n"
+        "To reduce cost, set benchmark_training_episodes / benchmark_evaluation_episodes in your config."
+    )
+    # Keep stderr clean for most runs; still show a visible warning when budgets get large.
+    try:
+        warnings.warn(message, RuntimeWarning, stacklevel=2)
+    except Exception:
+        print(message, file=sys.stderr)
 
 
 __all__ = ["ResearchPipeline", "git_commit_hash", "run_pipeline_entrypoint"]

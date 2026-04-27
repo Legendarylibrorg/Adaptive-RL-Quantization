@@ -178,6 +178,7 @@ class FrameworkConfig:
 
     def __post_init__(self) -> None:
         _validate_run_name(self.run_name)
+        _validate_discrete_bit_widths(self.discrete_bit_widths)
         _validate_artifact_dir("outputs_dir", self.outputs_dir)
         _validate_artifact_dir("log_dir", self.log_dir)
         _validate_artifact_dir("benchmark_dir", self.benchmark_dir)
@@ -386,6 +387,22 @@ def _validate_positive_int(name: str, value: int) -> None:
         raise TypeError(f"{name} must be an int")
     if value <= 0:
         raise ValueError(f"{name} must be > 0, got {value!r}")
+
+
+def _validate_discrete_bit_widths(values: tuple[int, ...]) -> None:
+    if not isinstance(values, tuple):
+        raise TypeError("discrete_bit_widths must be a tuple of ints")
+    if not values:
+        raise ValueError("discrete_bit_widths must be non-empty")
+    seen: set[int] = set()
+    for item in values:
+        if not isinstance(item, int) or isinstance(item, bool):
+            raise TypeError("discrete_bit_widths must contain ints")
+        if item <= 0:
+            raise ValueError(f"discrete_bit_widths must be > 0, got {item!r}")
+        if item in seen:
+            raise ValueError(f"discrete_bit_widths must not contain duplicates (got {item!r} twice)")
+        seen.add(item)
 
 
 def _validate_run_name(run_name: str) -> None:

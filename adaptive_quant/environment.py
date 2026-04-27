@@ -133,11 +133,20 @@ class AdaptiveQuantizationEnv:
         primary_metrics = self.backend.evaluate(self.current_state, finalized)
         stability_penalty = self._stability_penalty(finalized, self.current_state)
 
+        pre_fallback_metrics = dict(primary_metrics)
+        pre_fallback_stability = float(stability_penalty)
+        pre_fallback_reward = self._compute_reward(pre_fallback_metrics, pre_fallback_stability)
+
         if stability_penalty > self.config.instability_threshold:
             fallback = finalize_decision(safe_fallback_decision(self.config), self.current_state, self.config)
             fallback.fallback_applied = True
             fallback.unstable = True
             fallback.metadata["fallback_reason"] = "instability"
+            fallback.metadata["fallback_pre"] = {
+                "reward": pre_fallback_reward,
+                "stability_penalty": pre_fallback_stability,
+                "metrics": pre_fallback_metrics,
+            }
             finalized = fallback
             primary_metrics = self.backend.evaluate(self.current_state, finalized)
             stability_penalty = self._stability_penalty(finalized, self.current_state)
