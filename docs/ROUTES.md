@@ -38,6 +38,7 @@ adaptive-rl-quant-route register \
   --filename Mistral-7B-Instruct-v0.3-Q4_K_M.gguf \
   --quant Q4_K_M \
   --parameters-b 7 --size-mb 4400 \
+  --local-path /absolute/path/to/Mistral-7B-Instruct-v0.3-Q4_K_M.gguf \
   --hardware-hint gpu --hardware-hint cpu \
   --notes "general-purpose 7B baseline"
 
@@ -45,8 +46,8 @@ adaptive-rl-quant-route register \
 adaptive-rl-quant-route download --route-id mistral7b-q4km --dry-run    # preview
 adaptive-rl-quant-route download --route-id mistral7b-q4km              # actually fetch
 
-# 4. Train the bandit on the simulator (or llama.cpp if config.backend="llama_cpp").
-adaptive-rl-quant-route train --iterations 1024 --evaluate
+# 4. Train the bandit on the simulator (or local llama.cpp GGUFs if config.backend="llama_cpp").
+adaptive-rl-quant-route train --iterations 1024 --evaluate --require-local-models
 
 # 5. Ask which route to serve a given task on which hardware.
 adaptive-rl-quant-route recommend \
@@ -117,5 +118,10 @@ size is checked against `HardwareProfile.memory_budget_mb`: routes that exceed t
 absorb a heavy linear penalty so the bandit cannot rationalize an OOM-ing arm with throughput.
 
 Switching backends works the same way — set `config.backend = "llama_cpp"` (with
-`llama_cpp_binary` and `llama_cpp_model` configured) and the bandit will train against the
-real binary's measurements instead of the simulator's.
+`llama_cpp_binary` and `llama_cpp_model` configured) and register each route with a
+`local_path`. The bandit will pass each route's local GGUF to `llama.cpp` as the measured
+model. Use `--require-local-models` for research runs so missing files fail before training.
+
+`llama.cpp` route runs write a paper bundle under `outputs/paper_bundles/<run_name>/`.
+See [LOCAL_RESEARCH.md](LOCAL_RESEARCH.md) for the evidence levels, bundle files, and
+claim-interpretation rules.

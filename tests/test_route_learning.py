@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -30,6 +31,7 @@ from adaptive_quant.route_pipeline import (
     recommend_route,
     save_bandit_artifacts,
     train_route_bandit,
+    validate_local_route_models,
 )
 from adaptive_quant.route_policy import RouteBandit, RouteContext
 from adaptive_quant.types import HardwareType
@@ -255,6 +257,25 @@ class RoutePipelineTests(unittest.TestCase):
             for bits in decision.effective_layer_bits:
                 self.assertAlmostEqual(bits, route.effective_bits, places=4)
 
+    def test_build_route_decision_includes_local_llama_model_path(self) -> None:
+        route = ModelRoute(
+            route_id="r",
+            repo_id="org/repo",
+            quant_label="Q4_K_M",
+            local_path="/models/r.gguf",
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = _smoke_config(Path(tmp))
+            decision = build_route_decision(route, cfg)
+        self.assertEqual(decision.metadata["llama_cpp_model_path"], "/models/r.gguf")
+
+    def test_validate_local_route_models_requires_existing_files(self) -> None:
+        catalog = RouteCatalog(
+            routes=[ModelRoute(route_id="r", repo_id="org/repo", quant_label="Q4_K_M")]
+        )
+        with self.assertRaises(FileNotFoundError):
+            validate_local_route_models(catalog)
+
     def test_train_and_save_route_bandit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
@@ -369,6 +390,39 @@ class RouteCliTests(unittest.TestCase):
                 listing = stdout.getvalue()
             payload = json.loads(listing)
             self.assertGreater(len(payload["routes"]), 0)
+
+    def test_cli_register_accepts_local_path(self) -> None:
+        from run_route_learning import main as route_main
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            catalog_path = tmpdir / "catalog.json"
+            model_path = tmpdir / "model.gguf"
+            model_path.write_text("fake", encoding="utf-8")
+
+            route_main(
+                [
+                    "--catalog",
+                    str(catalog_path),
+                    "register",
+                    "--route-id",
+                    "local-q4",
+                    "--repo",
+                    "local/model",
+                    "--quant",
+                    "Q4_K_M",
+                    "--local-path",
+                    str(model_path),
+                ]
+            )
+            catalog = RouteCatalog.from_file(catalog_path)
+            self.assertEqual(catalog.by_id("local-q4").local_path, str(model_path))
+
+    def test_pyproject_exposes_route_console_script(self) -> None:
+        pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
+        payload = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+        self.assertEqual(payload["project"]["scripts"]["adaptive-rl-quant-route"], "run_route_learning:main")
+        self.assertIn("run_route_learning", payload["tool"]["setuptools"]["py-modules"])
 
 
 if __name__ == "__main__":

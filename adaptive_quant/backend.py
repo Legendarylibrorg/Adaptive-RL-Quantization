@@ -209,7 +209,10 @@ class LlamaCppBackend:
         self._simulator = SimulatorBackend(config)
 
     def evaluate(self, state: EpisodeState, decision: QuantizationDecision) -> dict[str, float]:
-        llama_cpp_binary, llama_cpp_model = require_llama_cpp_paths(self.config)
+        llama_cpp_binary, llama_cpp_model = require_llama_cpp_paths(
+            self.config,
+            model_override=decision.metadata.get("llama_cpp_model_path"),
+        )
         parsed = run_llama_cpp_measurement(
             self.config,
             llama_cpp_binary=llama_cpp_binary,
@@ -226,6 +229,14 @@ class LlamaCppBackend:
         if parsed.get("memory_mb", 0.0) > 0.0:
             metrics["memory_mb"] = float(parsed["memory_mb"])
         metrics.update(per_token_latency_fields(state, metrics["latency_ms"]))
+        metrics.update(
+            {
+                "latency_source": "llama_cpp",
+                "throughput_source": "llama_cpp",
+                "memory_source": "llama_cpp" if parsed.get("memory_mb", 0.0) > 0.0 else "simulator",
+                "perplexity_source": "simulator",
+            }
+        )
         return metrics
 
 
@@ -295,7 +306,7 @@ def _llama_cpp_command(
         "-c",
         str(config.llama_cpp_context),
         "-n",
-        "64",
+        str(config.llama_cpp_generate_tokens),
     ]
 
 
@@ -308,9 +319,13 @@ def _output_excerpt(text: str, *, limit: int = 240) -> str:
     return compact[: limit - 3] + "..."
 
 
-def require_llama_cpp_paths(config: FrameworkConfig) -> tuple[str, str]:
+def require_llama_cpp_paths(
+    config: FrameworkConfig,
+    *,
+    model_override: object | None = None,
+) -> tuple[str, str]:
     binary = getattr(config, "llama_cpp_binary", None)
-    model = getattr(config, "llama_cpp_model", None)
+    model = model_override or getattr(config, "llama_cpp_model", None)
     if not binary or not model:
         raise FileNotFoundError("llama.cpp backend requires both a binary path and a model path.")
     for label, path in (("llama_cpp_binary", binary), ("llama_cpp_model", model)):

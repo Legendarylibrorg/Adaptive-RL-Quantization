@@ -7,6 +7,7 @@ from pathlib import Path
 
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import md_table, write_json, write_text_file
+from adaptive_quant.paper_bundle import create_pipeline_paper_bundle
 from adaptive_quant.pipeline_artifacts import maybe_save_final_checkpoint, write_training_history
 
 
@@ -94,6 +95,8 @@ class ResearchPipeline:
                 "report": report_path,
             },
         }
+        paper_bundle = create_pipeline_paper_bundle(config=config, summary=summary)
+        summary["artifacts"]["paper_bundle"] = paper_bundle
         write_json(config.summary_path(), summary)
         return summary
 

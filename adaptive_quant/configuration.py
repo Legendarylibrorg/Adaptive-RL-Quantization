@@ -108,6 +108,7 @@ class FrameworkConfig:
     llama_cpp_context: int = 2048
     llama_cpp_timeout_s: float = 30.0
     llama_cpp_max_prompt_chars: int = 4096
+    llama_cpp_generate_tokens: int = 64
     sim_calibration: dict[str, dict[str, float]] = field(default_factory=dict)
     torch_device: str = "cuda"
     torch_gpu_profile: str = "auto"
@@ -188,6 +189,7 @@ class FrameworkConfig:
         _validate_stability_probe_sampling(self.stability_probe_sampling)
         _validate_positive_int("recommendation_eval_episodes", self.recommendation_eval_episodes)
         _validate_positive_int("recommendation_candidate_limit", self.recommendation_candidate_limit)
+        _validate_positive_int("llama_cpp_generate_tokens", self.llama_cpp_generate_tokens)
 
     def rl_train_deterministic(self) -> bool:
         """True when train rollouts use greedy (argmax) actions for reproducible bandit-style experiments."""

@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import argparse
 import math
-import statistics
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
 from adaptive_quant.logging_utils import md_table, write_json, write_text_file
-from adaptive_quant.math_utils import fmt_float, sample_std
+from adaptive_quant.math_utils import fmt_float
+from adaptive_quant.paper_bundle import aggregate_values, create_multiseed_paper_bundle
 from adaptive_quant.research_pipeline import run_pipeline_entrypoint
 from config import CONFIG as CONFIG_DENSE
 from config_moe import CONFIG_MOE
@@ -19,6 +19,21 @@ class AggregateStat:
     mean: float
     std: float
     n: int
+    stderr: float = 0.0
+    ci95_low: float = 0.0
+    ci95_high: float = 0.0
+    effect_size_vs_zero: float = 0.0
+
+    def to_dict(self) -> dict[str, float | int]:
+        return {
+            "mean": self.mean,
+            "std": self.std,
+            "n": self.n,
+            "stderr": self.stderr,
+            "ci95_low": self.ci95_low,
+            "ci95_high": self.ci95_high,
+            "effect_size_vs_zero": self.effect_size_vs_zero,
+        }
 
 
 def _is_number(value: object) -> bool:
@@ -88,7 +103,16 @@ def _aggregate_numeric_maps(maps: list[dict[str, float]]) -> dict[str, Aggregate
         values = [m[key] for m in maps if key in m and math.isfinite(m[key])]
         if not values:
             continue
-        aggregated[key] = AggregateStat(mean=float(statistics.fmean(values)), std=sample_std(values), n=len(values))
+        stats = aggregate_values(values)
+        aggregated[key] = AggregateStat(
+            mean=float(stats["mean"]),
+            std=float(stats["std"]),
+            n=int(stats["n"]),
+            stderr=float(stats["stderr"]),
+            ci95_low=float(stats["ci95_low"]),
+            ci95_high=float(stats["ci95_high"]),
+            effect_size_vs_zero=float(stats["effect_size_vs_zero"]),
+        )
     return aggregated
 
 
@@ -147,11 +171,14 @@ def _write_multiseed_report(
 
     # Include a broader (but still filtered) table of aggregates.
     filtered = {k: v for k, v in aggregated.items() if _default_key_filter(k)}
-    broad_rows: list[list[object]] = [[k, fmt_float(v.mean), fmt_float(v.std), str(v.n)] for k, v in filtered.items()]
+    broad_rows: list[list[object]] = [
+        [k, fmt_float(v.mean), fmt_float(v.std), fmt_float(v.ci95_low), fmt_float(v.ci95_high), str(v.n)]
+        for k, v in filtered.items()
+    ]
     lines.extend(
         [
             "## Aggregate metrics (filtered)",
-            "\n".join(md_table(["metric", "mean", "std", "n"], broad_rows)),
+            "\n".join(md_table(["metric", "mean", "std", "ci95_low", "ci95_high", "n"], broad_rows)),
             "",
             "## Per-seed artifacts",
             "\n".join(md_table(["seed", "summary"], per_seed_rows)),
@@ -249,11 +276,19 @@ def main(argv: Iterable[str] | None = None) -> None:
             for seed, path in zip(seeds, per_seed_paths)
         ],
         "aggregates": {
-            k: {"mean": v.mean, "std": v.std, "n": v.n}
+            k: v.to_dict()
             for k, v in aggregated.items()
             if _default_key_filter(k)
         },
     }
+    paper_bundle = create_multiseed_paper_bundle(
+        config=base_config,
+        run_name=multiseed_run_name,
+        aggregate_payload=aggregate_payload,
+        aggregate_stats=aggregate_payload["aggregates"],
+        report_path=output_md_path,
+    )
+    aggregate_payload["artifacts"] = {"paper_bundle": paper_bundle}
     write_json(output_json_path, aggregate_payload)
     _write_multiseed_report(
         run_name=multiseed_run_name,
