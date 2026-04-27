@@ -117,7 +117,7 @@ Detailed install (distro packages, **WSL2**, SSH clone, llama.cpp): **[docs/INST
 | `SECURITY.md` | Vulnerability reporting (private disclosure, scope, SLAs, safe harbor) |
 | `SUPPORT.md` | Where to ask for help and how to file a useful bug |
 | `.well-known/security.txt` | Machine-readable disclosure metadata (RFC 9116) |
-| `.github/workflows/` | CI (Linux on Python 3.11/3.12/3.13; macOS and Windows on 3.12; E2E smoke) |
+| `.github/workflows/` | CI (Linux, macOS, Windows on Python 3.12; E2E smoke) |
 | `.github/ISSUE_TEMPLATE/` | Bug report and feature issue forms |
 | `.github/PULL_REQUEST_TEMPLATE.md` | Default PR checklist |
 | `.github/CODEOWNERS` | Reviewer routing for security-sensitive paths |
