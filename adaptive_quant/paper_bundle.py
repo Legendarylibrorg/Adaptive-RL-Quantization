@@ -28,7 +28,7 @@ def create_pipeline_paper_bundle(
     bundle_dir.mkdir(parents=True, exist_ok=True)
 
     metrics = _flatten_numeric(summary)
-    selected_metrics = _select_metrics(metrics)
+    selected_metrics = _select_metrics(metrics, config=config)
     metric_rows = [{"metric": key, "value": value} for key, value in selected_metrics.items()]
 
     manifest = _manifest(config=config, run_name=config.run_name, summary=summary)
@@ -125,7 +125,11 @@ def create_multiseed_paper_bundle(
         ["metric", "mean", "std", "n", "stderr", "ci95_low", "ci95_high", "effect_size_vs_zero"],
         rows,
     )
-    claims = _claims_validation(config=config, summary=aggregate_payload, metrics={k: v.get("mean", 0.0) for k, v in aggregate_stats.items()})
+    claims = _claims_validation(
+        config=config,
+        summary=aggregate_payload,
+        metrics={k: v.get("mean", 0.0) for k, v in aggregate_stats.items()},
+    )
     write_json(claims_json_path, claims)
     write_text_file(claims_md_path, _claims_markdown(claims))
     write_text_file(
@@ -194,19 +198,30 @@ def _flatten_numeric(obj: object, *, prefix: str = "", max_items: int = 20_000) 
     return out
 
 
-def _select_metrics(metrics: Mapping[str, float]) -> dict[str, float]:
-    needles = (
-        "mean_reward",
+def _select_metrics(metrics: Mapping[str, float], *, config: FrameworkConfig) -> dict[str, float]:
+    """
+    Pick a small set of high-signal metrics for `metrics_summary.*`.
+
+    Research-grade default behavior:
+    - When `backend="llama_cpp"`, reward/perplexity are *mixed* or simulator-derived, so we avoid
+      selecting them as headline outputs by default.
+    - Simulator runs can include reward/perplexity, since they are consistently defined there.
+    """
+    base_needles = (
         "mean_latency_ms",
         "mean_throughput_tps",
         "mean_memory_mb",
-        "mean_perplexity",
-        "reward_delta",
-        "quality_variance_delta",
         "generalization_gap_improvement",
         "single_policy_gap",
         "multi_policy_gap",
     )
+    simulator_only_needles = (
+        "mean_reward",
+        "mean_perplexity",
+        "reward_delta",
+        "quality_variance_delta",
+    )
+    needles = base_needles if config.backend == "llama_cpp" else base_needles + simulator_only_needles
     return {key: metrics[key] for key in sorted(metrics) if any(needle in key.lower() for needle in needles)}
 
 
@@ -214,6 +229,7 @@ def _manifest(*, config: FrameworkConfig, run_name: str, summary: Mapping[str, A
     config_dict = summary.get("config") if isinstance(summary.get("config"), Mapping) else {}
     llama_binary = getattr(config, "llama_cpp_binary", None)
     llama_model = getattr(config, "llama_cpp_model", None)
+    external_quality_path = getattr(config, "external_quality_path", None)
     return {
         "run_name": run_name,
         "created_by": "adaptive-rl-quant",
@@ -233,38 +249,63 @@ def _manifest(*, config: FrameworkConfig, run_name: str, summary: Mapping[str, A
             "context": getattr(config, "llama_cpp_context", None),
             "threads": getattr(config, "llama_cpp_threads", None),
         },
+        "external_quality": {
+            "path": external_quality_path,
+            "sha256": _sha256_file(external_quality_path),
+            "metric": getattr(config, "external_quality_metric", None),
+        },
     }
 
 
 def _metric_sources(config: FrameworkConfig) -> dict[str, str]:
+    has_external_quality = bool(getattr(config, "external_quality_path", None))
+    quality_source = (
+        f"external:{getattr(config, 'external_quality_metric', 'perplexity')}"
+        if has_external_quality
+        else "simulator"
+    )
     if config.backend == "llama_cpp":
         return {
             "latency_ms": "llama_cpp",
             "throughput_tps": "llama_cpp",
             "memory_mb": "llama_cpp_when_parseable_else_simulator",
-            "perplexity": "simulator",
-            "reward": "mixed_llama_cpp_perf_plus_simulator_quality",
+            "perplexity": quality_source,
+            "reward": (
+                "mixed_llama_cpp_perf_plus_external_quality"
+                if has_external_quality
+                else "mixed_llama_cpp_perf_plus_simulator_quality"
+            ),
         }
     return {
         "latency_ms": "simulator",
         "throughput_tps": "simulator",
         "memory_mb": "simulator",
-        "perplexity": "simulator",
-        "reward": "simulator",
+        "perplexity": quality_source,
+        "reward": "simulator_plus_external_quality" if has_external_quality else "simulator",
     }
 
 
 def _claims_validation(*, config: FrameworkConfig, summary: Mapping[str, Any], metrics: Mapping[str, float]) -> dict[str, Any]:
     evidence_level = "local_llama_cpp" if config.backend == "llama_cpp" else "simulator"
     warnings: list[str] = []
+    has_external_quality = bool(getattr(config, "external_quality_path", None))
     if config.backend == "llama_cpp":
-        warnings.append("Latency/throughput are locally measured, but perplexity remains simulator-derived unless an external quality metric is supplied.")
+        if has_external_quality:
+            warnings.append("Latency/throughput are locally measured and quality uses an external sidecar, but this is still single-machine evidence.")
+            warnings.append("Verify the external quality sidecar was generated from real datasets and fixed scoring code before citing quality claims.")
+        else:
+            warnings.append("Latency/throughput are locally measured, but perplexity remains simulator-derived unless an external quality metric is supplied.")
         warnings.append("Local results are single-machine evidence, not deployment-grade multi-device validation.")
     else:
-        warnings.append("All headline metrics are simulator-backed.")
+        if has_external_quality:
+            warnings.append("Systems metrics are simulator-backed; only the configured quality metric uses an external sidecar.")
+        else:
+            warnings.append("All headline metrics are simulator-backed.")
     return {
         "evidence_level": evidence_level,
         "deployment_grade": False,
+        "external_quality": has_external_quality,
+        "external_quality_metric": getattr(config, "external_quality_metric", None) if has_external_quality else None,
         "metric_count": len(metrics),
         "has_benchmark_summary": isinstance(summary.get("benchmarks"), Mapping),
         "has_evaluation_summary": isinstance(summary.get("evaluation"), Mapping),
@@ -278,6 +319,8 @@ def _claims_markdown(claims: Mapping[str, Any]) -> str:
         "",
         f"- evidence level: `{claims.get('evidence_level')}`",
         f"- deployment grade: `{claims.get('deployment_grade')}`",
+        f"- external quality: `{claims.get('external_quality')}`",
+        f"- external quality metric: `{claims.get('external_quality_metric')}`",
         f"- metric count: `{claims.get('metric_count')}`",
         "",
         "## Warnings",

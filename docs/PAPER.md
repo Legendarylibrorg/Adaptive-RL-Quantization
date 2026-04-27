@@ -3,13 +3,13 @@
 
 ### Abstract
 
-Quantization is one of the most effective tools for reducing the cost of large language model inference, but most deployments still rely on static rules: a fixed preset, a hand-written hardware heuristic, or an offline calibration pass that does not adapt to the prompt being served. This paper presents **Adaptive RL Quantization**, a simulator-first research framework for learning quantization and execution policies that are simultaneously **hardware-aware**, **input-aware**, and **learned** rather than limited to a small menu of fixed bit-width rules. The framework targets `llama.cpp`-style inference, supports a pure-Python offline research loop, includes a CUDA/PyTorch path for NVIDIA GPUs, and now extends to **Mixture-of-Experts (MoE)** models through a packed-expert-bank formulation.
+Quantization is one of the most effective tools for reducing the cost of large language model inference, but most deployments still rely on static rules: a fixed preset, a hand-written hardware heuristic, or an offline calibration pass that does not adapt to the prompt being served. This paper proposes **Adaptive RL Quantization**, a research framework for learning quantization and execution policies that are simultaneously **hardware-aware**, **input-aware**, and **learned** rather than limited to a small menu of fixed bit-width rules. The framework targets `llama.cpp`-style inference, supports a pure-Python offline research loop, includes a CUDA/PyTorch path for NVIDIA GPUs, and extends to **Mixture-of-Experts (MoE)** models through a packed-expert-bank formulation.
 
 The system contributes four ideas. First, it learns **one universal policy** across multiple hardware targets instead of one policy per device. Second, it allows quantization behavior to depend on **input complexity**. Third, it replaces purely discrete presets with **learned quantization functions** that control scale, clipping, and effective precision. Fourth, it introduces **MoE-aware packed expert selection**, where the policy chooses among prepacked expert variants while accounting for swap cost, cache misses, and expert sensitivity.
 
-In the current offline simulator-backed benchmark, the universal dense policy reduces the hardware generalization gap by **16.55 reward units** relative to a GPU-only policy. Dynamic quantization improves reward from **-7.31** to **-4.44** while reducing instability from **0.0153** to **0.00229**. Learned quantization improves reward from **-7.31** to **-2.53**, reducing latency from **210.83 ms** to **121.79 ms** and memory from **1395.70 MB** to **877.09 MB**. On the MoE path, the packed-expert-bank policy improves reward over the dense adaptive baseline by **2.43** reward units, and improves reward over a single-variant MoE baseline by **2.23** reward units. However, in the current short-budget MoE benchmark, a strong static balanced-variant baseline still slightly outperforms the RL-controlled MoE variant selector by **0.38** reward units, highlighting that the MoE extension is promising but not yet fully optimized.
+**Crucially, this has not yet been proven to improve real deployments.** This draft intentionally focuses on the **research proposal** and system design, not on simulated headline numbers. The offline harness exists to accelerate iteration, but this paper treats it as **non-evidence** for deployment claims. The claims the project aims to eventually support are **real-hardware claims**: measured latency/throughput/memory on actual `llama.cpp` builds and GGUF artifacts, plus external quality metrics evaluated on real datasets.
 
-This paper is intentionally honest about scope. The headline numbers are currently **offline and simulator-backed**. The repository includes an explicit **RTX 4090 host universal-policy training path** and a local `llama.cpp` route workflow that can measure real GGUF latency and throughput on one machine, but the primary quantitative claims here still come from the reproducible offline benchmark rather than from fully hardware-grounded multi-device measurements.
+The repository includes an explicit **RTX 4090 host universal-policy training path** and a `llama.cpp` route workflow that can measure real GGUF latency and throughput on a given machine. The core outcome of this paper is an architecture and evaluation plan that can produce publishable, hardware-grounded results once executed.
 
 ### 1. Introduction
 
@@ -25,7 +25,15 @@ The repository now supports this framing in three increasingly expressive regime
 2. learned quantization functions with continuous control,
 3. MoE-aware packed expert variant selection.
 
-The core experimental story remains offline-first and reproducible. The project includes a CUDA path tuned for RTX 4090-class hardware and `adaptive-rl-quant-pytorch --preset 4090-universal` for “train on a 4090, learn a universal policy,” but the stable evidence base is still the simulator-backed offline benchmark.
+The core experimental story in this paper is **evaluation-first**: define what constitutes evidence, define the deployment-relevant metrics, and define the architecture that makes real-hardware measurement feasible and reproducible. The project includes a CUDA path tuned for RTX 4090-class hardware and `adaptive-rl-quant-pytorch --preset 4090-universal` for “train on a 4090, learn a universal policy,” but the emphasis of this draft is how to validate transfer and systems impact on real hardware rather than on simulated aggregates.
+
+### 1.1 Status of Evidence (Read This First)
+
+This work is currently a **proposal + prototype research artifact**. As of this draft:
+
+- **Not proven**: there are no peer-reviewed, real-hardware results in this paper demonstrating improvements over strong static baselines.
+- **Not a deployment claim**: offline-harness reward and simulator-derived metrics are treated as internal iteration signals only.
+- **What would count as proof**: the “Proposed Evaluation” section specifies the concrete measurements, baselines, datasets, and reporting standards required before making real-world claims.
 
 ### 2. Contributions
 
@@ -108,7 +116,7 @@ The dense reward is:
 r = -\alpha \cdot \text{latency} + \beta \cdot \text{throughput} - \gamma \cdot \text{perplexity} - \delta \cdot \text{memory} - \epsilon \cdot \text{instability}
 \]
 
-where instability is measured as perplexity variance across probe prompts.
+where instability is measured as perplexity variance across probe prompts. This reward is primarily a **training objective** for policy learning and should not be interpreted as a publishable deployment metric unless each term is grounded in real measurement and the quality term is computed from external evaluation.
 
 In the MoE path, this is extended with explicit systems penalties:
 
@@ -140,7 +148,7 @@ The PyTorch/CUDA path exists to accelerate policy learning on a strong local dev
 
 ### 7. Experimental Setup
 
-The current results come from the offline benchmark artifacts produced by:
+This proposal defines an evidence ladder and an experimental design that can produce publishable, hardware-grounded results. The repository already includes benchmark artifact formats produced by:
 
 - `outputs/benchmarks/adaptive_universal_policy_summary.json`
 - `outputs/benchmarks/adaptive_moe_policy_summary.json`
@@ -160,24 +168,20 @@ The MoE benchmark adds:
 2. single packed variant vs packed-expert bank,
 3. static MoE policy vs RL MoE policy.
 
-All headline numbers in this paper are simulator-backed. The simulator is not presented as a substitute for real deployment measurements; it is a structured research harness that preserves the directional tradeoffs of serving while allowing fast, reproducible iteration.
+The repo distinguishes three evidence levels. Only levels 2 and 3 should be used to support claims about real systems performance:
 
-The repo now distinguishes three evidence levels:
+1. **Offline harness evidence (non-claim)**: the offline environment is used to iterate on policies and debug credit assignment. These outputs are explicitly not treated as evidence for real-hardware performance.
+2. **Local `llama.cpp` evidence (claimable)**: latency, throughput, and memory are measured from a real `llama.cpp` binary and GGUF files on a real machine with pinned configs; quality is evaluated with external metrics on real datasets.
+3. **Multi-device evidence (strong claimable)**: the same experiment protocol is run on a device matrix (CPU + multiple GPU classes), with consistent prompts, consistent generation settings, and transparent variance reporting.
 
-1. **Simulator evidence**: all metrics are generated by the built-in simulator.
-2. **Local `llama.cpp` evidence**: latency and throughput are measured from a local `llama.cpp` binary and route-specific GGUF files; memory is measured when parseable; perplexity remains simulator-derived unless an external quality metric is supplied.
-3. **Deployment-grade evidence**: multi-device measurements, real prompt distributions, end-to-end serving integration, and real quality metrics. This paper does not claim that level yet.
-
-To reproduce the numbers locally:
+To reproduce the baseline pipeline locally:
 
 ```bash
 adaptive-rl-quant
 adaptive-rl-quant-moe
 ```
 
-Then inspect the generated benchmark JSON and report under `outputs/benchmarks/` and `outputs/reports/`.
-For citation or review, prefer the matching `outputs/paper_bundles/<run_name>/manifest.json`,
-`metrics_summary.csv`, and `claims_validation.md` so metric provenance and evidence level travel with the numbers.
+Then inspect the generated benchmark JSON and report under `outputs/benchmarks/` and `outputs/reports/`. For citation or review, prefer the matching `outputs/paper_bundles/<run_name>/manifest.json`, `metrics_summary.csv`, and `claims_validation.md` so metric provenance and evidence level travel with the measurements.
 
 For more meaningful and publishable numbers (mean/std across randomness), run multi-seed aggregates:
 
@@ -188,7 +192,7 @@ adaptive-rl-quant-multiseed --preset moe --seeds 13,17,23
 
 Those write `outputs/reports/<run_name>_multiseed_report.md` plus per-seed reports and figures.
 
-To reduce simulator/domain mismatch, you can calibrate simulator coefficients against real `llama.cpp` measurements:
+To anchor the offline harness to real measurements, you can calibrate simulator coefficients against real `llama.cpp` runs:
 
 ```bash
 # requires backend="llama_cpp" and valid llama_cpp_binary/llama_cpp_model paths
@@ -197,92 +201,99 @@ adaptive-rl-quant-calibrate
 
 This writes a calibration JSON with per-hardware multipliers that can be copied into `sim_calibration` in your chosen config preset.
 
-### 8. Results
+### 8. Proposed Evaluation (Real Results, Not Simulation)
 
-#### 8.1 Universal Dense Policy
+This section defines the experiments required for publishable, real-hardware claims. The key goal is to evaluate whether an adaptive policy can improve the **Pareto frontier** over latency, throughput, memory footprint, and quality—under realistic serving constraints—relative to strong static baselines.
 
-The dense universal policy improves cross-hardware robustness substantially. Relative to a GPU-only policy:
+#### 8.1 Hardware Matrix and Serving Protocol
 
-- single-policy gap: **29.22**
-- multi-hardware gap: **12.67**
-- improvement: **16.55**
+We propose a device matrix that spans meaningful regimes:
 
-This result supports the central framing: training one policy over hardware-conditioned state is meaningfully different from training one policy per device or overfitting to a single GPU regime.
+- **CPU**: one AVX2/AVX-512 class desktop/server CPU.
+- **NVIDIA GPU**: one consumer GPU (e.g., RTX 4090-class) and one lower-VRAM GPU.
+- **Optional**: an ARM device (Apple Silicon) to test portability of hardware-conditioned policies.
 
-#### 8.2 Dynamic and Learned Quantization
+All latency/throughput measurements must use:
 
-Dynamic quantization improves reward and stability:
+- pinned `llama.cpp` commit hash and build flags,
+- pinned generation settings (temperature, top-p, max tokens, KV cache settings),
+- fixed batch size and concurrency,
+- warm-up runs and repeated trials with confidence intervals.
 
-| Mode | Reward | Latency (ms) | Throughput (tok/s) | Memory (MB) | Perplexity | Stability |
-|---|---:|---:|---:|---:|---:|---:|
-| Static | -7.31 | 210.83 | 136.49 | 1395.70 | 9.98 | 0.01530 |
-| Dynamic | -4.44 | 134.24 | 164.16 | 869.36 | 11.61 | 0.00229 |
+#### 8.2 Datasets and Quality Metrics
 
-Learned quantization functions further improve the deployment objective:
+Quality must be assessed on real datasets rather than a proxy perplexity inside the harness. Suggested evaluation blocks:
 
-| Mode | Reward | Latency (ms) | Throughput (tok/s) | Memory (MB) | Perplexity | Stability |
-|---|---:|---:|---:|---:|---:|---:|
-| Discrete | -7.31 | 210.83 | 136.49 | 1395.70 | 9.98 | 0.01530 |
-| Learned | -2.53 | 121.79 | 178.88 | 877.09 | 10.66 | 0.01310 |
+- **Instruction following / chat**: a public instruction set with standardized prompts and deterministic decoding for scoring.
+- **Reasoning / multi-step**: a reasoning benchmark with strict answer checking where applicable.
+- **Long-context sensitivity**: a long-context benchmark to test degradation under aggressive quantization.
 
-These dense results justify the first half of the framework: adaptive, learned policies can improve the composite deployment objective even when they do not optimize perplexity alone.
+Metrics should include:
 
-#### 8.3 MoE Packed-Expert Policies
+- task accuracy / exact match (where applicable),
+- model-graded preference only as a secondary metric with strict controls,
+- calibration (e.g., ECE) for tasks where confidence can be extracted.
 
-The MoE extension improves over the dense adaptive baseline under the current composite reward:
+The codebase now supports an external quality sidecar through `external_quality_path` and `external_quality_metric`. When provided, prompt-level scores keyed by `prompt_id` replace simulator perplexity in the backend metric dictionary and are recorded in paper-bundle provenance. This is only as credible as the scoring file used to produce it; the sidecar should therefore be generated from fixed datasets, fixed decoding settings, and versioned scoring code.
 
-| Mode | Reward | Latency (ms) | Throughput (tok/s) | Memory (MB) | Perplexity | Swap Cost (ms) |
-|---|---:|---:|---:|---:|---:|---:|
-| Dense adaptive | -6.18 | 204.47 | 154.88 | 1378.72 | 10.14 | 0.00 |
-| MoE adaptive | -3.75 | 136.15 | 186.07 | 868.03 | 12.04 | 2.58 |
+#### 8.3 Systems Metrics and Instrumentation
 
-The MoE packed-expert-bank policy also improves over a single-variant MoE baseline:
+Primary systems metrics:
 
-| Mode | Reward | Latency (ms) | Throughput (tok/s) | Memory (MB) | Perplexity | Variant Churn |
-|---|---:|---:|---:|---:|---:|---:|
-| Single balanced variant | -5.98 | 198.83 | 162.46 | 1306.88 | 10.48 | 0.00 |
-| Packed expert bank | -3.75 | 136.15 | 186.07 | 868.03 | 12.04 | 0.25 |
+- **latency**: p50/p95/p99 end-to-end decode latency and per-token decode time,
+- **throughput**: tokens/sec at fixed concurrency,
+- **memory**: peak RSS / VRAM and KV cache footprint,
+- **stability**: variance across runs under controlled nondeterminism, plus failure rate (OOM, errors).
 
-This is an encouraging result. It suggests that the packed expert bank is adding meaningful systems flexibility rather than just complexity.
+MoE-specific metrics:
 
-#### 8.4 A Useful Negative Result
+- expert residency hit rate,
+- swap/transfer volume and churn rate,
+- router entropy and expert utilization skew.
 
-The current RL MoE variant selector does **not yet** beat the strongest static balanced-variant baseline:
+#### 8.4 Baselines and Ablations (What Must Be Beaten)
 
-- static MoE reward: **-3.38**
-- RL MoE reward: **-3.75**
-- delta: **-0.38**
+Baselines:
 
-This is important. It means the MoE extension is not yet a clean “RL wins everywhere” result. What it does show is:
+- static quantization presets (multiple bitwidths),
+- hardware-specific tuned presets (per device),
+- input-agnostic dynamic heuristics (prompt length thresholds),
+- “balanced” MoE packed-variant baseline (static).
 
-- MoE modeling itself is valuable,
-- packed expert banks are valuable,
-- the current RL credit assignment for MoE still has room to improve.
+Ablations:
 
-That is exactly the kind of result a serious systems paper should report honestly.
+- remove hardware encoding (tests true “universal” transfer),
+- remove input features (tests input adaptivity),
+- discrete vs learned quantization parameters,
+- MoE bank size and churn penalties.
 
-#### 8.5 MoE Behavior Analysis
+#### 8.5 Claim Types and Reporting
 
-In the current logged MoE run:
+To keep the work research-grade, claims should be stated only at the evidence level supported:
 
-- mean router entropy is **0.999**
-- mean aggressiveness is **0.252**
-- variant usage is heavily concentrated in `safe` and `balanced`
-- `aggressive` is selected only once
+- **Local claim**: “on device X, under protocol Y, policy Z improves the Pareto frontier vs baseline B.”
+- **Transfer claim**: “a policy trained on host H transfers to device D with bounded degradation vs device-tuned baseline.”
+- **MoE systems claim**: “packed-expert banks reduce memory traffic / improve throughput under controlled churn constraints.”
 
-This is consistent with the safety caps in the current implementation. The policy is learning conservatively under swap and aggressiveness constraints, which is sensible in a low-risk offline benchmark, but may also be one reason the RL MoE policy has not yet surpassed the strongest static baseline.
+All result reporting should include:
+
+- the exact GGUF artifacts used,
+- commit hashes and config manifests,
+- the external quality sidecar hash and scoring metric, if used,
+- repeated trials with mean/std and confidence intervals,
+- full prompt lists and scoring code.
 
 ### 9. Discussion
 
-Three conclusions are stable across the current results.
+This proposal is structured around three research questions.
 
-First, **hardware conditioning matters**. Universal policies clearly outperform hardware-specialized policies when evaluated across multiple target regimes.
+First, **does hardware conditioning enable transfer**? A universal policy should generalize to held-out hardware targets with less degradation than a policy trained on a single regime.
 
-Second, **input adaptation matters**. Dynamic policies reduce instability and improve the multi-objective reward relative to static quantization.
+Second, **does input adaptation move the Pareto frontier**? The policy should allocate precision where it matters (quality-sensitive prompts/layers) and reduce it where it does not, improving systems metrics without unacceptable quality loss.
 
-Third, **MoE adds a richer control surface**. Once expert routing, residency, and swap behavior are exposed to the policy, the problem becomes more realistic and more interesting.
+Third, **does MoE-aware control pay off under real constraints**? The packed-expert-bank abstraction is meant to reflect realistic runtime constraints (packing cost, cache behavior). The evaluation must verify whether variant selection is worth the complexity.
 
-At the same time, the MoE results are mixed in a useful way. The packed-expert-bank idea is strong, but the current RL controller is not yet fully extracting its value. That suggests the right next step is not to abandon RL, but to improve the MoE policy parameterization, horizon, and reward shaping.
+The expected outcome is not “RL wins everywhere,” but a careful mapping of when adaptive control improves the deployment frontier and when static baselines remain strong.
 
 ### 10. Why the RTX 4090 Matters
 
@@ -302,14 +313,12 @@ The learned policy itself is still conditioned on multiple hardware targets. In 
 
 This draft has important limitations.
 
-1. The reported numbers are simulator-backed rather than fully hardware-grounded.
-2. The prompt set is small and synthetic relative to a real production traffic distribution.
-3. The current `llama.cpp` hook exists, but it is not yet the primary source of the headline metrics.
-4. The MoE extension is still short-horizon and uses a compact packed-variant abstraction rather than a full real runtime integration.
-5. The RL MoE policy does not yet outperform the strongest static MoE baseline in the current benchmark.
-6. The 4090-host universal-policy path exists in code, but this paper does not claim broad real-hardware transfer without additional validation.
-7. If you need real-hardware, deployment-grade claims (multi-device measurements, real prompt distributions, end-to-end serving integration), this work should be read as simulator-first research infrastructure rather than a validated production serving system.
-8. Local `llama.cpp` runs strengthen latency/throughput evidence for specific GGUF files on one machine, but reward values remain mixed measured/simulated until real quality metrics replace simulator perplexity.
+1. This paper is currently a proposal and architecture description; it does not present simulator-derived performance tables as publishable results.
+2. Real prompt distributions and end-to-end serving integration are out of scope for this draft; the evaluation plan targets reproducible public datasets and controlled protocols.
+3. The `llama.cpp` measurement route must be treated as the source of truth for systems metrics; the offline harness is primarily an iteration tool.
+4. The MoE extension uses a compact packed-variant abstraction; validating the abstraction requires careful instrumentation and churn controls.
+5. Universal transfer claims require a device matrix and repeated trials; those are planned but not yet reported here.
+6. The central hypothesis—that RL-based, input- and hardware-conditioned control can improve the deployment Pareto frontier—may fail under real-world constraints (kernel-level bottlenecks, cache effects, quantization artifacts, routing dynamics, or evaluation noise). This work is designed to make that failure mode measurable and honest.
 
 ### 12. Future Work
 
@@ -359,7 +368,7 @@ Adaptive RL Quantization reframes quantization as a learned control problem rath
 - MoE-aware packed expert selection,
 - explicit 4090-host universal-policy training.
 
-The dense results are strong: universal policies generalize better, dynamic quantization improves stability, and learned quantization improves the deployment objective. The MoE results are promising but more nuanced: packed expert banks are clearly useful, while the current RL MoE controller still trails a strong static baseline in the present benchmark. That combination of positive and negative results makes the project stronger, not weaker. It means the system is already interesting, but it still has meaningful headroom for real ML systems research.
+This draft does not claim real-world improvements yet. It presents a research-grade architecture and a concrete evaluation plan aimed at producing **real-hardware** evidence: measured `llama.cpp` latency/throughput/memory, plus external quality metrics on real datasets, reported with transparent variance. The contribution is a controllable, extensible framework for learning adaptive quantization policies (dense and MoE) and a protocol for validating whether those policies improve the deployment Pareto frontier in practice.
 
 ### Appendix A. Reproducibility
 

@@ -180,6 +180,10 @@ class EpisodeMetrics:
     swap_cost_ms: float = 0.0
     cache_miss_count: float = 0.0
     variant_churn: float = 0.0
+    latency_source: str = ""
+    throughput_source: str = ""
+    memory_source: str = ""
+    perplexity_source: str = ""
 
 
 @dataclass
