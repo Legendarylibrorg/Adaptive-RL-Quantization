@@ -59,6 +59,7 @@ Use [`config.py`](../config.py) as the canonical offline research baseline when 
 - **`torch_deterministic`**: enable CUDNN deterministic mode, cuBLAS workspace, global seeds, and stricter PyTorch algorithms (GPU; slower). **`torch.compile` is skipped** when this is true.
 - **`torch_policy_algorithm`**: `ppo` | `vpg` | `awr` (PyTorch trainer only).
 - **`torch_awr_beta`**: temperature for `awr` weights.
+- **`reward_weights.eta_token_latency`**: optional extra penalty on `latency_ms / prompt_length` (default `0.0`); increase to reward token-efficient routes; perplexity and stability terms still bound quality.
 - **`reward_perplexity_reference`**, **`reward_weights.zeta_perplexity_over_ref`**: hinge penalty when perplexity exceeds a baseline (throughput-focused runs with a quality guard).
 
 Factory: **`FrameworkConfig.reproducible_research(seed=..., run_name=..., **kwargs)`** aligns seeds and turns on the full reproducibility-oriented stack.

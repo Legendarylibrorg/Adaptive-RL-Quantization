@@ -30,6 +30,7 @@ def training_row(step: float, result: EpisodeResult) -> dict[str, float]:
         "latency_ms": float(result.metrics.latency_ms),
         "throughput_tps": float(result.metrics.throughput_tps),
         "perplexity": float(result.metrics.perplexity),
+        "latency_ms_per_token": float(result.metrics.latency_ms_per_token),
     }
 
 
@@ -72,6 +73,8 @@ def summarize_episode_results(results: list[EpisodeResult]) -> dict[str, float]:
         "mean_latency_ms": _mean_metric(results, "latency_ms"),
         "mean_throughput_tps": _mean_metric(results, "throughput_tps"),
         "mean_memory_mb": _mean_metric(results, "memory_mb"),
+        "mean_tokens_processed": _mean_metric(results, "tokens_processed"),
+        "mean_latency_ms_per_token": _mean_metric(results, "latency_ms_per_token"),
         "mean_stability_penalty": _mean_metric(results, "stability_penalty"),
         "mean_swap_cost_ms": _mean_metric(results, "swap_cost_ms"),
         "mean_cache_miss_count": _mean_metric(results, "cache_miss_count"),
