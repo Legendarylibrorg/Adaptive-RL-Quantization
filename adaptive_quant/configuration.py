@@ -109,6 +109,10 @@ class FrameworkConfig:
     llama_cpp_timeout_s: float = 30.0
     llama_cpp_max_prompt_chars: int = 4096
     llama_cpp_generate_tokens: int = 64
+    # Optional external quality sidecar. Supports JSON or JSONL rows keyed by prompt_id.
+    # Default metric name is "perplexity" because the reward treats lower values as better.
+    external_quality_path: str | None = None
+    external_quality_metric: str = "perplexity"
     sim_calibration: dict[str, dict[str, float]] = field(default_factory=dict)
     torch_device: str = "cuda"
     torch_gpu_profile: str = "auto"
@@ -183,6 +187,7 @@ class FrameworkConfig:
         _validate_optional_filesystem_path("resume_from_checkpoint", self.resume_from_checkpoint)
         _validate_optional_filesystem_path("llama_cpp_binary", self.llama_cpp_binary)
         _validate_optional_filesystem_path("llama_cpp_model", self.llama_cpp_model)
+        _validate_optional_filesystem_path("external_quality_path", self.external_quality_path)
         _validate_torch_policy_algorithm(self.torch_policy_algorithm)
         _validate_env_sampling_mode(self.env_sampling_mode)
         _validate_rl_train_policy_mode(self.rl_train_policy_mode)

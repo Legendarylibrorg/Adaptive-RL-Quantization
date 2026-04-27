@@ -63,6 +63,10 @@ class PaperBundleTests(unittest.TestCase):
             self.assertEqual(manifest["backend"], "llama_cpp")
             self.assertEqual(manifest["metric_sources"]["perplexity"], "simulator")
 
+            metrics = read_json(artifacts["metrics_summary_json"], label="Metrics summary")
+            self.assertIn("evaluation.mean_latency_ms", metrics)
+            self.assertNotIn("evaluation.mean_reward", metrics)
+
             claims = read_json(artifacts["claims_validation_json"], label="Claims validation")
             self.assertEqual(claims["evidence_level"], "local_llama_cpp")
             self.assertFalse(claims["deployment_grade"])
@@ -71,6 +75,40 @@ class PaperBundleTests(unittest.TestCase):
                 rows = list(csv.DictReader(handle))
             self.assertEqual(len(rows), 1)
             self.assertEqual(rows[0]["route_id"], "local-q4")
+
+    def test_pipeline_bundle_marks_external_quality_source(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            quality_path = tmpdir / "quality.json"
+            quality_path.write_text('{"prompt_a": {"perplexity": 8.0}}', encoding="utf-8")
+            cfg = FrameworkConfig(
+                run_name="paper_bundle_external_quality",
+                backend="llama_cpp",
+                external_quality_path=str(quality_path),
+                outputs_dir=str(tmpdir / "outputs"),
+                log_dir=str(tmpdir / "outputs" / "logs"),
+                benchmark_dir=str(tmpdir / "outputs" / "benchmarks"),
+                analysis_dir=str(tmpdir / "outputs" / "analysis"),
+                checkpoint_dir=str(tmpdir / "outputs" / "checkpoints"),
+                report_dir=str(tmpdir / "outputs" / "reports"),
+                detect_host_hardware=False,
+            )
+            summary = {
+                "git_commit": "abc123",
+                "config": {"run_name": cfg.run_name, "backend": cfg.backend},
+                "evaluation": {"mean_latency_ms": 12.5, "mean_perplexity": 8.0},
+            }
+
+            artifacts = create_pipeline_paper_bundle(config=cfg, summary=summary)
+
+            manifest = read_json(artifacts["manifest"], label="Paper bundle manifest")
+            self.assertEqual(manifest["metric_sources"]["perplexity"], "external:perplexity")
+            self.assertEqual(manifest["external_quality"]["metric"], "perplexity")
+            self.assertIsNotNone(manifest["external_quality"]["sha256"])
+
+            claims = read_json(artifacts["claims_validation_json"], label="Claims validation")
+            self.assertTrue(claims["external_quality"])
+            self.assertEqual(claims["external_quality_metric"], "perplexity")
 
     def test_aggregate_values_adds_ci_and_effect_size(self) -> None:
         stats = aggregate_values([1.0, 2.0, 3.0])

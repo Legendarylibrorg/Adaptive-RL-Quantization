@@ -155,6 +155,10 @@ class AdaptiveQuantizationEnv:
             swap_cost_ms=primary_metrics.get("swap_cost_ms", 0.0),
             cache_miss_count=primary_metrics.get("cache_miss_count", 0.0),
             variant_churn=primary_metrics.get("variant_churn", 0.0),
+            latency_source=str(primary_metrics.get("latency_source", "")),
+            throughput_source=str(primary_metrics.get("throughput_source", "")),
+            memory_source=str(primary_metrics.get("memory_source", "")),
+            perplexity_source=str(primary_metrics.get("perplexity_source", "")),
         )
         result = EpisodeResult(state=self.current_state, decision=finalized, metrics=metrics)
         if log_episode:
