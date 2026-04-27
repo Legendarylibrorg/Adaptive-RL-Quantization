@@ -16,6 +16,14 @@ from adaptive_quant.types import (
 )
 
 
+def build_backend(config: FrameworkConfig):
+    """Backend factory used by route-learning pipelines.
+
+    Unknown backends fall back to the simulator so stdlib-only workflows remain usable.
+    """
+    return LlamaCppBackend(config) if config.backend == "llama_cpp" else SimulatorBackend(config)
+
+
 class BackendMetrics(Protocol):
     latency_ms: float
     throughput_tps: float

@@ -155,6 +155,17 @@ class FrameworkConfig:
     online_drift_window: int = 48
     online_drift_reward_delta: float = 1.50
     online_safe_mode_cooldown: int = 16
+    # Optional: online task router/bandit for picking between configured "routes".
+    router_enabled: bool = False
+    router_routes: tuple[str, ...] = ()
+    router_feature_backend: str = "hash"  # "hash" (stdlib) | "hf" (optional deps)
+    router_hf_embedding_model: str | None = None
+    router_learning_rate: float = 0.050
+    router_value_learning_rate: float = 0.025
+    router_exploration: float = 0.10
+    router_max_perplexity_ratio: float = 1.05
+    router_max_perplexity_delta: float = 0.50
+    router_regression_penalty: float = 5_000.0
     reward_weights: RewardWeights = field(default_factory=RewardWeights)
     # Simulator / offline RL: soft constraint to push tok/s while discouraging quality regression.
     reward_perplexity_reference: float | None = None
