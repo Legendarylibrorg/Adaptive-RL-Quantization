@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import json
 import tempfile
 import unittest
 from pathlib import Path
 
 from adaptive_quant.configuration import FrameworkConfig
+from adaptive_quant.logging_utils import read_json
 from adaptive_quant.trainer import Trainer
 from adaptive_quant.types import HardwareType
 
@@ -135,7 +135,7 @@ class TorchCheckpointSafeTests(unittest.TestCase):
 
             meta_path = Path(_checkpoint_meta_path(ckpt))
             self.assertTrue(meta_path.is_file())
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            meta = read_json(meta_path, label="Checkpoint sidecar (test)")
             self.assertEqual(meta["format"], 2)
             self.assertEqual(meta["global_episode"], 42)
 

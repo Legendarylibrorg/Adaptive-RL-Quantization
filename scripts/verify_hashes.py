@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,7 +12,7 @@ ROOT = repo_root()
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from adaptive_quant.logging_utils import write_text_file  # noqa: E402
+from adaptive_quant.logging_utils import read_json, write_text_file  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -22,7 +21,7 @@ class RequirementPin:
     value: str
 
 def load_dependency_hashes(path: Path) -> dict[str, dict[str, list[str]]]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload = read_json(path, label="Dependency hash manifest")
     raw = payload.get("requirements", {})
     if not isinstance(raw, dict):
         raise ValueError("dependency hash file must contain a 'requirements' object")

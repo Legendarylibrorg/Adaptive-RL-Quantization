@@ -9,7 +9,9 @@ from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import JsonlLogger, to_jsonable, write_json
 from adaptive_quant.math_utils import mean
 from adaptive_quant.prompts import PromptLibrary
-from adaptive_quant.types import OnlineRequest, PromptSample
+from adaptive_quant.trainer_utils import zero_previous_action
+from adaptive_quant.routing import EfficientTaskRouter
+from adaptive_quant.types import OnlineRequest, PromptSample, QuantMode, QuantizationDecision
 
 
 @dataclass
@@ -55,7 +57,10 @@ class OnlineLearningLoop:
         self.telemetry_logger = JsonlLogger(config.online_telemetry_path())
         self.replay_logger = JsonlLogger(config.online_replay_path())
         self.replay_buffer = ReplayBuffer(config.online_replay_capacity, self.rng)
-        self.previous_action = [0.0, 0.0, 0.0]
+        self.previous_action = zero_previous_action()
+        self._max_bits = max(config.discrete_bit_widths)
+        self._scale_upper = config.scale_bounds[1]
+        self._clip_upper = config.clip_bounds[1]
         self.pending_experiences = 0
         self.request_index = 0
         self.safe_mode_remaining = 0
@@ -68,6 +73,12 @@ class OnlineLearningLoop:
         self.recent_served_rewards: deque[float] = deque(maxlen=max(4, config.online_drift_window))
         self.best_recent_reward = float("-inf")
         self.best_policy_snapshot = self.trainer.snapshot_policy()
+        self.router: EfficientTaskRouter | None = None
+        if config.router_enabled:
+            if str(getattr(config, "backend", "")).strip().lower() != "router":
+                raise ValueError("router_enabled=True requires config.backend='router' to enable per-route backend dispatch.")
+            self.router = EfficientTaskRouter(config)
+        self._router_baseline_perplexity: dict[str, float] = {}
 
     def serve_request(self, request: OnlineRequest) -> dict[str, Any]:
         prompt = self._request_prompt(request)
@@ -83,11 +94,34 @@ class OnlineLearningLoop:
         )
         baseline_decision, _baseline_payload = self.trainer.act_online(state, deterministic=True)
 
-        if explore:
-            self.total_explorations += 1
-            candidate_decision, candidate_payload = self.trainer.act_online(state, deterministic=False)
+        router_selected_route: str | None = None
+        router_reward: float | None = None
+        router_trace = None
+
+        if self.router is not None:
+            route, router_trace = self.router.route(
+                task_text=request.prompt_text,
+                deterministic=safe_mode_active,
+            )
+            router_selected_route = route.key
+            bits = route.quant_bits or int(self.config.safe_default_bits)
+            metadata = {"head": "router", "route": route.key, "route_backend": route.backend}
+            if route.backend == "llama_cpp":
+                metadata["llama_cpp_model"] = route.model_id
+            elif route.backend == "hf":
+                metadata["hf_model"] = route.model_id
+            candidate_decision = QuantizationDecision(mode=QuantMode.DISCRETE, base_bit_width=int(bits), metadata=metadata)
+            # Router updates are handled separately; do not push router payload into the policy replay buffer.
+            candidate_payload = None
+            # Always do a baseline comparison when router is enabled.
+            canary = True
+            explore = False
         else:
-            candidate_decision, candidate_payload = baseline_decision, None
+            if explore:
+                self.total_explorations += 1
+                candidate_decision, candidate_payload = self.trainer.act_online(state, deterministic=False)
+            else:
+                candidate_decision, candidate_payload = baseline_decision, None
 
         drift_event = "steady"
         update_summary = None
@@ -99,7 +133,7 @@ class OnlineLearningLoop:
         )
         accepted_candidate = True
 
-        if canary:
+        if canary or self.router is not None:
             self.total_canaries += 1
             baseline_result = self.trainer.env.evaluate_current(
                 baseline_decision,
@@ -115,10 +149,25 @@ class OnlineLearningLoop:
             self.total_candidate_accepts += 1
 
         served_result = candidate_result if accepted_candidate or baseline_result is None else baseline_result
+
+        if self.router is not None and router_trace is not None and baseline_result is not None:
+            baseline_ppl = float(baseline_result.metrics.perplexity)
+            self._router_baseline_perplexity[prompt.prompt_id] = baseline_ppl
+            router_reward = float(
+                self.router.reward_from_metrics(
+                    memory_mb=float(candidate_result.metrics.memory_mb),
+                    perplexity=float(candidate_result.metrics.perplexity),
+                    baseline_perplexity=baseline_ppl,
+                    latency_ms=float(candidate_result.metrics.latency_ms),
+                )
+            )
+            if not accepted_candidate:
+                router_reward -= float(self.config.router_regression_penalty)
+            self.router.update(router_trace, reward=router_reward)
         self.previous_action = served_result.decision.feedback_vector(
-            max_bits=max(self.config.discrete_bit_widths),
-            scale_upper=self.config.scale_bounds[1],
-            clip_upper=self.config.clip_bounds[1],
+            max_bits=self._max_bits,
+            scale_upper=self._scale_upper,
+            clip_upper=self._clip_upper,
         )
         self.trainer.previous_action = list(self.previous_action)
 
@@ -171,6 +220,9 @@ class OnlineLearningLoop:
             "canary": canary,
             "accepted_candidate": accepted_candidate,
             "safe_mode_active": safe_mode_active,
+            "router_enabled": self.router is not None,
+            "router_selected_route": router_selected_route,
+            "router_reward": router_reward,
             "online_update_applied": update_summary is not None,
             "online_update_summary": update_summary,
             "drift_event": drift_event,

@@ -8,7 +8,7 @@ from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.hardware import resolve_target_hardware
 from adaptive_quant.math_utils import mean
-from adaptive_quant.trainer_utils import feedback_vector, summarize_episode_results
+from adaptive_quant.trainer_utils import feedback_vector, summarize_episode_results, zero_previous_action
 from adaptive_quant.types import EpisodeResult, HardwareType, QuantizationDecision
 
 
@@ -135,7 +135,10 @@ def _run_recommendation_rollout(
         config,
         enable_logging=False,
     )
-    previous_action = [0.0, 0.0, 0.0]
+    previous_action = zero_previous_action()
+    max_bits = max(config.discrete_bit_widths)
+    scale_upper = config.scale_bounds[1]
+    clip_upper = config.clip_bounds[1]
     results: list[EpisodeResult] = []
     try:
         for episode_index in range(episodes):
@@ -150,7 +153,12 @@ def _run_recommendation_rollout(
                 episode_index=episode_offset + episode_index,
                 log_episode=False,
             )
-            previous_action = _feedback_vector(config, result.decision)
+            previous_action = feedback_vector(
+                result.decision,
+                max_bits=max_bits,
+                scale_upper=scale_upper,
+                clip_upper=clip_upper,
+            )
             if on_result is not None:
                 on_result(state, result)
             results.append(result)
@@ -189,16 +197,6 @@ def _candidate_template(decision: QuantizationDecision) -> QuantizationDecision:
         moe_variant_names=list(decision.moe_variant_names),
         metadata=dict(decision.metadata),
     )
-
-
-def _feedback_vector(config: FrameworkConfig, decision: QuantizationDecision) -> list[float]:
-    return feedback_vector(
-        decision,
-        max_bits=max(config.discrete_bit_widths),
-        scale_upper=config.scale_bounds[1],
-        clip_upper=config.clip_bounds[1],
-    )
-
 
 def _decision_signature(decision: QuantizationDecision) -> str:
     payload = _decision_payload(decision)

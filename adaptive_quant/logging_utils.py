@@ -99,6 +99,12 @@ def load_jsonl(path: str) -> list[dict[str, Any]]:
     return records
 
 
+def read_json(path: str | Path, *, label: str = "JSON") -> Any:
+    source = Path(path)
+    enforce_local_read_limit(source, label=label)
+    return json.loads(source.read_text(encoding="utf-8"))
+
+
 def md_table(headers: list[str], rows: list[list[object]]) -> list[str]:
     sep = "| " + " | ".join(["---"] * len(headers)) + " |"
     return ["| " + " | ".join(headers) + " |", sep] + ["| " + " | ".join(str(c) for c in row) + " |" for row in rows]

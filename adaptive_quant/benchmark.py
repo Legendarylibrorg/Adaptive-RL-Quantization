@@ -5,9 +5,9 @@ import gc
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.logging_utils import write_json
-from adaptive_quant.quantization import finalize_decision
+from adaptive_quant.quantization import finalize_decision, nearest_allowed_discrete_bit_width
 from adaptive_quant.trainer import build_trainer
-from adaptive_quant.trainer_utils import feedback_vector, summarize_episode_results
+from adaptive_quant.trainer_utils import feedback_vector, summarize_episode_results, zero_previous_action
 from adaptive_quant.types import HardwareType, QuantizationDecision, QuantMode
 
 
@@ -38,17 +38,13 @@ class BenchmarkSuite:
         """
         config = self._benchmark_config()
 
-        def nearest_allowed(bits: float) -> int:
-            allowed = list(config.discrete_bit_widths)
-            return min(allowed, key=lambda b: abs(float(b) - float(bits)))
-
         def always_safe(_state) -> QuantizationDecision:
             return QuantizationDecision(mode=QuantMode.DISCRETE, base_bit_width=int(config.safe_default_bits))
 
         def hardware_preferred(state) -> QuantizationDecision:
             return QuantizationDecision(
                 mode=QuantMode.DISCRETE,
-                base_bit_width=nearest_allowed(state.hardware_profile.preferred_bits),
+                base_bit_width=nearest_allowed_discrete_bit_width(state.hardware_profile.preferred_bits, config),
             )
 
         def complexity_aware(state) -> QuantizationDecision:
@@ -57,7 +53,7 @@ class BenchmarkSuite:
             if score < 0.35:
                 bits = min(config.discrete_bit_widths)
             elif score < 0.85:
-                bits = nearest_allowed(4.0)
+                bits = nearest_allowed_discrete_bit_width(4.0, config)
             else:
                 bits = max(config.discrete_bit_widths)
             return QuantizationDecision(mode=QuantMode.DISCRETE, base_bit_width=int(bits))
@@ -77,7 +73,7 @@ class BenchmarkSuite:
         env = AdaptiveQuantizationEnv(config, log_path=f"{config.log_dir}/{config.run_name}_heuristic.jsonl")
         try:
             results = []
-            previous_action = [0.0, 0.0, 0.0]
+            previous_action = zero_previous_action()
             max_bits = max(config.discrete_bit_widths)
             scale_upper = config.scale_bounds[1]
             clip_upper = config.clip_bounds[1]

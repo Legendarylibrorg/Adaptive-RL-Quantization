@@ -8,6 +8,7 @@ from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.trainer_utils import (
     collect_episode_results,
     feedback_vector,
+    zero_previous_action,
     summarize_episode_results,
 )
 from adaptive_quant.types import EpisodeResult, HardwareType
@@ -51,7 +52,7 @@ class TrainerBase:
     def __init__(self, config: FrameworkConfig, log_path: str | None = None) -> None:
         self.config = config
         self.env = AdaptiveQuantizationEnv(config, log_path=log_path)
-        self.previous_action = [0.0, 0.0, 0.0]
+        self.previous_action = zero_previous_action()
         self.training_history: list[dict[str, float]] = []
         self._max_bits = max(config.discrete_bit_widths)
         self._scale_upper = config.scale_bounds[1]

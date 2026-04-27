@@ -6,6 +6,7 @@ from contextlib import nullcontext
 from typing import Any
 
 from adaptive_quant.configuration import FrameworkConfig
+from adaptive_quant.trainer_utils import zero_previous_action
 from adaptive_quant.types import QuantizationDecision, QuantMode
 
 try:
@@ -366,8 +367,9 @@ class TorchPolicyAdapter:
 
         learned_mask = mode_codes == _mode_code(QuantMode.LEARNED.value)
         if learned_mask.any():
+            fallback_raw = zero_previous_action()
             raw_actions = torch.tensor(
-                [record["learned_raw"] if record["learned_raw"] else [0.0, 0.0, 0.0] for record in records],
+                [record["learned_raw"] if record["learned_raw"] else fallback_raw for record in records],
                 dtype=torch.float32,
                 device=self.device,
             )

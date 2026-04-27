@@ -9,6 +9,10 @@ from adaptive_quant.types import EpisodeResult, HardwareType, QuantizationDecisi
 StateT = TypeVar("StateT")
 
 
+def zero_previous_action() -> list[float]:
+    return [0.0, 0.0, 0.0]
+
+
 def feedback_vector(
     decision: QuantizationDecision,
     *,

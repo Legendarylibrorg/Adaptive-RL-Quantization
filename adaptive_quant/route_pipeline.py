@@ -1,0 +1,453 @@
+"""Train and evaluate the route bandit using the existing simulator / llama.cpp reward stack.
+
+This pipeline ties together three pieces that already live in the framework:
+
+* :class:`adaptive_quant.environment.AdaptiveQuantizationEnv` — generates ``EpisodeState``
+  objects (prompt features, hardware profile, sensitivity).
+* :class:`adaptive_quant.backend.SimulatorBackend` /
+  :class:`adaptive_quant.backend.LlamaCppBackend` — measures latency / throughput / memory /
+  perplexity for a chosen quantization.
+* :class:`adaptive_quant.route_policy.RouteBandit` — contextual UCB bandit over routes.
+
+Each *training step* is a single bandit pull: sample a prompt + hardware, ask the bandit for
+a route, run the existing backend on a quantization decision built from the route's effective
+bits, score it with the framework's reward weights (plus a memory-fit penalty driven by the
+route's GGUF file size), and feed the reward back into the bandit. The pipeline keeps the
+bandit JSON next to the run's other benchmark artifacts so the learned policy can be reloaded
+later for inference-time recommendations.
+"""
+
+from __future__ import annotations
+
+from collections import Counter
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+from adaptive_quant.backend import build_backend
+from adaptive_quant.configuration import FrameworkConfig
+from adaptive_quant.environment import AdaptiveQuantizationEnv
+from adaptive_quant.logging_utils import JsonlLogger, read_json, write_json
+from adaptive_quant.math_utils import mean
+from adaptive_quant.model_routes import ModelRoute, RouteCatalog
+from adaptive_quant.prompts import PromptLibrary
+from adaptive_quant.route_policy import RouteBandit, RouteContext, RouteSelection
+from adaptive_quant.types import (
+    EpisodeState,
+    HardwareType,
+    QuantizationDecision,
+    QuantMode,
+)
+
+
+def _median_complexity_prompt(library: PromptLibrary):
+    from adaptive_quant.features import extract_input_features
+
+    ordered = sorted(library.prompts, key=lambda p: extract_input_features(p).complexity_score)
+    return ordered[len(ordered) // 2]
+
+
+# When a route's GGUF file would not fit the hardware memory budget, scale a heavy linear
+# penalty on the reward so the bandit never converges to an OOM-ing arm. The factor is large
+# enough to dominate quality differences but small enough that a near-fit route (within 10%)
+# still wins over a much smaller, much worse model.
+_MEMORY_OVERFLOW_PENALTY = 6.0
+
+
+@dataclass
+class RouteTrainingSummary:
+    """Compact summary returned by :func:`train_route_bandit`."""
+
+    pulls: int
+    mean_reward: float
+    final_recommendation: dict[str, str | float] | None
+    per_route_pulls: dict[str, int] = field(default_factory=dict)
+    per_bucket_pulls: dict[str, int] = field(default_factory=dict)
+    explore_rate: float = 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "pulls": self.pulls,
+            "mean_reward": self.mean_reward,
+            "final_recommendation": self.final_recommendation,
+            "per_route_pulls": dict(self.per_route_pulls),
+            "per_bucket_pulls": dict(self.per_bucket_pulls),
+            "explore_rate": self.explore_rate,
+        }
+
+
+def build_route_decision(route: ModelRoute, config: FrameworkConfig) -> QuantizationDecision:
+    """Construct a ``QuantizationDecision`` whose effective bits exactly match the route.
+
+    We bypass :func:`adaptive_quant.quantization.finalize_decision` on purpose: that helper
+    snaps to ``config.discrete_bit_widths`` (defaults to ``(2, 4, 8)``), which would erase the
+    quality difference between, e.g. ``Q4_K_M`` (~4.83 bpw) and ``Q5_K_M`` (~5.69 bpw). The
+    backend only reads ``effective_layer_bits`` so we can feed it a custom layer profile and
+    still get the usual latency / throughput / perplexity formulas.
+    """
+    bits = float(route.effective_bits or config.safe_default_bits)
+    return QuantizationDecision(
+        mode=QuantMode.DISCRETE,
+        base_bit_width=int(round(bits)),
+        effective_layer_bits=[bits] * config.num_layers,
+        metadata={
+            "route_id": route.route_id,
+            "repo_id": route.repo_id,
+            "quant_label": route.quant_label,
+            "average_bits": bits,
+            "bit_variance": 0.0,
+            "route_origin": "model_routes",
+        },
+    )
+
+
+def evaluate_route(
+    *,
+    env: AdaptiveQuantizationEnv,
+    backend,
+    state: EpisodeState,
+    route: ModelRoute,
+    config: FrameworkConfig,
+) -> tuple[dict[str, float], float]:
+    """Score a (state, route) pair using the existing backend + reward weights.
+
+    Returns ``(metrics, reward)``. Memory budget overflow caused by the GGUF file size adds a
+    direct, separate penalty on top of the standard reward so the bandit cannot rationalize
+    OOM with throughput.
+    """
+    decision = build_route_decision(route, config)
+    metrics = backend.evaluate(state, decision)
+
+    weights = config.reward_weights
+    base_reward = (
+        -weights.alpha_latency * float(metrics["latency_ms"])
+        + weights.beta_throughput * float(metrics["throughput_tps"])
+        - weights.gamma_perplexity * float(metrics["perplexity"])
+        - weights.delta_memory * float(metrics["memory_mb"])
+        - weights.eta_token_latency * float(metrics.get("latency_ms_per_token", 0.0))
+    )
+
+    if route.size_mb is not None:
+        budget = max(1.0, float(state.hardware_profile.memory_budget_mb))
+        overflow_ratio = max(0.0, float(route.size_mb) - budget) / budget
+        if overflow_ratio > 0.0:
+            base_reward -= _MEMORY_OVERFLOW_PENALTY * overflow_ratio
+
+    return metrics, float(base_reward)
+
+
+def make_bandit(
+    catalog: RouteCatalog,
+    config: FrameworkConfig,
+    *,
+    ucb_c: float = 1.5,
+    prior_weight: float = 4.0,
+    warmup_pulls: int = 3,
+    known_domains: tuple[str, ...] | None = None,
+) -> RouteBandit:
+    """Factory that seeds the bandit RNG from the framework seed for reproducibility."""
+    return RouteBandit(
+        catalog=catalog,
+        ucb_c=ucb_c,
+        prior_weight=prior_weight,
+        warmup_pulls=warmup_pulls,
+        seed=int(config.seed) + 7919,
+        known_domains=known_domains,
+    )
+
+
+def train_route_bandit(
+    config: FrameworkConfig,
+    *,
+    catalog: RouteCatalog,
+    iterations: int = 512,
+    bandit: RouteBandit | None = None,
+    telemetry_path: str | None = None,
+) -> tuple[RouteBandit, RouteTrainingSummary]:
+    """Run the bandit training loop and persist a JSONL of every pull.
+
+    The function constructs a fresh ``AdaptiveQuantizationEnv`` (logging disabled — the env's
+    own logger is for the existing RL trainer, not for routes) and a backend matching
+    ``config.backend``. Each step samples (prompt, hardware) deterministically when
+    ``config.env_sampling_mode == "sequential"``; otherwise the env's own RNG decides.
+    """
+    if iterations <= 0:
+        raise ValueError("iterations must be > 0")
+    if not catalog.routes:
+        raise ValueError("catalog is empty; register at least one route before training")
+
+    library = PromptLibrary()
+    known_domains = tuple(sorted({prompt.domain for prompt in library.prompts}))
+    if bandit is None:
+        bandit = make_bandit(catalog, config, known_domains=known_domains)
+
+    env = AdaptiveQuantizationEnv(config, enable_logging=False)
+    backend = build_backend(config)
+
+    log_path = telemetry_path or f"{config.log_dir}/{config.run_name}_route_telemetry.jsonl"
+    logger = JsonlLogger(log_path)
+
+    rewards: list[float] = []
+    explore_count = 0
+    per_route_pulls: Counter[str] = Counter()
+    per_bucket_pulls: Counter[str] = Counter()
+
+    try:
+        for step in range(iterations):
+            state = env.reset(phase="train", episode_index=step)
+            context = RouteContext.from_features(
+                hardware=state.hardware_profile.hardware_type,
+                domain=state.prompt.domain,
+                complexity_score=state.input_features.complexity_score,
+                known_domains=known_domains,
+            )
+            selection = bandit.select(context, deterministic=False)
+            metrics, reward = evaluate_route(
+                env=env,
+                backend=backend,
+                state=state,
+                route=selection.route,
+                config=config,
+            )
+            bandit.update(selection.route.route_id, context, reward)
+            rewards.append(reward)
+            explore_count += int(selection.explore)
+            per_route_pulls[selection.route.route_id] += 1
+            per_bucket_pulls[context.key()] += 1
+
+            logger.log(
+                {
+                    "step": step,
+                    "context": {
+                        "hardware": context.hardware,
+                        "domain": context.domain,
+                        "complexity": context.complexity,
+                    },
+                    "prompt_id": state.prompt.prompt_id,
+                    "route_id": selection.route.route_id,
+                    "repo_id": selection.route.repo_id,
+                    "quant_label": selection.route.quant_label,
+                    "effective_bits": selection.route.effective_bits,
+                    "metrics": metrics,
+                    "reward": reward,
+                    "explore": selection.explore,
+                    "score": selection.score,
+                    "reasoning": selection.reasoning,
+                }
+            )
+    finally:
+        env.logger.close()
+        logger.close()
+
+    final_recommendation = _final_recommendation(bandit, library)
+    summary = RouteTrainingSummary(
+        pulls=len(rewards),
+        mean_reward=mean(rewards),
+        final_recommendation=final_recommendation,
+        per_route_pulls=dict(per_route_pulls),
+        per_bucket_pulls=dict(per_bucket_pulls),
+        explore_rate=(explore_count / max(1, len(rewards))),
+    )
+    return bandit, summary
+
+
+def evaluate_route_bandit(
+    config: FrameworkConfig,
+    *,
+    catalog: RouteCatalog,
+    bandit: RouteBandit,
+    sweeps: int = 1,
+) -> dict[str, Any]:
+    """Sweep every (prompt, hardware) pair under greedy bandit recommendations and aggregate."""
+    if sweeps <= 0:
+        raise ValueError("sweeps must be > 0")
+    library = PromptLibrary()
+    known_domains = tuple(sorted({prompt.domain for prompt in library.prompts}))
+    env = AdaptiveQuantizationEnv(config, enable_logging=False)
+    backend = build_backend(config)
+
+    rows: list[dict[str, Any]] = []
+    rewards: list[float] = []
+    try:
+        for _ in range(sweeps):
+            for prompt in library.prompts:
+                for hardware_value in config.hardware_modes:
+                    hardware = HardwareType(hardware_value)
+                    state = env.reset(forced_prompt_id=prompt.prompt_id, forced_hardware=hardware)
+                    context = RouteContext.from_features(
+                        hardware=hardware,
+                        domain=state.prompt.domain,
+                        complexity_score=state.input_features.complexity_score,
+                        known_domains=known_domains,
+                    )
+                    selection = bandit.recommend(context)
+                    metrics, reward = evaluate_route(
+                        env=env,
+                        backend=backend,
+                        state=state,
+                        route=selection.route,
+                        config=config,
+                    )
+                    rewards.append(reward)
+                    rows.append(
+                        {
+                            "prompt_id": prompt.prompt_id,
+                            "domain": prompt.domain,
+                            "hardware": hardware.value,
+                            "complexity_bucket": context.complexity,
+                            "route_id": selection.route.route_id,
+                            "repo_id": selection.route.repo_id,
+                            "quant_label": selection.route.quant_label,
+                            "effective_bits": selection.route.effective_bits,
+                            "reward": reward,
+                            "latency_ms": metrics["latency_ms"],
+                            "throughput_tps": metrics["throughput_tps"],
+                            "perplexity": metrics["perplexity"],
+                            "memory_mb": metrics["memory_mb"],
+                            "score": selection.score,
+                            "reasoning": selection.reasoning,
+                        }
+                    )
+    finally:
+        env.logger.close()
+
+    return {
+        "sweeps": sweeps,
+        "samples": len(rows),
+        "mean_reward": mean(rewards),
+        "rows": rows,
+    }
+
+
+def recommend_route(
+    *,
+    config: FrameworkConfig,
+    bandit: RouteBandit,
+    prompt_id: str | None = None,
+    prompt_text: str | None = None,
+    domain: str = "online",
+    hardware: HardwareType | str = HardwareType.GPU,
+) -> RouteSelection:
+    """One-shot recommendation: returns the bandit's best route for the given context.
+
+    If neither ``prompt_id`` nor ``prompt_text`` is provided the helper picks the prompt with
+    the median complexity from the bundled library — a reasonable default for a "generic"
+    request. Prompt features are derived from the prompt text via the same path the env uses
+    so the complexity bin matches training.
+    """
+    from adaptive_quant.features import extract_input_features
+
+    library = PromptLibrary()
+    known_domains = tuple(sorted({prompt.domain for prompt in library.prompts}))
+
+    if prompt_id is not None:
+        prompt = library.by_id(prompt_id)
+    elif prompt_text is not None:
+        from adaptive_quant.types import PromptSample
+
+        prompt = PromptSample(
+            prompt_id=f"adhoc_{abs(hash(prompt_text)) % 1_000_000:06d}",
+            text=str(prompt_text),
+            domain=str(domain),
+        )
+    else:
+        prompt = _median_complexity_prompt(library)
+
+    features = extract_input_features(prompt)
+    context = RouteContext.from_features(
+        hardware=hardware,
+        domain=prompt.domain,
+        complexity_score=features.complexity_score,
+        known_domains=known_domains,
+    )
+    return bandit.recommend(context)
+
+
+def save_bandit_artifacts(
+    *,
+    config: FrameworkConfig,
+    catalog: RouteCatalog,
+    bandit: RouteBandit,
+    training_summary: RouteTrainingSummary | None,
+    evaluation: dict[str, Any] | None,
+) -> dict[str, str]:
+    """Persist bandit state + a benchmark JSON that mirrors recommendation artifacts."""
+    bandit_path = f"{config.benchmark_dir}/{config.run_name}_route_bandit.json"
+    summary_path = f"{config.benchmark_dir}/{config.run_name}_route_summary.json"
+
+    bandit_payload = {
+        "catalog": catalog.to_dict(),
+        "bandit": bandit.state_dict(),
+    }
+    write_json(bandit_path, bandit_payload)
+
+    summary_payload: dict[str, Any] = {
+        "run_name": config.run_name,
+        "training_backend": config.training_backend,
+        "backend": config.backend,
+        "catalog_size": len(catalog),
+        "bandit_report": bandit.report(),
+    }
+    if training_summary is not None:
+        summary_payload["training"] = training_summary.to_dict()
+    if evaluation is not None:
+        summary_payload["evaluation"] = evaluation
+    write_json(summary_path, summary_payload)
+
+    return {"bandit": bandit_path, "summary": summary_path}
+
+
+def load_bandit_artifact(path: str | Path) -> tuple[RouteCatalog, RouteBandit]:
+    """Inverse of :func:`save_bandit_artifacts` (bandit JSON only)."""
+    target = Path(path)
+    if not target.is_file():
+        raise FileNotFoundError(f"Route bandit artifact not found: {target}")
+    payload = read_json(target, label="Route bandit artifact")
+    catalog = RouteCatalog.from_dict(payload.get("catalog", {}))
+    bandit_state = payload.get("bandit") or {}
+    bandit = RouteBandit(
+        catalog=catalog,
+        ucb_c=float(bandit_state.get("ucb_c", 1.5)),
+        prior_weight=float(bandit_state.get("prior_weight", 4.0)),
+        warmup_pulls=int(bandit_state.get("warmup_pulls", 3)),
+        seed=int(bandit_state.get("seed", 13)),
+    )
+    if bandit_state:
+        bandit.load_state_dict(bandit_state)
+    return catalog, bandit
+
+
+def _final_recommendation(bandit: RouteBandit, library: PromptLibrary) -> dict[str, str | float] | None:
+    if not bandit.catalog.routes:
+        return None
+    from adaptive_quant.features import extract_input_features
+
+    pivot = _median_complexity_prompt(library)
+    pivot_features = extract_input_features(pivot)
+    context = RouteContext.from_features(
+        hardware=HardwareType.GPU,
+        domain=pivot.domain,
+        complexity_score=pivot_features.complexity_score,
+        known_domains=tuple(sorted({prompt.domain for prompt in library.prompts})),
+    )
+    selection = bandit.recommend(context)
+    return {
+        "context_key": context.key(),
+        "route_id": selection.route.route_id,
+        "repo_id": selection.route.repo_id,
+        "quant_label": selection.route.quant_label,
+        "score": float(selection.score),
+    }
+
+
+__all__ = [
+    "RouteTrainingSummary",
+    "build_route_decision",
+    "evaluate_route",
+    "evaluate_route_bandit",
+    "load_bandit_artifact",
+    "make_bandit",
+    "recommend_route",
+    "save_bandit_artifacts",
+    "train_route_bandit",
+]
