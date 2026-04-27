@@ -22,7 +22,7 @@ class OnlineRouterTests(unittest.TestCase):
                 report_dir=f"{temp_dir}/reports",
                 run_name="online_router_smoke",
                 stability_probe_count=1,
-                backend="router",
+                backend="simulator",
                 router_enabled=True,
                 router_routes=("hf:distilgpt2@q8",),
                 online_learning=False,
@@ -41,7 +41,40 @@ class OnlineRouterTests(unittest.TestCase):
 
         self.assertTrue(record.get("router_enabled"))
         self.assertIsNotNone(record.get("router_selected_route"))
+        self.assertIn("candidate_decision", record)
         self.assertIn("served_metrics", record)
+
+    def test_online_router_llama_cpp_route_uses_backend_model_override_key(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cfg = FrameworkConfig(
+                outputs_dir=temp_dir,
+                log_dir=f"{temp_dir}/logs",
+                benchmark_dir=f"{temp_dir}/benchmarks",
+                analysis_dir=f"{temp_dir}/analysis",
+                checkpoint_dir=f"{temp_dir}/checkpoints",
+                report_dir=f"{temp_dir}/reports",
+                run_name="online_router_llama_cpp_route",
+                stability_probe_count=1,
+                backend="simulator",
+                router_enabled=True,
+                router_routes=("llama_cpp:/models/local.gguf@q4",),
+                online_learning=False,
+                training_episodes=2,
+                evaluation_episodes=1,
+            )
+            trainer = build_trainer(cfg)
+            loop = OnlineLearningLoop(cfg, trainer=trainer)
+            try:
+                record = loop.serve_request(
+                    OnlineRequest(prompt_text="Summarize deployment risk.", hardware=HardwareType.GPU, prompt_id="router_1")
+                )
+            finally:
+                loop.close()
+                trainer.close()
+
+        decision = record["candidate_decision"]
+        self.assertEqual(decision.metadata["llama_cpp_model_path"], "/models/local.gguf")
+        self.assertEqual(decision.metadata["route_backend"], "llama_cpp")
 
 
 if __name__ == "__main__":

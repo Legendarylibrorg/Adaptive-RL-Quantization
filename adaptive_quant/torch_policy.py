@@ -159,8 +159,12 @@ class TorchPolicyAdapter:
         if config.torch_compile and not config.torch_deterministic and hasattr(torch, "compile"):
             try:
                 self.model = torch.compile(self.model)
-            except Exception:
-                pass
+            except Exception as exc:
+                warnings.warn(
+                    f"torch.compile failed; continuing with eager execution: {exc}",
+                    UserWarning,
+                    stacklevel=2,
+                )
         elif config.torch_compile and config.torch_deterministic:
             warnings.warn(
                 "torch_compile is disabled when torch_deterministic=True (compile is not reproducibility-safe).",
