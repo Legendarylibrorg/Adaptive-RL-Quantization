@@ -11,7 +11,9 @@ from adaptive_quant.logging_utils import JsonlLogger, NullJsonlLogger
 from adaptive_quant.math_utils import variance
 from adaptive_quant.moe import ExpertBank
 from adaptive_quant.prompts import PromptLibrary
+from adaptive_quant.guardrails import should_fallback_due_to_instability
 from adaptive_quant.quantization import finalize_decision, safe_fallback_decision
+from adaptive_quant.reward import compute_weighted_reward
 from adaptive_quant.trainer_utils import zero_previous_action
 from adaptive_quant.types import (
     BackendMetricDict,
@@ -55,7 +57,11 @@ class AdaptiveQuantizationEnv:
         self.backend = build_backend(config)
         self.expert_bank = ExpertBank(config) if config.moe_enabled else None
         self.logger = (
-            JsonlLogger(log_path or f"{config.log_dir}/{config.run_name}.jsonl")
+            JsonlLogger(
+                log_path or f"{config.log_dir}/{config.run_name}.jsonl",
+                buffered=bool(config.jsonl_buffered),
+                flush_every=int(config.jsonl_flush_every),
+            )
             if enable_logging
             else NullJsonlLogger()
         )
@@ -138,7 +144,9 @@ class AdaptiveQuantizationEnv:
         pre_fallback_stability = float(stability_penalty)
         pre_fallback_reward = self._compute_reward(pre_fallback_metrics, pre_fallback_stability)
 
-        if stability_penalty > self.config.instability_threshold:
+        if should_fallback_due_to_instability(
+            stability_penalty, threshold=self.config.instability_threshold
+        ):
             fallback = finalize_decision(safe_fallback_decision(self.config), self.current_state, self.config)
             fallback.fallback_applied = True
             fallback.unstable = True
@@ -222,24 +230,17 @@ class AdaptiveQuantizationEnv:
         return input_features, sensitivity
 
     def _compute_reward(self, metrics: BackendMetricDict, stability_penalty: float) -> float:
-        weights = self.config.reward_weights
-        reward = (
-            -weights.alpha_latency * metrics["latency_ms"]
-            + weights.beta_throughput * metrics["throughput_tps"]
-            - weights.gamma_perplexity * metrics["perplexity"]
-            - weights.delta_memory * metrics["memory_mb"]
-            - weights.epsilon_instability * stability_penalty
-            - weights.eta_token_latency * metrics.get("latency_ms_per_token", 0.0)
-            - self.config.moe_swap_penalty * metrics.get("swap_cost_ms", 0.0)
-            - self.config.moe_cache_miss_penalty * metrics.get("cache_miss_count", 0.0)
-            - self.config.moe_variant_churn_penalty * metrics.get("variant_churn", 0.0)
+        reward = compute_weighted_reward(
+            reward_weights=self.config.reward_weights,
+            metrics=metrics,
+            stability_penalty=stability_penalty,
+            perplexity_reference=self.config.reward_perplexity_reference,
+            include_instability=True,
         )
-        ref = self.config.reward_perplexity_reference
-        zeta = weights.zeta_perplexity_over_ref
-        if ref is not None and zeta > 0.0:
-            over = max(0.0, float(metrics["perplexity"]) - float(ref))
-            reward -= zeta * over
-        return reward
+        reward -= self.config.moe_swap_penalty * float(metrics.get("swap_cost_ms", 0.0))
+        reward -= self.config.moe_cache_miss_penalty * float(metrics.get("cache_miss_count", 0.0))
+        reward -= self.config.moe_variant_churn_penalty * float(metrics.get("variant_churn", 0.0))
+        return float(reward)
 
     def _stability_penalty(self, decision: QuantizationDecision, state: EpisodeState) -> float:
         if self.config.stability_probe_count <= 1:

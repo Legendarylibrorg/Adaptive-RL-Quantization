@@ -33,6 +33,7 @@ from adaptive_quant.model_routes import ModelRoute, RouteCatalog
 from adaptive_quant.paper_bundle import create_pipeline_paper_bundle
 from adaptive_quant.prompts import PromptLibrary
 from adaptive_quant.research_pipeline import git_commit_hash
+from adaptive_quant.reward import compute_weighted_reward
 from adaptive_quant.route_policy import RouteBandit, RouteContext, RouteSelection
 from adaptive_quant.types import (
     EpisodeState,
@@ -146,13 +147,12 @@ def evaluate_route(
     decision = build_route_decision(route, config)
     metrics = backend.evaluate(state, decision)
 
-    weights = config.reward_weights
-    base_reward = (
-        -weights.alpha_latency * float(metrics["latency_ms"])
-        + weights.beta_throughput * float(metrics["throughput_tps"])
-        - weights.gamma_perplexity * float(metrics["perplexity"])
-        - weights.delta_memory * float(metrics["memory_mb"])
-        - weights.eta_token_latency * float(metrics.get("latency_ms_per_token", 0.0))
+    base_reward = compute_weighted_reward(
+        reward_weights=config.reward_weights,
+        metrics=metrics,
+        stability_penalty=0.0,
+        perplexity_reference=config.reward_perplexity_reference,
+        include_instability=False,
     )
 
     if route.size_mb is not None:
@@ -213,7 +213,11 @@ def train_route_bandit(
     backend = build_backend(config)
 
     log_path = telemetry_path or f"{config.log_dir}/{config.run_name}_route_telemetry.jsonl"
-    logger = JsonlLogger(log_path)
+    logger = JsonlLogger(
+        log_path,
+        buffered=bool(config.jsonl_buffered),
+        flush_every=int(config.jsonl_flush_every),
+    )
 
     rewards: list[float] = []
     explore_count = 0

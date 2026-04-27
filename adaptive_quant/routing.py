@@ -209,7 +209,7 @@ class EfficientTaskRouter:
         except Exception as exc:  # pragma: no cover
             raise RuntimeError(
                 "router_feature_backend='hf' requires 'transformers' and 'torch'. "
-                "Install them or use router_feature_backend='hash'."
+                "Install them (e.g. pip install -e \".[torch,router]\") or use router_feature_backend='hash'."
             ) from exc
 
         model_id = (self.config.router_hf_embedding_model or "").strip()

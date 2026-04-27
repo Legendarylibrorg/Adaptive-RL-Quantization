@@ -245,6 +245,12 @@ Real llama.cpp experiments:
 
 Online routing is controlled separately by `router_enabled` and `router_routes`. It is not a separate `backend` value; routes are evaluated through the configured measurement backend.
 
+If you set `router_feature_backend="hf"`, install the optional dependencies first:
+
+```bash
+python3 -m pip install -e ".[torch,router]"
+```
+
 ## Common edits
 
 Reduce runtime:
@@ -256,6 +262,11 @@ Reduce runtime:
 Reduce log volume:
 
 - increase `log_every_n_episodes`
+
+Speed up very long runs (at the cost of keeping file handles open):
+
+- set `jsonl_buffered=true`
+- optionally increase `jsonl_flush_every` (e.g. 32 or 128)
 
 Reduce GPU memory pressure:
 

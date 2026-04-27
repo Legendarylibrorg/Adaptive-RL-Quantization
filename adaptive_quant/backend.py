@@ -4,6 +4,8 @@ import os
 import re
 import subprocess
 import math
+import hashlib
+from collections import OrderedDict
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Protocol
@@ -222,14 +224,16 @@ class LlamaCppBackend:
         self.config = config
         self._simulator = SimulatorBackend(config)
         self.external_quality = ExternalQualityScores.from_config(config)
+        self._cache: OrderedDict[str, dict[str, float]] | None = None
+        if bool(getattr(config, "llama_cpp_cache_enabled", False)):
+            self._cache = OrderedDict()
 
     def evaluate(self, state: EpisodeState, decision: QuantizationDecision) -> BackendMetricDict:
         llama_cpp_binary, llama_cpp_model = require_llama_cpp_paths(
             self.config,
             model_override=decision.metadata.get("llama_cpp_model_path"),
         )
-        parsed = run_llama_cpp_measurement(
-            self.config,
+        parsed = self._run_or_cache_measurement(
             llama_cpp_binary=llama_cpp_binary,
             llama_cpp_model=llama_cpp_model,
             prompt_text=state.prompt.text,
@@ -254,6 +258,59 @@ class LlamaCppBackend:
         )
         apply_external_quality(metrics, state, self.external_quality)
         return metrics
+
+    def _run_or_cache_measurement(
+        self,
+        *,
+        llama_cpp_binary: str,
+        llama_cpp_model: str,
+        prompt_text: str,
+        ngl: int,
+    ) -> dict[str, float]:
+        cache = self._cache
+        if cache is None:
+            return run_llama_cpp_measurement(
+                self.config,
+                llama_cpp_binary=llama_cpp_binary,
+                llama_cpp_model=llama_cpp_model,
+                prompt_text=prompt_text,
+                ngl=ngl,
+            )
+
+        max_chars = int(getattr(self.config, "llama_cpp_max_prompt_chars", 0))
+        text = (prompt_text or "").replace("\x00", " ").replace("\r", " ").replace("\n", " ").strip()
+        if max_chars > 0 and len(text) > max_chars:
+            text = text[:max_chars]
+        digest = hashlib.blake2b(text.encode("utf-8"), digest_size=16).hexdigest()
+        key = "|".join(
+            [
+                str(llama_cpp_binary),
+                str(llama_cpp_model),
+                str(int(ngl)),
+                str(int(self.config.llama_cpp_threads)),
+                str(int(self.config.llama_cpp_context)),
+                str(int(self.config.llama_cpp_generate_tokens)),
+                digest,
+            ]
+        )
+        cached = cache.get(key)
+        if cached is not None:
+            cache.move_to_end(key)
+            return dict(cached)
+
+        parsed = run_llama_cpp_measurement(
+            self.config,
+            llama_cpp_binary=llama_cpp_binary,
+            llama_cpp_model=llama_cpp_model,
+            prompt_text=text,
+            ngl=ngl,
+        )
+        cache[key] = dict(parsed)
+        cache.move_to_end(key)
+        max_entries = int(getattr(self.config, "llama_cpp_cache_max_entries", 256))
+        while len(cache) > max_entries:
+            cache.popitem(last=False)
+        return parsed
 
 
 class ExternalQualityScores:
@@ -397,6 +454,9 @@ def _llama_cpp_command(
     prompt_text: str,
     ngl: int,
 ) -> list[str]:
+    # Defensive sanitization: keep prompts as a single argv token.
+    # Newlines / CR can lead to confusing CLI behavior; NUL can break subprocess invocations.
+    prompt_text = (prompt_text or "").replace("\x00", " ").replace("\r", " ").replace("\n", " ").strip()
     max_chars = int(config.llama_cpp_max_prompt_chars)
     if max_chars > 0 and len(prompt_text) > max_chars:
         prompt_text = prompt_text[:max_chars]

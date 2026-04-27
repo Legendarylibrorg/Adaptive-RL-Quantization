@@ -180,7 +180,7 @@ Requirements:
 - `git` (to clone this repository)
 - `curl` (optional manual fallback on Linux)
 
-The package declares **`dependencies = []`** in **[`pyproject.toml`](../pyproject.toml)** (stdlib only on Python 3.11+). The only declared optional extra is **`torch`** (`pip install -e ".[torch]"`); see GPU section.
+The package declares **`dependencies = []`** in **[`pyproject.toml`](../pyproject.toml)** (stdlib only on Python 3.11+). Optional extras include **`torch`** (`pip install -e ".[torch]"`) for GPU training and **`router`** (`pip install -e ".[router]"`) for Hugging Face embedding features in the online router.
 
 Create a virtual environment:
 

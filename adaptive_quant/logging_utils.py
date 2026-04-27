@@ -36,18 +36,41 @@ def to_jsonable(value: Any) -> Any:
 
 
 class JsonlLogger:
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str, *, buffered: bool = False, flush_every: int = 1) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._buffered = bool(buffered)
+        self._flush_every = max(1, int(flush_every))
+        self._handle: TextIO | None = None
+        self._pending = 0
 
     def log(self, record: dict[str, Any]) -> None:
-        # Re-open per append so temporary test directories and partially initialized
-        # trainers do not keep Windows file handles alive past their cleanup scope.
-        with self.path.open("a", encoding="utf-8", buffering=1) as handle:
-            handle.write(json.dumps(to_jsonable(record), sort_keys=True))
-            handle.write("\n")
+        payload = json.dumps(to_jsonable(record), sort_keys=True) + "\n"
+        if not self._buffered:
+            # Re-open per append so temporary test directories and partially initialized
+            # trainers do not keep Windows file handles alive past their cleanup scope.
+            with self.path.open("a", encoding="utf-8", buffering=1) as handle:
+                handle.write(payload)
+            return
+
+        if self._handle is None or self._handle.closed:
+            self._handle = self.path.open("a", encoding="utf-8")
+            self._pending = 0
+
+        self._handle.write(payload)
+        self._pending += 1
+        if self._pending >= self._flush_every:
+            self._handle.flush()
+            self._pending = 0
 
     def close(self) -> None:
+        if self._handle is not None:
+            try:
+                if self._pending:
+                    self._handle.flush()
+            finally:
+                self._handle.close()
+            self._pending = 0
         return
 
 
