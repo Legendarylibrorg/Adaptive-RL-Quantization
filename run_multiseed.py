@@ -120,7 +120,7 @@ def _write_multiseed_report(
         headline_rows.append([k, fmt_float(stat.mean), fmt_float(stat.std), str(stat.n)])
 
     per_seed_rows: list[list[object]] = []
-    for seed, summary_path in zip(seeds, per_seed_paths, strict=True):
+    for seed, summary_path in zip(seeds, per_seed_paths):
         per_seed_rows.append([str(seed), f"`{summary_path}`"])
 
     lines: list[str] = []
@@ -246,7 +246,7 @@ def main(argv: Iterable[str] | None = None) -> None:
         "seeds": seeds,
         "per_seed": [
             {"seed": seed, "run_name": f"{base_run_name}_seed{seed}", "summary_path": path}
-            for seed, path in zip(seeds, per_seed_paths, strict=True)
+            for seed, path in zip(seeds, per_seed_paths)
         ],
         "aggregates": {
             k: {"mean": v.mean, "std": v.std, "n": v.n}

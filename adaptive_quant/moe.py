@@ -83,7 +83,7 @@ class ExpertBank:
         selected = sorted(router_scores, key=lambda item: item[1], reverse=True)[:top_k]
         probabilities = softmax([score for _expert_index, score in selected])
         experts: list[MoEExpertState] = []
-        for (expert_index, _score), probability in zip(selected, probabilities, strict=True):
+        for (expert_index, _score), probability in zip(selected, probabilities):
             hotness = self._expert_hotness(prompt, hardware_profile, expert_index)
             resident = self._resident_score(hardware_profile, expert_index, hotness)
             sensitivity = clamp(

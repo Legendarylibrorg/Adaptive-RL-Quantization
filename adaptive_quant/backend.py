@@ -16,6 +16,14 @@ from adaptive_quant.types import (
 )
 
 
+def build_backend(config: FrameworkConfig):
+    """Backend factory used by route-learning pipelines.
+
+    Unknown backends fall back to the simulator so stdlib-only workflows remain usable.
+    """
+    return LlamaCppBackend(config) if config.backend == "llama_cpp" else SimulatorBackend(config)
+
+
 class BackendMetrics(Protocol):
     latency_ms: float
     throughput_tps: float
@@ -177,7 +185,7 @@ class SimulatorBackend:
         sensitivity_penalty = 0.0
         latency_multiplier = 1.0
 
-        for expert, variant_index in zip(state.moe_context.experts, decision.moe_variant_indices, strict=False):
+        for expert, variant_index in zip(state.moe_context.experts, decision.moe_variant_indices):
             variant = self.expert_bank.variant_by_index(variant_index)
             routing_weight = 0.60 + expert.router_probability
             latency_multiplier *= 1.0 + (variant.latency_multiplier - 1.0) * routing_weight * 0.50

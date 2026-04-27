@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import json
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
-from adaptive_quant.logging_utils import JsonlLogger, load_jsonl, write_json, write_text_file
+from adaptive_quant.logging_utils import JsonlLogger, load_jsonl, read_json, write_json, write_text_file
 
 
 class LoggingUtilsTests(unittest.TestCase):
@@ -33,7 +32,7 @@ class LoggingUtilsTests(unittest.TestCase):
             path = Path(tmp) / "nested" / "artifact.json"
             write_json(path, {"answer": 42, "items": [1, 2, 3]})
 
-            payload = json.loads(path.read_text(encoding="utf-8"))
+            payload = read_json(path, label="write_json output (test)")
             self.assertEqual(payload["answer"], 42)
             self.assertEqual(payload["items"], [1, 2, 3])
 

@@ -38,7 +38,7 @@ class CategoricalHead:
         self.bias = [0.0] * output_dim
 
     def logits(self, state_vector: list[float]) -> list[float]:
-        return [dot(weights, state_vector) + bias for weights, bias in zip(self.weights, self.bias, strict=True)]
+        return [dot(weights, state_vector) + bias for weights, bias in zip(self.weights, self.bias)]
 
     def sample(self, state_vector: list[float], rng: random.Random, deterministic: bool = False) -> tuple[int, list[float]]:
         probabilities = softmax(self.logits(state_vector))
@@ -61,7 +61,7 @@ class GaussianHead:
         self.stddev = stddev
 
     def means(self, state_vector: list[float]) -> list[float]:
-        return [dot(weights, state_vector) + bias for weights, bias in zip(self.weights, self.bias, strict=True)]
+        return [dot(weights, state_vector) + bias for weights, bias in zip(self.weights, self.bias)]
 
     def sample(
         self,
@@ -75,7 +75,7 @@ class GaussianHead:
             raw_samples = list(raw_means)
         else:
             raw_samples = [gaussian_sample(mean_value, self.stddev, rng) for mean_value in raw_means]
-        mapped = [_map_to_bounds(stable_sigmoid(sample), lower, upper) for sample, (lower, upper) in zip(raw_samples, bounds, strict=True)]
+        mapped = [_map_to_bounds(stable_sigmoid(sample), lower, upper) for sample, (lower, upper) in zip(raw_samples, bounds)]
         return mapped, raw_samples, raw_means
 
     def update(self, state_vector: list[float], raw_samples: list[float], raw_means: list[float], advantage: float, learning_rate: float) -> None:
@@ -205,57 +205,44 @@ class UniversalQuantizationPolicy:
 
     def update(self, trace: PolicyTrace, reward: float) -> None:
         advantage = reward - trace.value_prediction
+        learning_rate = self.config.learning_rate
+
+        def update_categorical(head: CategoricalHead, action_trace: dict) -> None:
+            head.update(
+                trace.state_vector,
+                action_trace["selected_index"],
+                action_trace["probabilities"],
+                advantage,
+                learning_rate,
+            )
+
         if trace.mode_trace is not None:
             self.mode_head.update(
                 trace.state_vector,
                 trace.mode_trace["selected_index"],
                 trace.mode_trace["probabilities"],
                 advantage,
-                self.config.learning_rate,
+                learning_rate,
             )
 
         for action_trace in trace.action_traces:
             head_name = action_trace["head"]
             if head_name == "discrete":
-                self.discrete_head.update(
-                    trace.state_vector,
-                    action_trace["selected_index"],
-                    action_trace["probabilities"],
-                    advantage,
-                    self.config.learning_rate,
-                )
+                update_categorical(self.discrete_head, action_trace)
             elif head_name == "group":
-                self.group_heads[action_trace["slot"]].update(
-                    trace.state_vector,
-                    action_trace["selected_index"],
-                    action_trace["probabilities"],
-                    advantage,
-                    self.config.learning_rate,
-                )
+                update_categorical(self.group_heads[action_trace["slot"]], action_trace)
             elif head_name == "layer":
-                self.layer_heads[action_trace["slot"]].update(
-                    trace.state_vector,
-                    action_trace["selected_index"],
-                    action_trace["probabilities"],
-                    advantage,
-                    self.config.learning_rate,
-                )
+                update_categorical(self.layer_heads[action_trace["slot"]], action_trace)
             elif head_name == "learned":
                 self.learned_head.update(
                     trace.state_vector,
                     action_trace["raw_samples"],
                     action_trace["raw_means"],
                     advantage,
-                    self.config.learning_rate,
+                    learning_rate,
                 )
             elif head_name == "moe":
-                self.moe_heads[action_trace["slot"]].update(
-                    trace.state_vector,
-                    action_trace["selected_index"],
-                    action_trace["probabilities"],
-                    advantage,
-                    self.config.learning_rate,
-                )
+                update_categorical(self.moe_heads[action_trace["slot"]], action_trace)
         self.value_head.update(trace.state_vector, reward, self.config.value_learning_rate)
 
     def snapshot(self) -> dict[str, object]:

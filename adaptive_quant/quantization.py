@@ -26,21 +26,52 @@ def _expand_group_bits(group_bits: list[int], num_layers: int) -> list[float]:
     expanded: list[float] = []
     for bit_width in group_bits:
         expanded.extend([float(bit_width)] * layers_per_group)
-    while len(expanded) < num_layers:
-        expanded.append(float(group_bits[-1]))
-    return expanded[:num_layers]
+    return _pad_or_truncate(expanded, num_layers, fill=float(group_bits[-1]))
 
 
-def _normalize_bit_width(bit_width: int | None, config: FrameworkConfig) -> int:
-    allowed = sorted(config.discrete_bit_widths)
+def _pad_or_truncate(values: list, length: int, *, fill) -> list:
+    if length <= 0:
+        return []
+    if len(values) >= length:
+        return values[:length]
+    return values + [fill] * (length - len(values))
+
+
+def _nearest_allowed_bit_width(
+    bit_width: int | None,
+    allowed: list[int],
+    *,
+    default: int,
+) -> int:
     if bit_width is None:
-        return config.safe_default_bits
+        return default
     return min(allowed, key=lambda candidate: abs(candidate - bit_width))
 
 
-def _dynamic_bits(base_bit_width: int, state: EpisodeState, config: FrameworkConfig) -> list[float]:
-    min_bits = min(config.discrete_bit_widths)
-    max_bits = max(config.discrete_bit_widths)
+def _allowed_bit_widths(config: FrameworkConfig) -> list[int]:
+    return sorted(config.discrete_bit_widths)
+
+
+def nearest_allowed_discrete_bit_width(value: float | int, config: FrameworkConfig) -> int:
+    allowed = _allowed_bit_widths(config)
+    if not allowed:
+        return int(config.safe_default_bits)
+    return min(allowed, key=lambda candidate: abs(float(candidate) - float(value)))
+
+
+def _normalize_bit_width(bit_width: int | None, allowed: list[int], *, default: int) -> int:
+    if bit_width is None:
+        return default
+    return _nearest_allowed_bit_width(bit_width, allowed, default=default)
+
+
+def _dynamic_bits(
+    base_bit_width: int,
+    state: EpisodeState,
+    *,
+    min_bits: int,
+    max_bits: int,
+) -> list[float]:
     complexity = state.input_features.complexity_score
     layer_bits: list[float] = []
     for layer_stat in state.sensitivity.layer_stats:
@@ -49,9 +80,14 @@ def _dynamic_bits(base_bit_width: int, state: EpisodeState, config: FrameworkCon
     return layer_bits
 
 
-def _learned_bits(decision: QuantizationDecision, state: EpisodeState, config: FrameworkConfig) -> list[float]:
-    min_bits = min(config.discrete_bit_widths)
-    max_bits = max(config.discrete_bit_widths)
+def _learned_bits(
+    decision: QuantizationDecision,
+    state: EpisodeState,
+    config: FrameworkConfig,
+    *,
+    min_bits: int,
+    max_bits: int,
+) -> list[float]:
     learned_span = (max_bits - min_bits) * 0.75
     base_bits = min_bits + clamp(decision.precision_level, *config.precision_bounds) * learned_span
     scale_factor = clamp(decision.scale_factor, *config.scale_bounds)
@@ -80,28 +116,37 @@ def finalize_decision(decision: QuantizationDecision, state: EpisodeState, confi
     finalized.clipping_range = clamp(finalized.clipping_range, *config.clip_bounds)
     finalized.precision_level = clamp(finalized.precision_level, *config.precision_bounds)
 
+    allowed = _allowed_bit_widths(config)
+    min_bits = allowed[0] if allowed else int(config.safe_default_bits)
+    max_bits = allowed[-1] if allowed else int(config.safe_default_bits)
+
     if finalized.mode == QuantMode.DISCRETE:
-        bit_width = _normalize_bit_width(finalized.base_bit_width, config)
+        bit_width = _normalize_bit_width(finalized.base_bit_width, allowed, default=config.safe_default_bits)
         finalized.base_bit_width = bit_width
         finalized.effective_layer_bits = [float(bit_width)] * config.num_layers
     elif finalized.mode == QuantMode.GROUPED:
-        normalized = [_normalize_bit_width(bit_width, config) for bit_width in finalized.group_bit_widths]
+        normalized = [
+            _normalize_bit_width(bit_width, allowed, default=config.safe_default_bits)
+            for bit_width in finalized.group_bit_widths
+        ]
         finalized.group_bit_widths = normalized
         finalized.effective_layer_bits = _expand_group_bits(normalized, config.num_layers)
     elif finalized.mode == QuantMode.PER_LAYER:
         if not finalized.layer_bit_widths:
             finalized.layer_bit_widths = [config.safe_default_bits] * config.num_layers
-        normalized = [_normalize_bit_width(bit_width, config) for bit_width in finalized.layer_bit_widths]
-        while len(normalized) < config.num_layers:
-            normalized.append(normalized[-1])
-        finalized.layer_bit_widths = normalized[: config.num_layers]
+        normalized = [
+            _normalize_bit_width(bit_width, allowed, default=config.safe_default_bits)
+            for bit_width in finalized.layer_bit_widths
+        ]
+        normalized = _pad_or_truncate(normalized, config.num_layers, fill=normalized[-1])
+        finalized.layer_bit_widths = normalized
         finalized.effective_layer_bits = [float(bit_width) for bit_width in finalized.layer_bit_widths]
     elif finalized.mode == QuantMode.DYNAMIC:
-        bit_width = _normalize_bit_width(finalized.base_bit_width, config)
+        bit_width = _normalize_bit_width(finalized.base_bit_width, allowed, default=config.safe_default_bits)
         finalized.base_bit_width = bit_width
-        finalized.effective_layer_bits = _dynamic_bits(bit_width, state, config)
+        finalized.effective_layer_bits = _dynamic_bits(bit_width, state, min_bits=min_bits, max_bits=max_bits)
     elif finalized.mode == QuantMode.LEARNED:
-        finalized.effective_layer_bits = _learned_bits(finalized, state, config)
+        finalized.effective_layer_bits = _learned_bits(finalized, state, config, min_bits=min_bits, max_bits=max_bits)
     else:
         raise ValueError(f"Unsupported decision mode: {finalized.mode}")
 
@@ -110,7 +155,7 @@ def finalize_decision(decision: QuantizationDecision, state: EpisodeState, confi
     finalized.metadata["bit_variance"] = variance(finalized.effective_layer_bits)
     _finalize_moe_selection(finalized, state, config)
 
-    out_of_bounds = any(bit < min(config.discrete_bit_widths) or bit > max(config.discrete_bit_widths) for bit in finalized.effective_layer_bits)
+    out_of_bounds = any(bit < min_bits or bit > max_bits for bit in finalized.effective_layer_bits)
     extremely_fragmented = variance(finalized.effective_layer_bits) > 4.0
     if out_of_bounds or extremely_fragmented:
         fallback = safe_fallback_decision(config)
@@ -136,8 +181,11 @@ def _finalize_moe_selection(decision: QuantizationDecision, state: EpisodeState,
         normalized_indices = [fixed_index] * len(state.moe_context.experts)
     else:
         normalized_indices = list(decision.moe_variant_indices[: len(state.moe_context.experts)])
-        while len(normalized_indices) < len(state.moe_context.experts):
-            normalized_indices.append(default_index)
+        normalized_indices = _pad_or_truncate(
+            normalized_indices,
+            len(state.moe_context.experts),
+            fill=default_index,
+        )
 
     names: list[str] = []
     for slot, expert in enumerate(state.moe_context.experts):
@@ -214,7 +262,7 @@ def _predicted_moe_swap_cost(indices: list[int], state: EpisodeState, config: Fr
     if state.moe_context is None or not indices:
         return 0.0
     total = 0.0
-    for expert, index in zip(state.moe_context.experts, indices, strict=False):
+    for expert, index in zip(state.moe_context.experts, indices):
         aggressiveness = index / max(1, config.moe_variant_count() - 1)
         if expert.resident_on_device < 0.5:
             total += (1.2 + 3.4 * aggressiveness) * (0.75 + expert.router_probability) * (1.10 - 0.35 * expert.hotness)

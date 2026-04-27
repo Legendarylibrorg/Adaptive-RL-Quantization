@@ -1,7 +1,6 @@
 """Log/history analysis for pipeline reports (previously split across analysis/*.py)."""
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
@@ -11,14 +10,15 @@ from adaptive_quant.analysis_utils import (
     write_bar_chart,
     write_scatter_plot,
 )
-from adaptive_quant.logging_utils import (
-    enforce_local_read_limit,
-    load_jsonl,
-    write_json,
-)
+from adaptive_quant.logging_utils import load_jsonl, read_json, write_json
 from adaptive_quant.math_utils import mean
 
 DEFAULT_ANALYSIS_PHASE = "eval"
+
+def _summary_stats(values: list[float]) -> dict[str, float]:
+    if not values:
+        return {"mean": 0.0, "min": 0.0, "max": 0.0}
+    return {"mean": mean(values), "min": min(values), "max": max(values)}
 
 
 def _filter_phase(records: list[dict], phase: str | None) -> list[dict]:
@@ -208,7 +208,7 @@ def analyze_moe_experts(
         decision = record.get("decision") or {}
         variant_names = decision.get("moe_variant_names") or []
         router_entropy_vals.append(float(moe_context.get("router_entropy", 0.0)))
-        for expert, variant_name in zip(experts, variant_names, strict=False):
+        for expert, variant_name in zip(experts, variant_names):
             expert_key = f"expert_{int(expert.get('expert_index', 0))}"
             expert_frequency[expert_key] = expert_frequency.get(expert_key, 0.0) + 1.0
             variant_usage[variant_name] = variant_usage.get(variant_name, 0.0) + 1.0
@@ -255,9 +255,9 @@ def analyze_quant(
     summary: dict[str, object] = {
         "log_path": log_path,
         "learned_episode_count": len(learned),
-        "scale_factor": {"mean": mean(scale_values), "min": min(scale_values) if scale_values else 0.0, "max": max(scale_values) if scale_values else 0.0},
-        "clipping_range": {"mean": mean(clip_values), "min": min(clip_values) if clip_values else 0.0, "max": max(clip_values) if clip_values else 0.0},
-        "precision_level": {"mean": mean(precision_values), "min": min(precision_values) if precision_values else 0.0, "max": max(precision_values) if precision_values else 0.0},
+        "scale_factor": _summary_stats(scale_values),
+        "clipping_range": _summary_stats(clip_values),
+        "precision_level": _summary_stats(precision_values),
         "effective_bits_mean": mean(average_bits),
     }
     write_json(str(output_root / "quant_function_behavior_summary.json"), summary)
@@ -279,8 +279,7 @@ def analyze_training_dynamics(history_path: str, output_dir: str) -> dict[str, o
         summary = {"history_path": history_path, "records": 0}
         write_json(str(output_root / "training_dynamics_summary.json"), summary)
         return summary
-    enforce_local_read_limit(source, label="Training history JSON")
-    records = json.loads(source.read_text(encoding="utf-8"))
+    records = read_json(source, label="Training history JSON")
     rewards = [_training_step_reward(r) for r in records]
     points = [(float(r.get("step", 0.0)), _training_step_reward(r)) for r in records]
     summary: dict[str, object] = {

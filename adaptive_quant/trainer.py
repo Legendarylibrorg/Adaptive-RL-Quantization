@@ -6,7 +6,7 @@ from pathlib import Path
 
 from adaptive_quant.base_trainer import TrainerBase, coerce_previous_action
 from adaptive_quant.configuration import FrameworkConfig
-from adaptive_quant.logging_utils import enforce_local_read_limit, write_json
+from adaptive_quant.logging_utils import read_json, write_json
 from adaptive_quant.math_utils import mean
 from adaptive_quant.policy import PolicyTrace, UniversalQuantizationPolicy
 from adaptive_quant.trainer_utils import (
@@ -103,8 +103,7 @@ class Trainer(TrainerBase):
 
     def load_checkpoint(self, path: str) -> None:
         target = _resolve_python_checkpoint_path(path)
-        enforce_local_read_limit(target, label="Python trainer checkpoint")
-        payload = json.loads(target.read_text(encoding="utf-8"))
+        payload = read_json(target, label="Python trainer checkpoint")
         if int(payload.get("format", 0)) != _PYTHON_CHECKPOINT_FORMAT:
             raise ValueError(f"Unsupported Python trainer checkpoint format in {target}")
         policy_state = payload.get("policy_state")

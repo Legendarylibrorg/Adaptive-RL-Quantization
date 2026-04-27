@@ -9,7 +9,7 @@ from typing import Any
 
 from adaptive_quant.base_trainer import TrainerBase, coerce_previous_action
 from adaptive_quant.configuration import FrameworkConfig
-from adaptive_quant.logging_utils import enforce_local_read_limit, write_json
+from adaptive_quant.logging_utils import enforce_local_read_limit, read_json, write_json
 from adaptive_quant.math_utils import mean
 from adaptive_quant.torch_policy import (
     TORCH_BACKEND_REQUIRED_MESSAGE,
@@ -385,8 +385,7 @@ if torch is not None:
             pt_path = Path(path)
             meta_path = Path(_checkpoint_meta_path(str(pt_path)))
             if meta_path.is_file():
-                enforce_local_read_limit(meta_path, label="Checkpoint sidecar")
-                raw_meta = json.loads(meta_path.read_text(encoding="utf-8"))
+                raw_meta = read_json(meta_path, label="Checkpoint sidecar")
                 if int(raw_meta.get("format", 0)) != _CHECKPOINT_FORMAT_V2:
                     raise ValueError(f"Unsupported checkpoint metadata format in {meta_path}")
                 tensors = _torch_load_v2_tensor_file(

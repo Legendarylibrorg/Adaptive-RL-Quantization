@@ -12,6 +12,7 @@ from adaptive_quant.math_utils import variance
 from adaptive_quant.moe import ExpertBank
 from adaptive_quant.prompts import PromptLibrary
 from adaptive_quant.quantization import finalize_decision, safe_fallback_decision
+from adaptive_quant.trainer_utils import zero_previous_action
 from adaptive_quant.types import (
     EpisodeMetrics,
     EpisodeResult,
@@ -105,7 +106,7 @@ class AdaptiveQuantizationEnv:
         else:
             hardware = self._sample_hardware_random()
 
-        previous = previous_action or [0.0, 0.0, 0.0]
+        previous = previous_action or zero_previous_action()
         input_features, sensitivity = self._get_prompt_context(prompt)
         hardware_profile = self.hardware_profiles[hardware]
         self._current_phase = phase
