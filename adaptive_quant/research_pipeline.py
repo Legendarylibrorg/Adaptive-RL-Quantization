@@ -24,7 +24,7 @@ class ResearchPipeline:
 
     def run(self) -> dict[str, object]:
         config, gpu_profile_report = self._resolve_config()
-        git_commit = _git_commit()
+        git_commit = git_commit_hash()
         trainer = self._build_trainer(config)
         preflight_report = None
         train_summary: dict[str, object] = {}
@@ -356,7 +356,13 @@ class ResearchPipeline:
         return str(target)
 
 
-def _git_commit() -> str | None:
+def git_commit_hash() -> str | None:
+    """Return the current ``HEAD`` commit hash, or ``None`` if git is unavailable.
+
+    Bounded by a short subprocess timeout so a hung credential prompt or slow
+    filesystem cannot block a pipeline. Used by report writers to stamp the
+    exact source revision into ``*_summary.json`` and Markdown reports.
+    """
     try:
         completed = subprocess.run(
             ["git", "rev-parse", "HEAD"],
@@ -401,4 +407,4 @@ def run_pipeline_entrypoint(
     return summary
 
 
-__all__ = ["ResearchPipeline", "run_pipeline_entrypoint"]
+__all__ = ["ResearchPipeline", "git_commit_hash", "run_pipeline_entrypoint"]

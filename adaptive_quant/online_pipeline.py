@@ -8,7 +8,7 @@ from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import md_table, write_json, write_text_file
 from adaptive_quant.online_learning import OnlineLearningLoop, build_request_stream
 from adaptive_quant.pipeline_artifacts import maybe_save_final_checkpoint, write_training_history
-from adaptive_quant.research_pipeline import _git_commit
+from adaptive_quant.research_pipeline import git_commit_hash
 from adaptive_quant.trainer import build_trainer
 from analysis.analyzers import analyze_online
 
@@ -20,7 +20,7 @@ def run_online_pipeline(
 ) -> dict[str, object]:
     summary_path = config.summary_path()
     trainer = build_trainer(config)
-    git_commit = _git_commit()
+    git_commit = git_commit_hash()
     loop: OnlineLearningLoop | None = None
     pipeline_error: BaseException | None = None
     bootstrap_summary: dict[str, object] = {}
