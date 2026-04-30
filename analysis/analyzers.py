@@ -10,6 +10,7 @@ from adaptive_quant.analysis_utils import (
     write_bar_chart,
     write_scatter_plot,
 )
+from adaptive_quant.features import complexity_bucket
 from adaptive_quant.logging_utils import load_jsonl, read_json, write_json
 from adaptive_quant.math_utils import mean
 
@@ -98,11 +99,7 @@ def analyze_hardware(
 
 
 def _complexity_bucket(score: float) -> str:
-    if score < 0.35:
-        return "low"
-    if score < 0.70:
-        return "medium"
-    return "high"
+    return complexity_bucket(score)
 
 
 def analyze_inputs(

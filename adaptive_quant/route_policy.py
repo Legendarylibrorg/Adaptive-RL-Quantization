@@ -26,6 +26,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
+from adaptive_quant.features import COMPLEXITY_ROUTE_THRESHOLDS, complexity_bucket
 from adaptive_quant.math_utils import argmax
 from adaptive_quant.model_routes import ModelRoute, RouteCatalog
 from adaptive_quant.types import HardwareType
@@ -33,9 +34,8 @@ from adaptive_quant.types import HardwareType
 _COMPLEXITY_BINS = ("low", "mid", "high")
 _DOMAIN_OTHER = "other"
 
-# Threshold for the three-way complexity binning. ``InputFeatures.complexity_score`` is
-# already normalized roughly into [0,1] by ``adaptive_quant.features``.
-_COMPLEXITY_LOW_HIGH = (0.34, 0.67)
+# Route learning keeps a historical mid-point split for stable route catalog metrics.
+_COMPLEXITY_LOW_HIGH = COMPLEXITY_ROUTE_THRESHOLDS
 
 
 @dataclass
@@ -378,15 +378,7 @@ class RouteBandit:
 
 
 def _complexity_bucket(score: float) -> str:
-    if not math.isfinite(score):
-        score = 0.5
-    score = max(0.0, min(1.0, float(score)))
-    low_threshold, high_threshold = _COMPLEXITY_LOW_HIGH
-    if score < low_threshold:
-        return _COMPLEXITY_BINS[0]
-    if score < high_threshold:
-        return _COMPLEXITY_BINS[1]
-    return _COMPLEXITY_BINS[2]
+    return complexity_bucket(score, thresholds=_COMPLEXITY_LOW_HIGH, labels=_COMPLEXITY_BINS)
 
 
 __all__ = [

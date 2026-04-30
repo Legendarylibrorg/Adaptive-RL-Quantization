@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-if __package__ is None:
-    import shim_support as _shim
-else:
-    from analysis import shim_support as _shim
+try:
+    from analysis.shim_support import dispatch_named_cli
+except ImportError:
+    from shim_support import dispatch_named_cli
 
 if __name__ == "__main__":
-    _shim.dispatch_cli(__file__, "moe_expert_behavior")
+    dispatch_named_cli("moe_expert_behavior")

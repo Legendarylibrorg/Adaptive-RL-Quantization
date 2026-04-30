@@ -37,6 +37,8 @@ docker compose -f docker-compose.yml -f docker-compose.gpu.yml build
 docker compose -f docker-compose.yml -f docker-compose.gpu.yml run --rm adaptive-rl-quant
 ```
 
+The GPU override requests NVIDIA device access and installs the `torch` extra, but the base image is still `python:*-slim` rather than a CUDA image. Use it only on hosts where the NVIDIA container runtime and the selected PyTorch wheel expose CUDA correctly; otherwise prefer a host venv with a CUDA-matched PyTorch install.
+
 The default Compose service uses a non-root user, read-only root filesystem, dropped capabilities, `no-new-privileges`, limits, tmpfs `/tmp`, and an outputs volume at `/app/outputs`. Do not mount `$HOME`, `~/.ssh`, credential dirs, or `/var/run/docker.sock`.
 
 ## Model artifacts

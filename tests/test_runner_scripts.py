@@ -286,6 +286,39 @@ class RunnerScriptCliTests(unittest.TestCase):
             self.assertNotEqual(proc.returncode, 0)
             self.assertIn("training_backend", proc.stderr)
 
+    def test_pytorch_trainer_factory_reports_missing_torch_cleanly(self) -> None:
+        code = r'''
+import builtins
+
+real_import = builtins.__import__
+
+def blocked_import(name, globals=None, locals=None, fromlist=(), level=0):
+    if name == "torch" or name.startswith("torch."):
+        raise ImportError("blocked torch for test")
+    return real_import(name, globals, locals, fromlist, level)
+
+builtins.__import__ = blocked_import
+
+from adaptive_quant.configuration import FrameworkConfig
+from adaptive_quant.trainer import build_trainer
+
+try:
+    build_trainer(FrameworkConfig(training_backend="pytorch", run_name="missing_torch_test"))
+except ImportError as exc:
+    print(str(exc))
+else:
+    raise SystemExit("expected ImportError")
+'''
+        proc = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=str(_REPO_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(proc.returncode, 0, msg=proc.stderr)
+        self.assertIn("PyTorch is required", proc.stdout)
+
     def test_run_research_rejects_unknown_config_keys(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "bad.json"

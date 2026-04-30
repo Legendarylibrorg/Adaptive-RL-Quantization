@@ -132,7 +132,8 @@ Detailed install (distro packages, **WSL2**, SSH clone, llama.cpp): **[docs/INST
 
 **1. Python presets** — Edit or copy `config.py`, `config_gpu.py`, `config_moe.py`, etc. This is the default path used when you do **not** pass `--config`.
 
-**2. JSON / TOML** — Copy **`config.example.json`**, or write a `.toml` file with the same keys. Optional top-level **`preset`**: `default`, `minimal`, `pytorch`, `reproducible`. Load from the installed CLI:
+**2. JSON / TOML** — Copy **`config.example.json`**, or write a `.toml` file with the same keys. Optional top-level **`preset`**: `default`, `minimal`, `pytorch`, `reproducible`. A file passed with `--config` replaces the Python preset selected by the entrypoint; put `preset` inside the JSON/TOML when you want layering. Config paths and default artifact directories such as `outputs/` are resolved relative to the current working directory, so run these commands from the repository root or use absolute paths.
+Load from the installed CLI:
 
 ```bash
 adaptive-rl-quant --config my_settings.json

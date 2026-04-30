@@ -5,6 +5,7 @@ import warnings
 
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
+from adaptive_quant.features import COMPLEXITY_BASELINE_THRESHOLDS, complexity_bucket
 from adaptive_quant.logging_utils import write_json
 from adaptive_quant.quantization import finalize_decision, nearest_allowed_discrete_bit_width
 from adaptive_quant.trainer import build_trainer
@@ -50,10 +51,13 @@ class BenchmarkSuite:
 
         def complexity_aware(state) -> QuantizationDecision:
             # Lower bits for low complexity, higher bits for high complexity.
-            score = float(state.input_features.complexity_score)
-            if score < 0.35:
+            bucket = complexity_bucket(
+                float(state.input_features.complexity_score),
+                thresholds=COMPLEXITY_BASELINE_THRESHOLDS,
+            )
+            if bucket == "low":
                 bits = min(config.discrete_bit_widths)
-            elif score < 0.85:
+            elif bucket == "medium":
                 bits = nearest_allowed_discrete_bit_width(4.0, config)
             else:
                 bits = max(config.discrete_bit_widths)
