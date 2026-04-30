@@ -36,6 +36,32 @@ _REVISION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
 _HF_CLI_NEW = "hf"
 _HF_CLI_LEGACY = "huggingface-cli"
 
+_WIN_CLI_SUFFIXES = frozenset({".exe", ".bat", ".cmd", ".ps1", ".com"})
+
+
+def _is_plausibly_executable(path: Path) -> bool:
+    """Whether ``path`` may be executed as a CLI entrypoint (platform-aware).
+
+    On POSIX, use the execute bit. On Windows, ``os.access(..., X_OK)`` is not meaningful
+    for ordinary files, so we accept typical launcher suffixes or a PE ``MZ`` header for
+    extensionless binaries.
+    """
+    if not path.is_file():
+        return False
+    if os.name == "nt":
+        suffix = path.suffix.lower()
+        if suffix in _WIN_CLI_SUFFIXES:
+            return True
+        if suffix == "":
+            try:
+                with path.open("rb") as handle:
+                    return handle.read(2) == b"MZ"
+            except OSError:
+                return False
+        return False
+    return os.access(path, os.X_OK)
+
+
 _LOCAL_PATH_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"Successfully downloaded\s+(?P<path>\S+)", re.IGNORECASE),
     re.compile(r"Downloaded to\s+(?P<path>\S+)", re.IGNORECASE),
@@ -82,8 +108,8 @@ def find_huggingface_cli(*, override_env: str = "HF_CLI") -> HuggingFaceCli | No
     override = os.environ.get(override_env)
     if override:
         candidate = Path(override).expanduser()
-        if candidate.is_file() and os.access(candidate, os.X_OK):
-            dialect = _HF_CLI_NEW if candidate.name == _HF_CLI_NEW else "legacy"
+        if candidate.is_file() and _is_plausibly_executable(candidate):
+            dialect = _HF_CLI_NEW if candidate.stem.lower() == _HF_CLI_NEW else "legacy"
             return HuggingFaceCli(binary=str(candidate), dialect=dialect)
 
     new_path = shutil.which(_HF_CLI_NEW)
