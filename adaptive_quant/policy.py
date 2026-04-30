@@ -11,6 +11,7 @@ from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.math_utils import (
     argmax,
     clamp,
+    discrete_precision_level,
     dot,
     gaussian_sample,
     sample_categorical,
@@ -145,8 +146,7 @@ class UniversalQuantizationPolicy:
                 base_bit_width=bit_width,
                 scale_factor=1.0,
                 clipping_range=1.0,
-                precision_level=(bit_width - min(self.config.discrete_bit_widths))
-                / (max(self.config.discrete_bit_widths) - min(self.config.discrete_bit_widths)),
+                precision_level=discrete_precision_level(bit_width, self.config.discrete_bit_widths),
                 metadata={"head": "discrete"},
             )
             traces.append({"head": "discrete", "selected_index": bit_index, "probabilities": probabilities})

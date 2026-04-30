@@ -9,7 +9,7 @@ import subprocess
 import sys
 import sysconfig
 import tempfile
-import tomllib
+from adaptive_quant import compat_tomllib as tomllib
 import unittest
 from pathlib import Path
 from unittest import mock

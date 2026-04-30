@@ -34,3 +34,37 @@ CONFIG_GPU = CONFIG.clone(
     torch_preflight_steps=48,
     torch_preflight_min_free_memory_gb=10.0,
 )
+
+
+def make_rtx_torch_preset(
+    *,
+    training_host_label: str,
+    benchmark_training_episodes: int,
+    benchmark_evaluation_episodes: int,
+    run_name: str,
+    torch_gpu_profile: str,
+    torch_hidden_dim: int,
+    torch_mlp_depth: int,
+    torch_batch_episodes: int,
+    torch_minibatch_size: int,
+    torch_update_epochs: int,
+    torch_entropy_coef: float,
+    torch_preflight_batch_size: int,
+    torch_preflight_min_free_memory_gb: float,
+):
+    """Shared RTX-style CUDA overrides; used by ``config_3090`` / ``config_4090`` presets."""
+    return CONFIG_GPU.clone(
+        training_host_label=training_host_label,
+        benchmark_training_episodes=benchmark_training_episodes,
+        benchmark_evaluation_episodes=benchmark_evaluation_episodes,
+        run_name=run_name,
+        torch_gpu_profile=torch_gpu_profile,
+        torch_hidden_dim=torch_hidden_dim,
+        torch_mlp_depth=torch_mlp_depth,
+        torch_batch_episodes=torch_batch_episodes,
+        torch_minibatch_size=torch_minibatch_size,
+        torch_update_epochs=torch_update_epochs,
+        torch_entropy_coef=torch_entropy_coef,
+        torch_preflight_batch_size=torch_preflight_batch_size,
+        torch_preflight_min_free_memory_gb=torch_preflight_min_free_memory_gb,
+    )

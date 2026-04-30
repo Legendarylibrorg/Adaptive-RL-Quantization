@@ -88,6 +88,10 @@ them to logs.
 
 ## Programmatic API
 
+The ``adaptive_quant.routes`` namespace re-exports [`model_routes`](../adaptive_quant/model_routes.py),
+[`route_policy`](../adaptive_quant/route_policy.py), and [`route_pipeline`](../adaptive_quant/route_pipeline.py)
+so you can import route-learning symbols from one place.
+
 Everything the CLI does is exposed through the public Python surface:
 
 ```python

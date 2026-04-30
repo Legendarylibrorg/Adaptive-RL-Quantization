@@ -1,6 +1,6 @@
-from config_gpu import CONFIG_GPU
+from config_gpu import make_rtx_torch_preset
 
-CONFIG_4090 = CONFIG_GPU.clone(
+CONFIG_4090 = make_rtx_torch_preset(
     training_host_label="rtx4090",
     benchmark_training_episodes=768,
     benchmark_evaluation_episodes=96,

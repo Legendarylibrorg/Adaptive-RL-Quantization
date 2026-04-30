@@ -22,6 +22,13 @@ from adaptive_quant.trainer_utils import online_update_summary, reward_summary
 _CHECKPOINT_FORMAT_V2 = 2
 
 
+def _crossed_episode_milestone(episode_before: int, episode_after: int, interval: int) -> bool:
+    """True once ``episode_after`` passes a multiple of ``interval`` (stdlib trainer semantics)."""
+    if interval <= 0:
+        return False
+    return (episode_before // interval) < (episode_after // interval)
+
+
 def _checkpoint_meta_path(pt_path: str) -> str:
     """Sidecar JSON for v2 checkpoints (tensor .pt + metadata)."""
     p = Path(pt_path)
@@ -227,10 +234,12 @@ if torch is not None:
 
             while self.global_episode < target:
                 batch_size = min(self.config.torch_batch_episodes, target - self.global_episode)
+                ep_before = self.global_episode
                 batch_records, batch_rewards = self._collect_batch(batch_size)
                 self._commit_training_batch(batch_records, batch_rewards, all_rewards)
+                ep_after = self.global_episode
 
-                if eval_interval > 0 and self.global_episode % eval_interval < batch_size:
+                if eval_interval > 0 and _crossed_episode_milestone(ep_before, ep_after, eval_interval):
                     eval_summary = self.evaluate()
                     print(
                         f"[episode {self.global_episode:,}] "
@@ -240,7 +249,7 @@ if torch is not None:
                         file=sys.stderr,
                     )
 
-                if ckpt_interval > 0 and self.global_episode % ckpt_interval < batch_size:
+                if ckpt_interval > 0 and _crossed_episode_milestone(ep_before, ep_after, ckpt_interval):
                     ckpt_path = self.config.final_checkpoint_path().replace(
                         "_final", f"_ep{self.global_episode}"
                     )
@@ -290,7 +299,9 @@ if torch is not None:
                 )
                 state_vector = state.to_vector(self.ordered_hardware)
                 decision, record = self.policy.act(
-                    state_vector, deterministic=self.config.rl_train_deterministic()
+                    state_vector,
+                    deterministic=self.config.rl_train_deterministic(),
+                    moe_context=state.moe_context,
                 )
                 result = self.env.evaluate_current(decision, episode_index=self.global_episode)
                 self.global_episode += 1

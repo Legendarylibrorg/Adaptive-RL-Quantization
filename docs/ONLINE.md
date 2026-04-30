@@ -49,6 +49,8 @@ Each online request goes through this flow:
 
 Set `router_enabled=True` and provide `router_routes` to let the online loop choose a route before scoring the candidate under the configured measurement backend. This is an overlay on `backend="simulator"` or `backend="llama_cpp"`, not a third backend value.
 
+The router's exploration parameter chooses a **uniform random route** among `router_routes` with probability ε (not ε-greedy relative to the current policy weights). See `_CategoricalHead.sample` in [`adaptive_quant/routing.py`](../adaptive_quant/routing.py).
+
 Route strings use the form `hf:<model>@q<bits>` or `llama_cpp:<path-to-gguf>@q<bits>`. HF routes currently contribute the model id and quant bits to telemetry/reward simulation; `llama_cpp` routes use the parsed path as the per-request model override when the measurement backend is `llama_cpp`.
 
 ## Key safety controls

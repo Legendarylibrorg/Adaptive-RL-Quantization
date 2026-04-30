@@ -109,6 +109,7 @@ class _CategoricalHead:
         deterministic: bool = False,
         epsilon: float = 0.0,
     ) -> tuple[int, list[float]]:
+        """Sample an arm. With probability ``epsilon``, pick **uniformly** among arms (not ε-greedy vs current π)."""
         probabilities = softmax(self.logits(feature_vector))
         if deterministic:
             return argmax(probabilities), probabilities
