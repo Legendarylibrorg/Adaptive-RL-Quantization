@@ -160,15 +160,7 @@ class TorchCheckpointSafeTests(unittest.TestCase):
             with self.assertRaises(Exception):  # noqa: B017 - intentionally broad
                 _torch_load_v2_tensor_file(str(ckpt))
 
-    def test_v2_loader_allow_legacy_does_not_silently_succeed_on_garbage(self) -> None:
-        """allow_legacy=True relaxes the fallback path but still surfaces unparsable files."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            ckpt = Path(temp_dir) / "broken.pt"
-            ckpt.write_bytes(b"this is not a torch file")
-            with self.assertRaises(Exception):  # noqa: B017 - intentionally broad
-                _torch_load_v2_tensor_file(str(ckpt), allow_legacy=True)
-
-    def test_legacy_checkpoint_refused_by_default(self) -> None:
+    def test_legacy_checkpoint_refused_even_when_compat_flag_is_true(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             ckpt = Path(temp_dir) / "legacy.pt"
             torch.save(
@@ -194,11 +186,11 @@ class TorchCheckpointSafeTests(unittest.TestCase):
                 benchmark_dir=f"{temp_dir}/benchmarks",
                 analysis_dir=f"{temp_dir}/analysis",
                 resume_from_checkpoint=str(ckpt),
-                allow_legacy_checkpoint_load=False,
+                allow_legacy_checkpoint_load=True,
                 torch_compile=False,
                 torch_preflight=False,
             )
-            with self.assertRaises(RuntimeError):
+            with self.assertRaisesRegex(RuntimeError, "Pickle-based .pt checkpoint loading"):
                 TorchTrainer(config, log_path=f"{temp_dir}/logs/z.jsonl")
 
     def test_alternate_policy_objectives_train_one_batch(self) -> None:

@@ -55,9 +55,6 @@ jobs:
             requirements/ci.txt
             security/dependency_hashes.json
 
-      - name: Upgrade pip (interpreter on PATH)
-        run: python -m pip install -U pip
-
       - name: Secret pattern scan (tracked files, no third-party scanner)
         run: python scripts/secret_scan.py
 

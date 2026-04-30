@@ -72,7 +72,7 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertIn("--require-hashes", workflow_text)
         self.assertIn("--no-build-isolation -e .", workflow_text)
         self.assertIn("core.autocrlf false", workflow_text)
-        self.assertIn("python -m pip install -U pip", workflow_text)
+        self.assertNotIn("python -m pip install -U pip", workflow_text)
         self.assertIn("safe.directory", workflow_text)
         self.assertIn("ubuntu-latest", workflow_text)
         self.assertIn('python-version: "3.12"', workflow_text)
@@ -114,7 +114,7 @@ class RunnerScriptCliTests(unittest.TestCase):
                 module._ensure_build_backend("/tmp/python")
         self.assertEqual(
             commands,
-            [(["/tmp/python", "-m", "pip", "install", "setuptools>=61"], None)],
+            [(["/tmp/python", "-m", "pip", "install", "setuptools==82.0.1"], None)],
         )
 
     def test_setup_from_clone_editable_install_uses_no_build_isolation(self) -> None:

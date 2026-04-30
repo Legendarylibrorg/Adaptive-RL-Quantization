@@ -32,6 +32,16 @@ PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 _MAX_FILE_BYTES = 4 << 20
 
 
+def _redact_match(line: str, pattern: re.Pattern[str]) -> str:
+    def replace(match: re.Match[str]) -> str:
+        value = match.group(0)
+        if len(value) <= 8:
+            return "<redacted>"
+        return f"{value[:4]}...{value[-4:]}<redacted>"
+
+    return pattern.sub(replace, line)
+
+
 def scan_tracked_files(root: Path) -> list[str]:
     completed = subprocess.run(
         ["git", "ls-files", "-z"],
@@ -61,7 +71,7 @@ def scan_tracked_files(root: Path) -> list[str]:
         for line_no, line in enumerate(text.splitlines(), start=1):
             for label, pattern in PATTERNS:
                 if pattern.search(line):
-                    matches.append(f"{rel}:{line_no}: {label}: {line}")
+                    matches.append(f"{rel}:{line_no}: {label}: {_redact_match(line, pattern)}")
     return matches
 
 
@@ -74,7 +84,7 @@ def main(argv: list[str] | None = None) -> int:
     root = repo_root()
     matches = scan_tracked_files(root)
     if matches:
-        print("== Possible secret matched pattern (redact before sharing logs): ==", file=sys.stderr)
+        print("== Possible secret matched pattern (matched values redacted): ==", file=sys.stderr)
         for line in matches:
             print(line, file=sys.stderr)
         print("", file=sys.stderr)

@@ -1,0 +1,61 @@
+# VCS and editor metadata
+.git
+.gitignore
+.cursor
+.idea
+*.code-workspace
+.DS_Store
+Thumbs.db
+
+# Python bytecode, packaging, and local environments
+__pycache__
+*.py[cod]
+*.egg-info
+*.egg
+build
+dist
+pip-wheel-metadata
+.venv
+.ruff-venv
+.tools
+
+# Tool caches and test artifacts
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.pytype
+.tox
+.nox
+.coverage
+.coverage.*
+htmlcov
+coverage.xml
+.hypothesis
+
+# Local run artifacts
+outputs
+runs
+*.log
+
+# Secrets and credentials
+.env
+.env.*
+!.env.example
+secrets
+*.pem
+*.key
+id_rsa
+id_ed25519
+
+# Large or executable ML artifacts should be mounted explicitly when trusted.
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.gguf
+*.bin
+*.onnx
+models
+checkpoints
+hf_cache
+huggingface

@@ -5,6 +5,9 @@ This project supports two installation targets:
 - simulator mode: no external ML libraries required
 - CUDA GPU mode: CUDA-enabled PyTorch required
 
+For a hardened VM-and-Docker workflow with non-root containers, restricted mounts,
+and safe install guidance, see [Secure VM and Docker Run Guide](SECURE_RUN.md).
+
 ## OS support
 
 This repo is designed to be **cross-platform for the simulator path**, while **Linux + NVIDIA** remains the primary target for CUDA training.
@@ -187,14 +190,12 @@ Create a virtual environment:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install -U pip
 ```
 
 If `python3 -m pip` fails because `pip` is not installed in the venv, bootstrap it with `ensurepip` first:
 
 ```bash
 python3 -m ensurepip --upgrade
-python3 -m pip install -U pip
 ```
 
 If `ensurepip` is unavailable on your platform build, `python3 scripts/setup_from_clone.py` will fall back automatically.
@@ -338,7 +339,6 @@ git clone https://github.com/Legendarylibrorg/Adaptive-RL-Quantization.git
 cd Adaptive-RL-Quantization
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install -U pip
 python3 -m pip install -e .
 # Install CUDA-enabled PyTorch: use https://pytorch.org/get-started/locally/ and copy the `pip` line, or:
 # python3 -m pip install -e ".[torch]"
@@ -352,7 +352,6 @@ git clone https://github.com/Legendarylibrorg/Adaptive-RL-Quantization.git ~/src
 cd ~/src/Adaptive-RL-Quantization
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install -U pip
 python3 -m pip install -e .
 nvidia-smi
 # Install the CUDA-enabled PyTorch wheel that matches the WSL2 environment, then:
@@ -366,7 +365,6 @@ git clone https://github.com/Legendarylibrorg/Adaptive-RL-Quantization.git
 cd Adaptive-RL-Quantization
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install -U pip
 python3 -m pip install -e .
 adaptive-rl-quant
 ```
@@ -394,7 +392,6 @@ git clone https://github.com/Legendarylibrorg/Adaptive-RL-Quantization.git
 cd Adaptive-RL-Quantization
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install -U pip
 python3 -m pip install -e .
 adaptive-rl-quant-pytorch --preset 4090
 ```

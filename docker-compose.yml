@@ -1,0 +1,34 @@
+services:
+  adaptive-rl-quant:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: adaptive-rl-quant:secure
+    user: "10001:10001"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 4g
+    cpus: 2
+    init: true
+    environment:
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+      HOME: /tmp
+      XDG_CACHE_HOME: /tmp/.cache
+      HF_HOME: /tmp/huggingface
+      TRANSFORMERS_CACHE: /tmp/huggingface/transformers
+      MPLCONFIGDIR: /tmp/matplotlib
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=512m
+    volumes:
+      - adaptive_outputs:/app/outputs
+    command: ["adaptive-rl-quant", "--config", "config.e2e_smoke.json"]
+
+volumes:
+  adaptive_outputs:
