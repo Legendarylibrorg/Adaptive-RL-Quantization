@@ -10,7 +10,6 @@ from adaptive_quant.online_learning import OnlineLearningLoop, build_request_str
 from adaptive_quant.pipeline_artifacts import maybe_save_final_checkpoint, write_training_history
 from adaptive_quant.research_pipeline import git_commit_hash
 from adaptive_quant.trainer import build_trainer
-from analysis.analyzers import analyze_online
 
 
 def run_online_pipeline(
@@ -38,6 +37,8 @@ def run_online_pipeline(
         eval_summary = trainer.evaluate()
 
         analysis_root = f"{config.analysis_dir}/{config.run_name}"
+        from analysis.analyzers import analyze_online
+
         online_analysis = analyze_online(config.online_telemetry_path(), f"{analysis_root}/online")
         history_path = write_training_history(config, trainer)
         checkpoint_path = maybe_save_final_checkpoint(config, trainer)

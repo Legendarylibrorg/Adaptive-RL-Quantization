@@ -98,10 +98,6 @@ def analyze_hardware(
     return summary
 
 
-def _complexity_bucket(score: float) -> str:
-    return complexity_bucket(score)
-
-
 def analyze_inputs(
     log_path: str,
     output_dir: str,
@@ -116,7 +112,7 @@ def analyze_inputs(
         complexity = _input_complexity(record)
         average_bits = _mean_effective_bits(decision)
         points.append((complexity, average_bits))
-        buckets[_complexity_bucket(complexity)].append(record)
+        buckets[complexity_bucket(complexity)].append(record)
     summary: dict[str, object] = {"log_path": log_path, "by_complexity": {}}
     for bucket_name, bucket_records in buckets.items():
         avg_bits, avg_perplexity, avg_reward = [], [], []
