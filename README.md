@@ -30,7 +30,7 @@ Headline quantitative stories in **[docs/PAPER.md](docs/PAPER.md)** are written 
 | **Simulator** | **Python ≥ 3.11**, `python3 -m pip install -e .` — **no** PyPI runtime deps, **no** CUDA |
 | **PyTorch / CUDA** | Same repo + **CUDA-enabled PyTorch** on **Linux + NVIDIA** (recommended for that path) |
 
-**Install (after activating a venv):** `python3 -m pip install -U pip` then **`python3 -m pip install -e .`**. GPU training: **`python3 -m pip install -e ".[torch]"`** or install a matching [torch](https://pytorch.org/get-started/locally/) wheel first, then **`python3 -m pip install -e .`**. On Windows, substitute `py -3.11 -m pip` or `python -m pip`.
+**Install (after activating a venv):** **`python3 -m pip install -e .`**. GPU training: **`python3 -m pip install -e ".[torch]"`** or install a matching [torch](https://pytorch.org/get-started/locally/) wheel first, then **`python3 -m pip install -e .`**. On Windows, substitute `py -3.11 -m pip` or `python -m pip`.
 Editable installs expose console commands: `adaptive-rl-quant`, `adaptive-rl-quant-moe`, `adaptive-rl-quant-pytorch`, `adaptive-rl-quant-online`, `adaptive-rl-quant-multiseed`, `adaptive-rl-quant-calibrate`, and `adaptive-rl-quant-route`.
 
 The simulator path is supported on **Linux, macOS, and Windows**. GPU workflows still target **Linux + NVIDIA** unless noted, and **WSL2 is the recommended Windows path** when you want Linux-parity tooling and layout.
@@ -61,7 +61,6 @@ That creates **`.venv`**, installs the package in editable mode, runs tests, and
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install -U pip
 python3 -m pip install -e .
 python3 -m unittest discover -s tests -q
 adaptive-rl-quant --config config.e2e_smoke.json   # fast smoke
@@ -198,7 +197,7 @@ Paths are driven by `run_name` and directory fields in config.
 
 - **Vulnerability reporting:** **Do not** open a public issue for security problems. Use the private [GitHub Security Advisories form](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/security/advisories/new) and follow [SECURITY.md](SECURITY.md). Machine-readable disclosure metadata lives at [`.well-known/security.txt`](.well-known/security.txt) (RFC 9116).
 - **Secrets:** Do not commit API keys or `.env` files. `.gitignore` excludes `.env`, `.env.*`, `*.pem`, `*.key`, and `secrets/`. Use a local env file or your shell; optionally commit a redacted **`.env.example`** only.
-- **Checkpoints:** Treat downloaded or third-party **`.pt` / pickle checkpoints** as **untrusted code** unless you saved them yourself. The default loader prefers **split checkpoints** with **`weights_only=True`**; legacy single-file loads require an explicit opt-in (`allow_legacy_checkpoint_load`).
+- **Checkpoints:** Treat downloaded or third-party **`.pt` / pickle checkpoints** as **untrusted code**. The loader accepts current split checkpoints with **`weights_only=True`** when supported and refuses legacy pickle-only `.pt` checkpoints; convert old checkpoints only in a separate trusted environment.
 - **Scans:** CI and **`pre_commit_check.py`** run **`scripts/secret_scan.py`** (high-signal tracked-file scan — lightweight, not exhaustive). Enable **GitHub secret scanning** on the org/repo if available; for deeper audits you can additionally run tools like [gitleaks](https://github.com/gitleaks/gitleaks) locally. **`SECURITY.md`** covers private reporting.
 - **Dependency integrity:** CI verifies **`requirements/ci.txt`** against **`security/dependency_hashes.json`**, renders a temporary `--require-hashes` file, and installs only from that verified manifest. Run **`python3 scripts/verify_hashes.py`** locally when you change pinned CI packages.
 

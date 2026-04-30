@@ -52,11 +52,13 @@ class EasyConfigTests(unittest.TestCase):
                 "hardware_modes": ["gpu", "cpu"],
                 "discrete_bit_widths": [4, 8],
                 "scale_bounds": [0.5, 1.5],
+                "router_hf_allowed_models": ["org/model-a", "org/model-b"],
             }
         )
         self.assertEqual(cfg.hardware_modes, ("gpu", "cpu"))
         self.assertEqual(cfg.discrete_bit_widths, (4, 8))
         self.assertEqual(cfg.scale_bounds, (0.5, 1.5))
+        self.assertEqual(cfg.router_hf_allowed_models, ("org/model-a", "org/model-b"))
 
     def test_config_from_dict_merges_reward_weights(self) -> None:
         cfg = config_from_dict(

@@ -13,7 +13,9 @@ from adaptive_quant.huggingface_cli import (
     DownloadResult,
     HuggingFaceCli,
     build_download_command,
+    find_huggingface_cli,
     parse_local_path,
+    run_download,
 )
 from adaptive_quant.model_routes import (
     QUANT_BITS,
@@ -219,6 +221,10 @@ class HuggingFaceCliTests(unittest.TestCase):
             build_download_command(cli, repo_id="org/repo", filename="--rm-rf-flag")
         with self.assertRaises(ValueError):
             build_download_command(cli, repo_id="org/repo", filename="../escape.gguf")
+        with self.assertRaises(ValueError):
+            build_download_command(cli, repo_id="org/repo", revision="../main")
+        with self.assertRaises(ValueError):
+            build_download_command(cli, repo_id="org/repo", local_dir="../models")
 
     def test_build_download_rejects_dangerous_repo(self) -> None:
         cli = HuggingFaceCli(binary="hf", dialect="hf")
@@ -245,6 +251,32 @@ class HuggingFaceCliTests(unittest.TestCase):
         self.assertTrue(ok.ok)
         self.assertFalse(bad.ok)
         self.assertFalse(timed.ok)
+
+    def test_run_download_reports_timeout(self) -> None:
+        cli = HuggingFaceCli(binary="hf", dialect="hf")
+        with mock.patch(
+            "adaptive_quant.huggingface_cli.subprocess.run",
+            side_effect=TimeoutError,
+        ):
+            # TimeoutError is not subprocess.TimeoutExpired; ensure only the intended timeout
+            # exception is converted to a DownloadResult.
+            with self.assertRaises(TimeoutError):
+                run_download(cli, repo_id="org/repo", timeout_s=1)
+        with mock.patch(
+            "adaptive_quant.huggingface_cli.subprocess.run",
+            side_effect=__import__("subprocess").TimeoutExpired(cmd=["hf"], timeout=1),
+        ):
+            result = run_download(cli, repo_id="org/repo", timeout_s=1)
+        self.assertTrue(result.timed_out)
+        self.assertEqual(result.returncode, -1)
+
+    def test_hf_cli_env_override_must_be_executable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            candidate = Path(tmp) / "hf"
+            candidate.write_text("#!/bin/sh\n", encoding="utf-8")
+            with mock.patch.dict("os.environ", {"HF_CLI": str(candidate)}):
+                with mock.patch("adaptive_quant.huggingface_cli.shutil.which", return_value=None):
+                    self.assertIsNone(find_huggingface_cli())
 
 
 class RoutePipelineTests(unittest.TestCase):

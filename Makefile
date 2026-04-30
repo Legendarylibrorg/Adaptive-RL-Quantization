@@ -7,6 +7,7 @@
 .PHONY: pytorch 3090 4090 4090-universal
 .PHONY: online calibrate route-help
 .PHONY: test test-quiet lint format check secret-scan doctor
+.PHONY: docker-build docker-test docker-smoke docker-no-network-smoke
 .PHONY: outputs-clean clean-venv
 
 PY ?= python3
@@ -54,21 +55,24 @@ help:
 	@echo "  make test | test-quiet | secret-scan | lint | format | check"
 	@echo "  make doctor           env summary: Python path, torch/ruff, git, outputs/* counts"
 	@echo ""
+	@echo "[Secure Docker]"
+	@echo "  make docker-build             build hardened simulator image"
+	@echo "  make docker-test              run unit tests in locked-down container"
+	@echo "  make docker-smoke             run E2E smoke in locked-down container"
+	@echo "  make docker-no-network-smoke  run smoke with Docker networking disabled"
+	@echo ""
 	@echo "[Maintenance]"
 	@echo "  make outputs-clean CONFIRM=yes   wipe outputs/{benchmarks,logs,...}"
 	@echo "  make clean-venv                  remove .ruff-venv scratch dir"
 
 install:
-	$(PY) -m pip install -U pip
 	$(PY) -m pip install -e .
 
 install-dev:
-	$(PY) -m pip install -U pip
 	$(PY) -m pip install -e ".[dev]"
 	@echo "Tip: add torch with: pip install -e \".[dev,torch]\""
 
 install-torch:
-	$(PY) -m pip install -U pip
 	$(PY) -m pip install -e ".[torch]"
 
 # --- Experiments ---
@@ -145,6 +149,20 @@ check: lint
 
 doctor:
 	@cd "$(CURDIR)" && PYTHONPATH="$(CURDIR):$$PYTHONPATH" $(PY) scripts/env_report.py
+
+# --- Secure Docker ---
+
+docker-build:
+	docker compose build
+
+docker-test:
+	docker compose run --rm adaptive-rl-quant python -m unittest discover -s tests -q
+
+docker-smoke:
+	docker compose run --rm adaptive-rl-quant
+
+docker-no-network-smoke:
+	docker compose run --rm --network none adaptive-rl-quant
 
 # --- Maintenance ---
 

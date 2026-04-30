@@ -76,7 +76,7 @@ General:
 - `resume_from_checkpoint`: resume a saved run from a checkpoint
 - **Checkpoint format (Python trainer):** saves write `*.json` with the serialized policy state, previous action, and training history.
 - **Checkpoint format (PyTorch):** new saves write `*.pt` (weights + optimizer tensors only) plus a sidecar `*.checkpoint.json` (episode counters and history). Loads use `weights_only=True` when your PyTorch version supports it.
-- `allow_legacy_checkpoint_load`: default **false**. Set **true** only to load older single-file pickle checkpoints that lack the sidecar (trusted files only); then turn it off again.
+- `allow_legacy_checkpoint_load`: deprecated compatibility flag. Pickle-based single-file `.pt` checkpoint loading is refused; convert old checkpoints only in a separate trusted environment.
 
 Adaptive behavior:
 
@@ -85,6 +85,11 @@ Adaptive behavior:
 - `dynamic_quant`
 - `learned_quant`
 - `moe_enabled`
+- `router_feature_backend`: `"hash"` (stdlib default) or `"hf"` (optional Transformers/PyTorch embeddings).
+- `router_hf_embedding_model`: model id for the HF embedding backend.
+- `router_hf_embedding_revision`: optional pinned model revision for HF loads.
+- `router_hf_local_files_only`: require a pre-warmed local HF cache instead of network access.
+- `router_hf_allowed_models`: optional tuple allowlist; when set, the configured embedding model must be listed.
 - `quant_mode`
 - `prompt_split_enabled`: if true, sample different prompt subsets for training vs evaluation
 - `prompt_split_seed`: RNG seed for the prompt split

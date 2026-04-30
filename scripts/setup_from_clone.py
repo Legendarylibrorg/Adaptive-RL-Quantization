@@ -21,6 +21,7 @@ _GET_PIP_TIMEOUT_S = 30.0
 # Refuse to download more than this many bytes; current get-pip.py is ~2 MiB.
 _GET_PIP_MAX_BYTES = 16 << 20
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_SETUPTOOLS_PIN = "82.0.1"
 
 
 def _hash_bytes(data: bytes) -> str:
@@ -93,13 +94,20 @@ def _ensure_pip(python_bin: str) -> None:
 
 def _ensure_build_backend(python_bin: str) -> None:
     probe = subprocess.run(
-        [python_bin, "-c", "import setuptools, setuptools.build_meta"],
+        [
+            python_bin,
+            "-c",
+            (
+                "import setuptools, setuptools.build_meta; "
+                f"raise SystemExit(0 if setuptools.__version__ == '{_SETUPTOOLS_PIN}' else 1)"
+            ),
+        ],
         check=False,
         capture_output=True,
     )
     if probe.returncode == 0:
         return
-    run([python_bin, "-m", "pip", "install", "setuptools>=61"])
+    run([python_bin, "-m", "pip", "install", f"setuptools=={_SETUPTOOLS_PIN}"])
 
 
 def _install_editable(python_bin: str, root: Path) -> None:
@@ -144,7 +152,6 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(f"venv python missing: {venv_python}")
 
     _ensure_pip(str(venv_python))
-    run([str(venv_python), "-m", "pip", "install", "-U", "pip"], cwd=root)
     _install_editable(str(venv_python), root)
 
     if not args.skip_tests:

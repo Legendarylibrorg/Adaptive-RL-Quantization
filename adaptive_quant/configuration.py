@@ -85,8 +85,8 @@ class FrameworkConfig:
     write_training_history: bool = True
     write_research_report: bool = True
     resume_from_checkpoint: str | None = None
-    # When False (default), only split checkpoints (.pt + .checkpoint.json) load; legacy single-file
-    # pickle checkpoints require explicit opt-in (trusted source only).
+    # Deprecated compatibility flag. Current loaders refuse legacy pickle checkpoints and only load
+    # split checkpoints (.pt + .checkpoint.json) through the safe tensor path.
     allow_legacy_checkpoint_load: bool = False
     backend: str = "simulator"
     training_host_label: str | None = None
@@ -165,6 +165,9 @@ class FrameworkConfig:
     router_routes: tuple[str, ...] = ()
     router_feature_backend: str = "hash"  # "hash" (stdlib) | "hf" (optional deps)
     router_hf_embedding_model: str | None = None
+    router_hf_embedding_revision: str | None = None
+    router_hf_local_files_only: bool = False
+    router_hf_allowed_models: tuple[str, ...] = ()
     router_learning_rate: float = 0.050
     router_value_learning_rate: float = 0.025
     router_exploration: float = 0.10
@@ -193,6 +196,8 @@ class FrameworkConfig:
         _validate_env_sampling_mode(self.env_sampling_mode)
         _validate_rl_train_policy_mode(self.rl_train_policy_mode)
         _validate_stability_probe_sampling(self.stability_probe_sampling)
+        _validate_optional_hf_revision("router_hf_embedding_revision", self.router_hf_embedding_revision)
+        _validate_hf_allowed_models(self.router_hf_allowed_models)
         _validate_positive_int("recommendation_eval_episodes", self.recommendation_eval_episodes)
         _validate_positive_int("recommendation_candidate_limit", self.recommendation_candidate_limit)
         _validate_positive_int("llama_cpp_generate_tokens", self.llama_cpp_generate_tokens)
@@ -325,6 +330,7 @@ class FrameworkConfig:
 
 
 _RUN_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+_HF_REVISION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
 
 _BACKENDS = frozenset({"simulator", "llama_cpp"})
 _TORCH_POLICY_ALGORITHMS = frozenset({"ppo", "vpg", "awr"})
@@ -440,3 +446,28 @@ def _validate_optional_filesystem_path(field_name: str, path: str | None) -> Non
         raise ValueError(f"{field_name} contains invalid control characters")
     if _path_has_parent_reference(path):
         raise ValueError(f"{field_name} must not contain '..' ({path!r})")
+
+
+def _validate_optional_hf_revision(field_name: str, revision: str | None) -> None:
+    if revision is None:
+        return
+    if not isinstance(revision, str):
+        raise TypeError(f"{field_name} must be a string or None")
+    if not revision.strip():
+        raise ValueError(f"{field_name} if set must be non-empty")
+    if "\x00" in revision or "\n" in revision or "\r" in revision:
+        raise ValueError(f"{field_name} contains invalid control characters")
+    if _path_has_parent_reference(revision) or revision.startswith("-"):
+        raise ValueError(f"{field_name} must not contain '..' or start with '-' ({revision!r})")
+    if not _HF_REVISION_RE.match(revision):
+        raise ValueError(f"{field_name} contains unsupported characters ({revision!r})")
+
+
+def _validate_hf_allowed_models(models: tuple[str, ...]) -> None:
+    if not isinstance(models, tuple):
+        raise TypeError("router_hf_allowed_models must be a tuple of strings")
+    for model in models:
+        if not isinstance(model, str) or not model.strip():
+            raise ValueError("router_hf_allowed_models entries must be non-empty strings")
+        if "\x00" in model or "\n" in model or "\r" in model or _path_has_parent_reference(model):
+            raise ValueError(f"Invalid router_hf_allowed_models entry: {model!r}")

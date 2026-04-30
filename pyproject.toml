@@ -1,7 +1,7 @@
 [build-system]
 # Used only while installing/building the package; not runtime deps. pip fetches this in an isolated env.
-# setuptools>=77 is required for PEP 639 (`license`/`license-files` metadata).
-requires = ["setuptools>=77"]
+# setuptools 82.0.1 is hash-pinned in requirements/ci.txt for reproducible bootstrap installs.
+requires = ["setuptools==82.0.1"]
 build-backend = "setuptools.build_meta"
 
 [project]

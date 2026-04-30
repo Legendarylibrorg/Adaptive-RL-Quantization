@@ -1,0 +1,17 @@
+services:
+  adaptive-rl-quant:
+    build:
+      args:
+        INSTALL_EXTRAS: torch
+    environment:
+      NVIDIA_VISIBLE_DEVICES: ${NVIDIA_VISIBLE_DEVICES:-0}
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities:
+                - gpu
+    command: ["adaptive-rl-quant-pytorch", "--preset", "gpu"]
