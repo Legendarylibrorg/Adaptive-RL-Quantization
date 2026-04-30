@@ -17,3 +17,7 @@ def dispatch_cli(caller_file: str, key: str) -> None:
     from analysis.analyzers import run_cli
 
     run_cli(key)
+
+
+def dispatch_named_cli(key: str) -> None:
+    dispatch_cli(__file__, key)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 import unittest
@@ -416,6 +417,32 @@ class FrameworkTests(unittest.TestCase):
 
         self.assertEqual(summary["mean_reward"], 0.0)
         self.assertEqual(summary["mean_latency_ms"], 0.0)
+
+    def test_continuous_training_eval_episode_ids_are_unique(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            log_path = Path(temp_dir) / "continuous_eval.jsonl"
+            config = FrameworkConfig(
+                continuous_training=True,
+                max_training_episodes=4,
+                eval_interval=2,
+                checkpoint_interval=0,
+                evaluation_episodes=2,
+                stability_probe_count=1,
+                run_name="continuous_eval_ids",
+            )
+            trainer = build_trainer(config, log_path=str(log_path))
+            try:
+                trainer.train()
+            finally:
+                trainer.close()
+
+            eval_episodes = [
+                json.loads(line)["episode"]
+                for line in log_path.read_text(encoding="utf-8").splitlines()
+                if json.loads(line)["phase"] == "eval"
+            ]
+
+        self.assertEqual(eval_episodes, [1_000_000, 1_000_001, 1_000_002, 1_000_003])
 
     def test_recommend_quantization_returns_best_fixed_candidate(self) -> None:
         config = FrameworkConfig(

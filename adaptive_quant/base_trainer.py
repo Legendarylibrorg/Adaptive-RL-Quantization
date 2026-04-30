@@ -54,6 +54,7 @@ class TrainerBase:
         self.env = AdaptiveQuantizationEnv(config, log_path=log_path)
         self.previous_action = zero_previous_action()
         self.training_history: list[dict[str, float]] = []
+        self._next_eval_episode = 1_000_000
         self._max_bits = max(config.discrete_bit_widths)
         self._scale_upper = config.scale_bounds[1]
         self._clip_upper = config.clip_bounds[1]
@@ -85,9 +86,12 @@ class TrainerBase:
         )
 
     def evaluate(self, episodes: int | None = None, hardware: HardwareType | None = None) -> dict[str, float]:
+        count = self.config.evaluation_episodes if episodes is None else episodes
+        episode_offset = self._next_eval_episode
+        self._next_eval_episode += max(0, int(count))
         results = self._collect_episodes(
-            self.config.evaluation_episodes if episodes is None else episodes,
-            episode_offset=1_000_000,
+            count,
+            episode_offset=episode_offset,
             hardware=hardware,
             phase="eval",
         )

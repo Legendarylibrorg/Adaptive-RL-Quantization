@@ -440,3 +440,10 @@ if torch is not None:
 
         def _policy_input(self, state):
             return state.to_vector(self.ordered_hardware)
+
+else:
+
+    class TorchTrainer(TrainerBase):
+        def __init__(self, config: FrameworkConfig, log_path: str | None = None) -> None:
+            del config, log_path
+            raise ImportError(TORCH_BACKEND_REQUIRED_MESSAGE) from TORCH_IMPORT_ERROR

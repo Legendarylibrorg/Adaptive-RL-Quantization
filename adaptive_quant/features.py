@@ -7,10 +7,31 @@ from adaptive_quant.math_utils import clamp, deterministic_float, mean, norm, va
 from adaptive_quant.types import InputFeatures, LayerSensitivity, PromptSample
 
 TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_]+|[^\sA-Za-z0-9_]")
+COMPLEXITY_ANALYSIS_THRESHOLDS = (0.35, 0.70)
+COMPLEXITY_ROUTE_THRESHOLDS = (0.34, 0.67)
+COMPLEXITY_BASELINE_THRESHOLDS = (0.35, 0.85)
 
 
 def tokenize(text: str) -> list[str]:
     return TOKEN_PATTERN.findall(text.lower())
+
+
+def complexity_bucket(
+    score: float,
+    *,
+    thresholds: tuple[float, float] = COMPLEXITY_ANALYSIS_THRESHOLDS,
+    labels: tuple[str, str, str] = ("low", "medium", "high"),
+) -> str:
+    """Map a normalized complexity score to a low/mid/high style bucket."""
+    if not math.isfinite(score):
+        score = 0.5
+    score = clamp(float(score), 0.0, 1.0)
+    low_threshold, high_threshold = thresholds
+    if score < low_threshold:
+        return labels[0]
+    if score < high_threshold:
+        return labels[1]
+    return labels[2]
 
 
 def _token_ids(tokens: list[str]) -> list[float]:
