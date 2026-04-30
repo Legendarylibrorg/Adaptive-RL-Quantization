@@ -1,15 +1,14 @@
 """Route learning subpackage (model + quantization selection).
 
-This groups the route catalog, contextual bandit, and training/evaluation helpers under a
-single namespace without colliding with the existing :mod:`adaptive_quant.routing` module
-which is a separate lightweight per-task router.
+Groups the route catalog, contextual bandit, and training/evaluation helpers under a
+single namespace without colliding with :mod:`adaptive_quant.routing` (the separate
+lightweight per-task online router).
 """
 
 from __future__ import annotations
 
-from adaptive_quant.routes.bandit import RouteBandit, RouteContext, RouteSelection
-from adaptive_quant.routes.catalog import ModelRoute, QuantSpec, RouteCatalog, default_route_catalog
-from adaptive_quant.routes.pipeline import (
+from adaptive_quant.model_routes import ModelRoute, QuantSpec, RouteCatalog, default_route_catalog
+from adaptive_quant.route_pipeline import (
     RouteTrainingSummary,
     build_route_decision,
     evaluate_route,
@@ -20,6 +19,7 @@ from adaptive_quant.routes.pipeline import (
     save_bandit_artifacts,
     train_route_bandit,
 )
+from adaptive_quant.route_policy import RouteBandit, RouteContext, RouteSelection
 
 __all__ = [
     "ModelRoute",
@@ -39,4 +39,3 @@ __all__ = [
     "save_bandit_artifacts",
     "train_route_bandit",
 ]
-

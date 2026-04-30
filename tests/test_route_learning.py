@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import tempfile
-import tomllib
+from adaptive_quant import compat_tomllib as tomllib
 import unittest
 from pathlib import Path
 from unittest import mock
