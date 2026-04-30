@@ -34,7 +34,6 @@ From the repository root:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate   # or .venv\Scripts\activate on Windows
-python3 -m pip install -U pip
 python3 -m pip install -e .
 python3 -m unittest discover -s tests -q
 ```

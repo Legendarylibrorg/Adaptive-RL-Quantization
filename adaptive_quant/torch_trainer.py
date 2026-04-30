@@ -28,15 +28,10 @@ def _checkpoint_meta_path(pt_path: str) -> str:
     return str(p.with_name(f"{p.stem}.checkpoint.json"))
 
 
-def _torch_load_v2_tensor_file(path: str, *, allow_legacy: bool = False) -> dict[str, Any]:
+def _torch_load_v2_tensor_file(path: str) -> dict[str, Any]:
     """
     Load v2 tensor shard: only model_state + optimizer_state tensors.
     Prefer weights_only=True when PyTorch supports it to avoid arbitrary pickle execution.
-
-    If the strict load fails and ``allow_legacy`` is True, fall back to
-    ``weights_only=False`` (legacy pickle path). This widens the trust surface
-    for the file and is therefore opt-in via
-    ``FrameworkConfig.allow_legacy_checkpoint_load``.
     """
     load_kw: dict[str, Any] = {"map_location": "cpu"}
     try:
@@ -45,12 +40,7 @@ def _torch_load_v2_tensor_file(path: str, *, allow_legacy: bool = False) -> dict
             load_kw["weights_only"] = True
     except (TypeError, ValueError):
         pass
-    try:
-        return torch.load(path, **load_kw)
-    except Exception:
-        if load_kw.get("weights_only") is True and allow_legacy:
-            return torch.load(path, map_location="cpu", weights_only=False)
-        raise
+    return torch.load(path, **load_kw)
 
 
 if torch is not None:
@@ -415,10 +405,7 @@ if torch is not None:
                 raw_meta = read_json(meta_path, label="Checkpoint sidecar")
                 if int(raw_meta.get("format", 0)) != _CHECKPOINT_FORMAT_V2:
                     raise ValueError(f"Unsupported checkpoint metadata format in {meta_path}")
-                tensors = _torch_load_v2_tensor_file(
-                    str(pt_path),
-                    allow_legacy=bool(self.config.allow_legacy_checkpoint_load),
-                )
+                tensors = _torch_load_v2_tensor_file(str(pt_path))
                 self.policy.restore(tensors["model_state"])
                 self.optimizer.load_state_dict(tensors["optimizer_state"])
                 self._optimizer_to_device()
@@ -428,20 +415,11 @@ if torch is not None:
                 self.training_history = list(raw_meta.get("training_history", []))
                 return
 
-            if not self.config.allow_legacy_checkpoint_load:
-                raise RuntimeError(
-                    f"Refusing to load legacy pickle checkpoint {pt_path}: missing sidecar "
-                    f"{meta_path.name}. Re-save with a current trainer, or set "
-                    f"FrameworkConfig.allow_legacy_checkpoint_load=True only for a trusted file."
-                )
-            checkpoint = torch.load(pt_path, map_location="cpu", weights_only=False)
-            self.policy.restore(checkpoint["model_state"])
-            self.optimizer.load_state_dict(checkpoint["optimizer_state"])
-            self._optimizer_to_device()
-            self.global_episode = int(checkpoint.get("global_episode", 0))
-            self.update_index = int(checkpoint.get("update_index", 0))
-            self.previous_action = coerce_previous_action(checkpoint.get("previous_action"))
-            self.training_history = list(checkpoint.get("training_history", []))
+            raise RuntimeError(
+                f"Refusing to load legacy pickle checkpoint {pt_path}: missing sidecar "
+                f"{meta_path.name}. Re-save the checkpoint with a current trainer in a trusted "
+                "environment. Pickle-based .pt checkpoint loading is no longer supported here."
+            )
 
         def _optimizer_to_device(self) -> None:
             for state in self.optimizer.state.values():

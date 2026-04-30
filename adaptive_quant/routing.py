@@ -215,10 +215,19 @@ class EfficientTaskRouter:
         model_id = (self.config.router_hf_embedding_model or "").strip()
         if not model_id:
             raise ValueError("router_hf_embedding_model must be set for router_feature_backend='hf'.")
+        allowed_models = set(self.config.router_hf_allowed_models)
+        if allowed_models and model_id not in allowed_models:
+            raise ValueError(
+                f"router_hf_embedding_model {model_id!r} is not in router_hf_allowed_models."
+            )
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        tokenizer = AutoTokenizer.from_pretrained(model_id)
-        model = AutoModel.from_pretrained(model_id)
+        load_kwargs = {
+            "revision": self.config.router_hf_embedding_revision,
+            "local_files_only": bool(self.config.router_hf_local_files_only),
+        }
+        tokenizer = AutoTokenizer.from_pretrained(model_id, **load_kwargs)
+        model = AutoModel.from_pretrained(model_id, **load_kwargs)
         model.eval()
         model.to(device)
         self._hf = {"torch": torch, "tokenizer": tokenizer, "model": model, "device": device}

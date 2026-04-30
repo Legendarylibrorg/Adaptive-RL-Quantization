@@ -138,7 +138,7 @@ def build_download_command(
     if revision is not None:
         argv.extend(["--revision", revision])
     if local_dir is not None:
-        argv.extend(["--local-dir", str(Path(local_dir))])
+        argv.extend(["--local-dir", str(_validate_local_dir(local_dir))])
     if include_patterns:
         for pattern in include_patterns:
             argv.extend(["--include", pattern])
@@ -237,6 +237,24 @@ def _validate_revision(revision: str) -> None:
         raise ValueError(
             f"Invalid revision {revision!r}: expected alphanumeric, '.', '_', '-', or '/'."
         )
+    if revision.startswith("-"):
+        raise ValueError(f"Revision must not start with '-' (would be parsed as a flag): {revision!r}")
+    if ".." in Path(revision).parts:
+        raise ValueError(f"Revision must not contain '..': {revision!r}")
+
+
+def _validate_local_dir(local_dir: str | os.PathLike[str]) -> Path:
+    path = Path(local_dir)
+    raw = str(path)
+    if not raw.strip():
+        raise ValueError("local_dir must be non-empty")
+    if "\x00" in raw or "\n" in raw or "\r" in raw:
+        raise ValueError("local_dir contains invalid control characters")
+    if ".." in path.parts:
+        raise ValueError(f"local_dir must not contain '..': {raw!r}")
+    if path.name.startswith("-"):
+        raise ValueError(f"local_dir final component must not start with '-': {raw!r}")
+    return path
 
 
 __all__ = [

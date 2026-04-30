@@ -12,7 +12,7 @@ from adaptive_quant.logging_utils import enforce_local_read_limit
 
 _FRAMEWORK_FIELD_NAMES = {f.name for f in fields(FrameworkConfig)}
 _REWARD_FIELD_NAMES = {f.name for f in fields(RewardWeights)}
-_TUPLE_STRING_FIELDS = frozenset({"hardware_modes", "moe_variant_names"})
+_TUPLE_STRING_FIELDS = frozenset({"hardware_modes", "moe_variant_names", "router_hf_allowed_models"})
 _TUPLE_INT_FIELDS = frozenset({"discrete_bit_widths"})
 _TUPLE_FLOAT_FIELDS = frozenset({"scale_bounds", "clip_bounds", "precision_bounds"})
 
