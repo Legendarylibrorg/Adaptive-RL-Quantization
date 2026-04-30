@@ -199,11 +199,9 @@ Paths are driven by `run_name` and directory fields in config.
 
 ## Security
 
-- **Vulnerability reporting:** **Do not** open a public issue for security problems. Use the private [GitHub Security Advisories form](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/security/advisories/new) and follow [SECURITY.md](SECURITY.md). Machine-readable disclosure metadata lives at [`.well-known/security.txt`](.well-known/security.txt) (RFC 9116).
-- **Secrets:** Do not commit API keys or `.env` files. `.gitignore` excludes `.env`, `.env.*`, `*.pem`, `*.key`, and `secrets/`. Use a local env file or your shell; optionally commit a redacted **`.env.example`** only.
-- **Checkpoints:** Treat downloaded or third-party **`.pt` / pickle checkpoints** as **untrusted code**. The loader accepts current split checkpoints with **`weights_only=True`** when supported and refuses legacy pickle-only `.pt` checkpoints; convert old checkpoints only in a separate trusted environment.
-- **Scans:** CI and **`pre_commit_check.py`** run **`scripts/secret_scan.py`** (high-signal tracked-file scan — lightweight, not exhaustive). Enable **GitHub secret scanning** on the org/repo if available; for deeper audits you can additionally run tools like [gitleaks](https://github.com/gitleaks/gitleaks) locally. **`SECURITY.md`** covers private reporting.
-- **Dependency integrity:** CI verifies **`requirements/ci.txt`** against **`security/dependency_hashes.json`**, renders a temporary `--require-hashes` file, and installs only from that verified manifest. Run **`python3 scripts/verify_hashes.py`** locally when you change pinned CI packages.
+- **Report vulnerabilities** privately via [GitHub Security Advisories](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/security/advisories/new); details in [SECURITY.md](SECURITY.md) and [`.well-known/security.txt`](.well-known/security.txt).
+- **Stronger isolation:** disposable VM, Docker, trust boundaries for binaries and model files — see **[docs/SECURE_RUN.md](docs/SECURE_RUN.md)** (short OS-specific defaults).
+- **Secrets / checkpoints / CI hashes:** do not commit `.env` or keys; treat third-party **`.pt`** checkpoints as untrusted (loaders use **`weights_only=True`** where supported); CI installs bootstrap deps with **`pip --require-hashes`** after [scripts/verify_hashes.py](scripts/verify_hashes.py). Secret scan: **`scripts/secret_scan.py`** via **`pre_commit_check.py`**.
 
 ---
 
@@ -212,6 +210,7 @@ Paths are driven by `run_name` and directory fields in config.
 | Doc | Contents |
 | --- | --- |
 | [docs/INSTALL.md](docs/INSTALL.md) | Cross-platform venv setup, optional `[torch]`, llama.cpp |
+| [docs/SECURE_RUN.md](docs/SECURE_RUN.md) | Minimal secure boundary: VM/Docker, OS defaults, model trust |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Repo layering, artifact contract, Linux-first / WSL2 guidance |
 | [docs/RUNNING.md](docs/RUNNING.md) | Every entrypoint, examples, OS notes |
 | [docs/CONFIG.md](docs/CONFIG.md) | All settings + **JSON/TOML** + reproducibility |

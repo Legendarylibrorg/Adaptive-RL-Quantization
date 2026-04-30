@@ -6,7 +6,8 @@ can learn from observed rewards (e.g. negative latency, cost, quality penalties)
 
 Design constraints:
 - Default path is **stdlib-only** (hash features).
-- Optional Hugging Face embeddings via ``transformers`` + ``torch`` when configured.
+- Optional Hugging Face embeddings via ``transformers`` + ``torch`` when configured;
+  model weights are loaded with ``use_safetensors=True`` only (no Hub ``*.bin`` tensors).
 """
 
 from __future__ import annotations
@@ -15,9 +16,24 @@ import hashlib
 import math
 import random
 from dataclasses import dataclass
+from typing import Any
 
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.math_utils import argmax, dot, sample_categorical, softmax
+
+
+def _router_hf_pretrained_kwargs(config: FrameworkConfig) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Return ``(tokenizer_kwargs, model_kwargs)`` for Hugging Face Hub loads.
+
+    Model weights must be ``safetensors``; ``trust_remote_code`` stays disabled.
+    """
+    shared: dict[str, Any] = {
+        "revision": config.router_hf_embedding_revision,
+        "local_files_only": bool(config.router_hf_local_files_only),
+        "trust_remote_code": False,
+    }
+    model_kw = {**shared, "use_safetensors": True}
+    return shared, model_kw
 
 
 @dataclass(frozen=True)
@@ -83,7 +99,7 @@ class _CategoricalHead:
         self.bias = [0.0] * output_dim
 
     def logits(self, feature_vector: list[float]) -> list[float]:
-        return [dot(row, feature_vector) + b for row, b in zip(self.weights, self.bias)]
+        return [dot(row, feature_vector) + b for row, b in zip(self.weights, self.bias)]  # noqa: B905
 
     def sample(
         self,
@@ -222,12 +238,9 @@ class EfficientTaskRouter:
             )
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        load_kwargs = {
-            "revision": self.config.router_hf_embedding_revision,
-            "local_files_only": bool(self.config.router_hf_local_files_only),
-        }
-        tokenizer = AutoTokenizer.from_pretrained(model_id, **load_kwargs)
-        model = AutoModel.from_pretrained(model_id, **load_kwargs)
+        tokenizer_kw, model_kw = _router_hf_pretrained_kwargs(self.config)
+        tokenizer = AutoTokenizer.from_pretrained(model_id, **tokenizer_kw)
+        model = AutoModel.from_pretrained(model_id, **model_kw)
         model.eval()
         model.to(device)
         self._hf = {"torch": torch, "tokenizer": tokenizer, "model": model, "device": device}

@@ -58,8 +58,8 @@ adaptive-rl-quant-route = "run_route_learning:main"
 # Or install a CUDA-matched wheel from https://pytorch.org/get-started/locally/ then: pip install -e .
 torch = ["torch>=2.11.0"]
 # Optional: Hugging Face embedding router (used when router_feature_backend="hf").
-# Install: pip install -e ".[router]"
-router = ["transformers>=4.45.0"]
+# Install: pip install -e ".[router]" or pip install -e ".[torch,router]" for CUDA embeddings.
+router = ["transformers>=4.45.0", "safetensors>=0.4.3"]
 # Local quality: lint + format (not required for simulator-only CI).
 dev = ["ruff>=0.15.10"]
 

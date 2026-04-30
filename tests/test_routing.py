@@ -3,10 +3,24 @@ from __future__ import annotations
 import unittest
 
 from adaptive_quant.configuration import FrameworkConfig
-from adaptive_quant.routing import EfficientTaskRouter, parse_route
+from adaptive_quant.routing import EfficientTaskRouter, _router_hf_pretrained_kwargs, parse_route
 
 
 class RoutingTests(unittest.TestCase):
+    def test_router_hf_pretrained_kwargs_safetensors_and_no_trust_remote_code(self) -> None:
+        cfg = FrameworkConfig(
+            run_name="hf_kw_test",
+            router_hf_embedding_revision="main",
+            router_hf_local_files_only=True,
+        )
+        tokenizer_kw, model_kw = _router_hf_pretrained_kwargs(cfg)
+        self.assertFalse(tokenizer_kw["trust_remote_code"])
+        self.assertEqual(tokenizer_kw["revision"], "main")
+        self.assertTrue(tokenizer_kw["local_files_only"])
+        self.assertTrue(model_kw["use_safetensors"])
+        self.assertFalse(model_kw["trust_remote_code"])
+        self.assertEqual(model_kw["revision"], "main")
+
     def test_parse_route_accepts_model_only_or_model_with_bits(self) -> None:
         self.assertEqual(parse_route("hf:org/model").model_id, "org/model")
         self.assertIsNone(parse_route("hf:org/model").quant_bits)
