@@ -72,6 +72,16 @@ def argmax(values: Sequence[float]) -> int:
     return best_index
 
 
+def discrete_precision_level(bit_width: int, discrete_bit_widths: Sequence[int]) -> float:
+    """Map ``bit_width`` to [0, 1] along ``discrete_bit_widths`` range (0.0 when only one width)."""
+    lo = min(discrete_bit_widths)
+    hi = max(discrete_bit_widths)
+    span = hi - lo
+    if span <= 0:
+        return 0.0
+    return float(bit_width - lo) / float(span)
+
+
 def deterministic_float(key: str, lower: float = 0.0, upper: float = 1.0) -> float:
     digest = hashlib.sha256(key.encode("utf-8")).hexdigest()
     bucket = int(digest[:16], 16) / float(0xFFFFFFFFFFFFFFFF)

@@ -16,6 +16,7 @@ try:
     from adaptive_quant.torch_trainer import (
         TorchTrainer,
         _checkpoint_meta_path,
+        _crossed_episode_milestone,
         _torch_load_v2_tensor_file,
     )
 except ImportError:  # pragma: no cover
@@ -23,6 +24,7 @@ except ImportError:  # pragma: no cover
     TorchTrainer = None  # type: ignore[misc,assignment]
     TorchActorCritic = None  # type: ignore[misc,assignment]
     _checkpoint_meta_path = None  # type: ignore[misc,assignment]
+    _crossed_episode_milestone = None  # type: ignore[misc,assignment]
     _torch_load_v2_tensor_file = None  # type: ignore[misc,assignment]
 
 
@@ -142,13 +144,21 @@ class TorchCheckpointSafeTests(unittest.TestCase):
             resume = config.clone(
                 resume_from_checkpoint=ckpt,
                 run_name="ckptsafe2",
-                allow_legacy_checkpoint_load=False,
             )
             t2 = TorchTrainer(resume, log_path=f"{temp_dir}/logs/y.jsonl")
             self.assertEqual(t2.global_episode, 42)
             self.assertEqual(t2.update_index, 7)
             self.assertEqual(t2.previous_action, [0.1, 0.2, 0.3])
             self.assertEqual(t2.training_history, [{"step": 1.0}])
+
+    def test_crossed_episode_milestone_matches_stdlib_trainer_semantics(self) -> None:
+        if _crossed_episode_milestone is None:
+            self.skipTest("torch trainer utilities unavailable")
+        self.assertTrue(_crossed_episode_milestone(0, 1000, 1000))
+        self.assertFalse(_crossed_episode_milestone(0, 999, 1000))
+        self.assertTrue(_crossed_episode_milestone(500, 1500, 1000))
+        self.assertFalse(_crossed_episode_milestone(1000, 1000, 1000))
+        self.assertFalse(_crossed_episode_milestone(0, 500, 0))
 
     def test_v2_loader_does_not_fall_back_to_pickle_by_default(self) -> None:
         """A corrupt v2 tensor file must not silently re-attempt with weights_only=False."""
@@ -160,7 +170,7 @@ class TorchCheckpointSafeTests(unittest.TestCase):
             with self.assertRaises(Exception):  # noqa: B017 - intentionally broad
                 _torch_load_v2_tensor_file(str(ckpt))
 
-    def test_legacy_checkpoint_refused_even_when_compat_flag_is_true(self) -> None:
+    def test_legacy_checkpoint_refused(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             ckpt = Path(temp_dir) / "legacy.pt"
             torch.save(
@@ -186,7 +196,6 @@ class TorchCheckpointSafeTests(unittest.TestCase):
                 benchmark_dir=f"{temp_dir}/benchmarks",
                 analysis_dir=f"{temp_dir}/analysis",
                 resume_from_checkpoint=str(ckpt),
-                allow_legacy_checkpoint_load=True,
                 torch_compile=False,
                 torch_preflight=False,
             )

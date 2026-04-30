@@ -66,7 +66,6 @@ class FrameworkConfig:
     learning_rate: float = 0.035
     value_learning_rate: float = 0.020
     continuous_stddev: float = 0.18
-    entropy_bonus: float = 0.005
     stability_probe_count: int = 3
     instability_threshold: float = 2.5
     safe_default_bits: int = 4
@@ -89,9 +88,6 @@ class FrameworkConfig:
     write_training_history: bool = True
     write_research_report: bool = True
     resume_from_checkpoint: str | None = None
-    # Deprecated compatibility flag. Current loaders refuse legacy pickle checkpoints and only load
-    # split checkpoints (.pt + .checkpoint.json) through the safe tensor path.
-    allow_legacy_checkpoint_load: bool = False
     backend: str = "simulator"
     training_host_label: str | None = None
     prompt_split_enabled: bool = False
@@ -231,6 +227,9 @@ class FrameworkConfig:
         greedy policy during train collection, deterministic stability probes, aligned
         prompt_split_seed; with training_backend=\"pytorch\" also enables torch_deterministic
         and disables torch.compile. Pass any FrameworkConfig field via kwargs to override.
+
+        Note: full dict/set hash iteration determinism across the interpreter requires
+        PYTHONHASHSEED set before starting Python; this helper only aligns in-repo RNGs.
         """
         base: dict[str, Any] = {
             "seed": seed,

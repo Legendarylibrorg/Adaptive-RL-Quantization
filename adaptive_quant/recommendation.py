@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from collections import Counter, defaultdict
 from copy import deepcopy
 from typing import Any
@@ -39,13 +40,7 @@ def recommend_quantization(trainer, config: FrameworkConfig) -> dict[str, object
         )
         for item in ranked_candidates
     ]
-    evaluated_candidates.sort(
-        key=lambda item: (
-            -float(item["evaluation"]["mean_reward"]),
-            float(item["evaluation"]["mean_perplexity"]),
-            float(item["evaluation"]["mean_latency_ms"]),
-        )
-    )
+    evaluated_candidates.sort(key=_evaluation_sort_key)
 
     best_fixed = evaluated_candidates[0] if evaluated_candidates else None
     return {
@@ -197,6 +192,21 @@ def _candidate_template(decision: QuantizationDecision) -> QuantizationDecision:
         moe_variant_names=list(decision.moe_variant_names),
         metadata=dict(decision.metadata),
     )
+
+def _evaluation_sort_key(item: dict[str, Any]) -> tuple[float, float, float]:
+    """Sort key: higher reward first, then lower perplexity, then lower latency; non-finite → worst bucket."""
+    ev = item.get("evaluation") or {}
+    reward = float(ev.get("mean_reward", float("-inf")))
+    perplexity = float(ev.get("mean_perplexity", float("inf")))
+    latency = float(ev.get("mean_latency_ms", float("inf")))
+    if not math.isfinite(reward):
+        reward = float("-inf")
+    if not math.isfinite(perplexity):
+        perplexity = float("inf")
+    if not math.isfinite(latency):
+        latency = float("inf")
+    return (-reward, perplexity, latency)
+
 
 def _decision_signature(decision: QuantizationDecision) -> str:
     payload = _decision_payload(decision)

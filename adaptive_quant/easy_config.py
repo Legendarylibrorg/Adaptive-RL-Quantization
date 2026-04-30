@@ -136,7 +136,7 @@ def _parse_config_file(path: Path) -> dict[str, Any]:
     if suffix == ".json":
         return json.loads(text)
     if suffix in (".toml", ".tml"):
-        import tomllib
+        from adaptive_quant.compat_tomllib import loads as toml_loads
 
-        return tomllib.loads(text)
+        return toml_loads(text)
     raise ValueError(f"Unsupported config extension {suffix!r} (use .json or .toml)")

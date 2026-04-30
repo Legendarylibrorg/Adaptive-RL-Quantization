@@ -27,7 +27,7 @@ For a **single file** instead of editing Python presets:
 
    Source-checkout equivalents remain `python3 run_research.py`, `python3 run_pytorch.py`, `python3 run_moe_research.py`, `python3 run_online_learning.py`, and `python3 run_calibrate_llama_cpp.py`.
 
-4. **API:** `FrameworkConfig.from_file(path)`, `load_config(path)` (from `adaptive_quant`), or `FrameworkConfig.from_mapping(dict, strict=True)` to reject unknown keys.
+4. **API:** `FrameworkConfig.from_file(path)`, `load_config(path)` (from `adaptive_quant`), or `FrameworkConfig.from_mapping(dict, strict=True)` to reject unknown keys. TOML parsing uses the stdlib `tomllib` on Python 3.11+ and a small in-package fallback on older versions (`adaptive_quant.compat_tomllib`); the supported runtime remains **3.11+** per `pyproject.toml`.
 
 Lists in JSON for tuple fields (`hardware_modes`, `discrete_bit_widths`, `scale_bounds`, …) are coerced automatically. Nested **`reward_weights`** merges onto defaults.
 
@@ -75,8 +75,7 @@ General:
 - `run_name` must be a filename-safe slug (letters/digits plus `._-`, no spaces, no path separators).
 - `resume_from_checkpoint`: resume a saved run from a checkpoint
 - **Checkpoint format (Python trainer):** saves write `*.json` with the serialized policy state, previous action, and training history.
-- **Checkpoint format (PyTorch):** new saves write `*.pt` (weights + optimizer tensors only) plus a sidecar `*.checkpoint.json` (episode counters and history). Loads use `weights_only=True` when your PyTorch version supports it.
-- `allow_legacy_checkpoint_load`: deprecated compatibility flag. Pickle-based single-file `.pt` checkpoint loading is refused; convert old checkpoints only in a separate trusted environment.
+- **Checkpoint format (PyTorch):** new saves write `*.pt` (weights + optimizer tensors only) plus a sidecar `*.checkpoint.json` (episode counters and history). Loads use `weights_only=True` when your PyTorch version supports it. Single-file pickle `.pt` checkpoints without a sidecar are **refused** (no opt-in).
 
 Adaptive behavior:
 

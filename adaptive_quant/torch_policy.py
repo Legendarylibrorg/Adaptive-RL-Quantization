@@ -6,6 +6,7 @@ from contextlib import nullcontext
 from typing import Any
 
 from adaptive_quant.configuration import FrameworkConfig
+from adaptive_quant.math_utils import discrete_precision_level
 from adaptive_quant.trainer_utils import zero_previous_action
 from adaptive_quant.types import QuantizationDecision, QuantMode
 
@@ -197,7 +198,13 @@ class TorchPolicyAdapter:
     def state_tensor(self, state_vectors: list[list[float]]) -> torch.Tensor:
         return torch.tensor(state_vectors, dtype=torch.float32, device=self.device)
 
-    def act(self, state_vector: list[float], deterministic: bool = False) -> tuple[QuantizationDecision, dict[str, Any]]:
+    def act(
+        self,
+        state_vector: list[float],
+        deterministic: bool = False,
+        *,
+        moe_context: Any | None = None,
+    ) -> tuple[QuantizationDecision, dict[str, Any]]:
         state = self.state_tensor([state_vector])
         with torch.inference_mode():
             with self.autocast_context():
@@ -214,6 +221,7 @@ class TorchPolicyAdapter:
             "group_indices": [],
             "layer_indices": [],
             "moe_indices": [],
+            "moe_active": False,
             "learned_raw": [],
         }
 
@@ -230,11 +238,10 @@ class TorchPolicyAdapter:
                 base_bit_width=bit_width,
                 scale_factor=1.0,
                 clipping_range=1.0,
-                precision_level=(bit_width - min(self.config.discrete_bit_widths))
-                / (max(self.config.discrete_bit_widths) - min(self.config.discrete_bit_widths)),
+                precision_level=discrete_precision_level(bit_width, self.config.discrete_bit_widths),
                 metadata={"head": "torch_discrete"},
             )
-            self._attach_moe_selection(outputs, decision, record, deterministic)
+            self._attach_moe_selection(outputs, decision, record, deterministic, moe_context=moe_context)
             return decision, record
 
         if selected_mode == QuantMode.GROUPED:
@@ -250,7 +257,7 @@ class TorchPolicyAdapter:
                 group_bits.append(self.config.discrete_bit_widths[index])
             record["group_indices"] = group_indices
             decision = QuantizationDecision(mode=selected_mode, group_bit_widths=group_bits, metadata={"head": "torch_grouped"})
-            self._attach_moe_selection(outputs, decision, record, deterministic)
+            self._attach_moe_selection(outputs, decision, record, deterministic, moe_context=moe_context)
             return decision, record
 
         if selected_mode == QuantMode.PER_LAYER:
@@ -266,7 +273,7 @@ class TorchPolicyAdapter:
                 layer_bits.append(self.config.discrete_bit_widths[index])
             record["layer_indices"] = layer_indices
             decision = QuantizationDecision(mode=selected_mode, layer_bit_widths=layer_bits, metadata={"head": "torch_per_layer"})
-            self._attach_moe_selection(outputs, decision, record, deterministic)
+            self._attach_moe_selection(outputs, decision, record, deterministic, moe_context=moe_context)
             return decision, record
 
         raw_mean = outputs["learned_mean"][0]
@@ -284,7 +291,7 @@ class TorchPolicyAdapter:
             precision_level=float(bounded[2].item()),
             metadata={"head": "torch_learned"},
         )
-        self._attach_moe_selection(outputs, decision, record, deterministic)
+        self._attach_moe_selection(outputs, decision, record, deterministic, moe_context=moe_context)
         return decision, record
 
     def _attach_moe_selection(
@@ -293,8 +300,10 @@ class TorchPolicyAdapter:
         decision: QuantizationDecision,
         record: dict[str, Any],
         deterministic: bool,
+        *,
+        moe_context: Any | None,
     ) -> None:
-        if self.model.moe_head is None or "moe_logits" not in outputs:
+        if moe_context is None or self.model.moe_head is None or "moe_logits" not in outputs:
             return
         moe_indices: list[int] = []
         moe_names: list[str] = []
@@ -310,6 +319,7 @@ class TorchPolicyAdapter:
         decision.moe_variant_indices = moe_indices
         decision.moe_variant_names = moe_names
         decision.metadata["moe_head"] = "torch_packed_expert_bank"
+        record["moe_active"] = True
 
     def evaluate_actions(self, states: torch.Tensor, records: list[dict[str, Any]]) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         with self.autocast_context():
@@ -382,21 +392,24 @@ class TorchPolicyAdapter:
             entropies[learned_mask] += distribution.entropy().sum(dim=-1)[learned_mask]
 
         if self.model.moe_head is not None and "moe_logits" in outputs:
-            moe_indices = torch.tensor(
-                [
-                    record["moe_indices"] if record["moe_indices"] else [self.config.default_moe_variant_index()] * self.config.moe_top_k
-                    for record in records
-                ],
-                dtype=torch.long,
-                device=self.device,
-            )
-            logits = outputs["moe_logits"].float()
-            log_distribution = torch.log_softmax(logits, dim=-1)
-            probabilities = torch.softmax(logits, dim=-1)
-            selected = torch.gather(log_distribution, dim=-1, index=moe_indices.unsqueeze(-1)).squeeze(-1).sum(dim=-1)
-            entropy = -(probabilities * log_distribution).sum(dim=-1).sum(dim=-1)
-            log_probs += selected
-            entropies += entropy
+            moe_active = torch.tensor([bool(record.get("moe_active")) for record in records], dtype=torch.bool, device=self.device)
+            if moe_active.any():
+                moe_indices = torch.tensor(
+                    [
+                        record["moe_indices"] if record["moe_indices"] else [self.config.default_moe_variant_index()] * self.config.moe_top_k
+                        for record in records
+                    ],
+                    dtype=torch.long,
+                    device=self.device,
+                )
+                logits = outputs["moe_logits"].float()
+                log_distribution = torch.log_softmax(logits, dim=-1)
+                probabilities = torch.softmax(logits, dim=-1)
+                selected = torch.gather(log_distribution, dim=-1, index=moe_indices.unsqueeze(-1)).squeeze(-1).sum(dim=-1)
+                entropy = -(probabilities * log_distribution).sum(dim=-1).sum(dim=-1)
+                active_f = moe_active.float()
+                log_probs = log_probs + selected * active_f
+                entropies = entropies + entropy * active_f
 
         return log_probs, entropies, outputs["value"].float()
 
