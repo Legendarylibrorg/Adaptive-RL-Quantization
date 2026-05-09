@@ -453,8 +453,11 @@ class RouteCliTests(unittest.TestCase):
     def test_pyproject_exposes_route_console_script(self) -> None:
         pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
         payload = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-        self.assertEqual(payload["project"]["scripts"]["adaptive-rl-quant-route"], "run_route_learning:main")
-        self.assertIn("run_route_learning", payload["tool"]["setuptools"]["py-modules"])
+        self.assertEqual(
+            payload["project"]["scripts"]["adaptive-rl-quant-route"],
+            "adaptive_quant.cli.route_learning:main",
+        )
+        self.assertIn("config_online", payload["tool"]["setuptools"]["py-modules"])
 
 
 if __name__ == "__main__":

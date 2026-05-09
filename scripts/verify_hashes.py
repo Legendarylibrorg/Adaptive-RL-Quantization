@@ -9,8 +9,10 @@ from pathlib import Path
 from _common import repo_root
 
 ROOT = repo_root()
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+_SRC = ROOT / "src"
+for path in (_SRC, ROOT):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
 
 from adaptive_quant.logging_utils import read_json, write_text_file  # noqa: E402
 

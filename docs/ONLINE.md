@@ -27,10 +27,10 @@ python3 run_online_learning.py --config ./online.toml
 
 ## Main files
 
-- [`run_online_learning.py`](../run_online_learning.py)
-- [`config_online.py`](../config_online.py)
-- [`adaptive_quant/online_learning.py`](../adaptive_quant/online_learning.py)
-- [`analysis/online_learning.py`](../analysis/online_learning.py)
+- [`run_online_learning.py`](../run_online_learning.py) (repo-root shim)
+- [`config_online.py`](../src/config_online.py)
+- [`adaptive_quant/online_learning.py`](../src/adaptive_quant/online_learning.py)
+- [`analysis/online_learning.py`](../src/analysis/online_learning.py)
 
 ## How the loop works
 
@@ -49,7 +49,7 @@ Each online request goes through this flow:
 
 Set `router_enabled=True` and provide `router_routes` to let the online loop choose a route before scoring the candidate under the configured measurement backend. This is an overlay on `backend="simulator"` or `backend="llama_cpp"`, not a third backend value.
 
-The router's exploration parameter chooses a **uniform random route** among `router_routes` with probability ε (not ε-greedy relative to the current policy weights). See `_CategoricalHead.sample` in [`adaptive_quant/routing.py`](../adaptive_quant/routing.py).
+The router's exploration parameter chooses a **uniform random route** among `router_routes` with probability ε (not ε-greedy relative to the current policy weights). See `_CategoricalHead.sample` in [`adaptive_quant/routing.py`](../src/adaptive_quant/routing.py).
 
 Route strings use the form `hf:<model>@q<bits>` or `llama_cpp:<path-to-gguf>@q<bits>`. HF routes currently contribute the model id and quant bits to telemetry/reward simulation; `llama_cpp` routes use the parsed path as the per-request model override when the measurement backend is `llama_cpp`.
 
@@ -78,7 +78,7 @@ Summaries:
 
 Analysis:
 
-- `outputs/analysis/<run_name>/online`
+- `outpu../src/analysis/<run_name>/online`
 
 Reports and checkpoints:
 

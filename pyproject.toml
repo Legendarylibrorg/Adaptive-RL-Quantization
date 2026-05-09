@@ -44,13 +44,13 @@ Issues = "https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/issues"
 Security = "https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/security/policy"
 
 [project.scripts]
-adaptive-rl-quant = "run_research:main"
-adaptive-rl-quant-moe = "run_moe_research:main"
-adaptive-rl-quant-pytorch = "run_pytorch:main"
-adaptive-rl-quant-online = "run_online_learning:main"
-adaptive-rl-quant-multiseed = "run_multiseed:main"
-adaptive-rl-quant-calibrate = "run_calibrate_llama_cpp:main"
-adaptive-rl-quant-route = "run_route_learning:main"
+adaptive-rl-quant = "adaptive_quant.cli.research:main"
+adaptive-rl-quant-moe = "adaptive_quant.cli.moe_research:main"
+adaptive-rl-quant-pytorch = "adaptive_quant.cli.pytorch:main"
+adaptive-rl-quant-online = "adaptive_quant.cli.online_learning:main"
+adaptive-rl-quant-multiseed = "adaptive_quant.cli.multiseed:main"
+adaptive-rl-quant-calibrate = "adaptive_quant.cli.calibrate_llama_cpp:main"
+adaptive-rl-quant-route = "adaptive_quant.cli.route_learning:main"
 
 [project.optional-dependencies]
 # Sole PyPI runtime extra — PyTorch for training_backend="pytorch" / run_pytorch.py.
@@ -64,7 +64,7 @@ router = ["transformers>=4.45.0", "safetensors>=0.4.3"]
 dev = ["ruff>=0.15.10"]
 
 [tool.setuptools]
-packages = ["adaptive_quant", "adaptive_quant.routes", "analysis"]
+package-dir = {"" = "src"}
 py-modules = [
     "config",
     "config_3090",
@@ -73,14 +73,13 @@ py-modules = [
     "config_gpu",
     "config_moe",
     "config_online",
-    "run_calibrate_llama_cpp",
-    "run_moe_research",
-    "run_multiseed",
-    "run_online_learning",
-    "run_pytorch",
-    "run_route_learning",
-    "run_research",
 ]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
 
 [tool.ruff]
 target-version = "py311"

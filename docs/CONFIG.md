@@ -37,22 +37,22 @@ Lists in JSON for tuple fields (`hardware_modes`, `discrete_bit_widths`, `scale_
 
 Configuration also lives in:
 
-- [`config.py`](../config.py)
-- [`config_moe.py`](../config_moe.py)
-- [`config_online.py`](../config_online.py)
-- [`config_gpu.py`](../config_gpu.py)
-- [`config_3090.py`](../config_3090.py)
-- [`config_4090.py`](../config_4090.py)
-- [`config_4090_universal.py`](../config_4090_universal.py)
-- [`adaptive_quant/configuration.py`](../adaptive_quant/configuration.py)
+- [`config.py`](../src/config.py)
+- [`config_moe.py`](../src/config_moe.py)
+- [`config_online.py`](../src/config_online.py)
+- [`config_gpu.py`](../src/config_gpu.py)
+- [`config_3090.py`](../src/config_3090.py)
+- [`config_4090.py`](../src/config_4090.py)
+- [`config_4090_universal.py`](../src/config_4090_universal.py)
+- [`adaptive_quant/configuration/`](../src/adaptive_quant/configuration/) (`framework.py`: `FrameworkConfig`)
 
-Use [`config.py`](../config.py) as the canonical offline research baseline when you are not using `--config`. It is the simplest preset to reproduce and the best starting point for stable experiments.
+Use [`config.py`](../src/config.py) as the canonical offline research baseline when you are not using `--config`. It is the simplest preset to reproduce and the best starting point for stable experiments.
 
 ---
 
 ## Research / reproducibility fields
 
-- **`env_sampling_mode`**: `random` (default) | `sequential` | `forced` — controls how prompts and hardware are chosen on `reset()`; **`sequential`** uses `episode_index` for a fixed schedule (see [`runner_cli` / trainers passing `episode_index`](../adaptive_quant/trainer_utils.py)).
+- **`env_sampling_mode`**: `random` (default) | `sequential` | `forced` — controls how prompts and hardware are chosen on `reset()`; **`sequential`** uses `episode_index` for a fixed schedule (see [`runner_cli` / trainers passing `episode_index`](../src/adaptive_quant/trainer_utils.py)).
 - **`env_forced_prompt_id`**, **`env_forced_hardware`**: used when `env_sampling_mode="forced"` if `reset()` does not pass explicit prompt/hardware.
 - **`rl_train_policy_mode`**: `stochastic` (sample π during training) | `deterministic` (greedy / argmax during training rollouts).
 - **`stability_probe_sampling`**: `random` | `deterministic` — probe order for the stability penalty term.
@@ -199,44 +199,44 @@ Local laptop or quick CI-style validation:
 - `training_backend="python"`
 - `backend="simulator"` (valid measurement backends are `simulator` and `llama_cpp`)
 - small `training_episodes`
-- start from [`config.py`](../config.py)
+- start from [`config.py`](../src/config.py)
 
 Auto-tuned GPU training:
 
-- use [`config_gpu.py`](../config_gpu.py)
+- use [`config_gpu.py`](../src/config_gpu.py)
 - keep `torch_gpu_profile="auto"` unless you want to force a profile
 - keep `cache_prompt_features=True`
 - keep `torch_preflight=True`
 
 RTX 3090 training:
 
-- use [`config_3090.py`](../config_3090.py) (or `adaptive-rl-quant-pytorch --preset 3090`)
+- use [`config_3090.py`](../src/config_3090.py) (or `adaptive-rl-quant-pytorch --preset 3090`)
 - same hygiene as other CUDA presets: `torch_preflight=True`, `cache_prompt_features=True`
 
 RTX 4090 training:
 
-- use [`config_4090.py`](../config_4090.py)
+- use [`config_4090.py`](../src/config_4090.py)
 - keep `training_backend="pytorch"`
 - keep `cache_prompt_features=True`
 - keep `torch_preflight=True`
 
 4090-host universal policy training:
 
-- use [`config_4090_universal.py`](../config_4090_universal.py) (or `adaptive-rl-quant-pytorch --preset 4090-universal` from the repo root)
+- use [`config_4090_universal.py`](../src/config_4090_universal.py) (or `adaptive-rl-quant-pytorch --preset 4090-universal` from the repo root)
 - keep `training_host_label="rtx4090"`
 - keep `multi_hardware=True`
 - keep `hardware_modes=("gpu", "cpu", "low_resource")`
 
 Canonical MoE research:
 
-- use [`config_moe.py`](../config_moe.py)
+- use [`config_moe.py`](../src/config_moe.py)
 - keep `moe_enabled=True`
 - keep `moe_variant_names=("safe", "balanced", "aggressive")`
 - keep `moe_max_aggressive_experts` and `moe_max_swap_cost_ms` enabled for safety
 
 Experimental continual adaptation:
 
-- use [`config_online.py`](../config_online.py) for continual adaptation experiments
+- use [`config_online.py`](../src/config_online.py) for continual adaptation experiments
 - keep `online_learning=True`
 - tune `online_exploration_rate` and `online_reward_guard` together
 - increase `online_drift_reward_delta` if the loop is too rollback-heavy

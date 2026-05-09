@@ -60,7 +60,7 @@ class LlamaCppHardeningTests(unittest.TestCase):
                 captured["kwargs"] = kwargs
                 return subprocess.CompletedProcess(cmd, 0, stdout="tok/s 100.0\nms per token 1.0\n", stderr="")
 
-            import adaptive_quant.backend as backend_module
+            import adaptive_quant.backends.llama_cpp as backend_module
 
             original_run = backend_module.subprocess.run
             backend_module.subprocess.run = fake_run  # type: ignore[assignment]
@@ -132,7 +132,7 @@ class LlamaCppHardeningTests(unittest.TestCase):
                 captured["cmd"] = cmd
                 return subprocess.CompletedProcess(cmd, 0, stdout="tok/s 100.0\nms per token 1.0\n", stderr="")
 
-            import adaptive_quant.backend as backend_module
+            import adaptive_quant.backends.llama_cpp as backend_module
 
             original_run = backend_module.subprocess.run
             backend_module.subprocess.run = fake_run  # type: ignore[assignment]
@@ -195,7 +195,7 @@ class LlamaCppHardeningTests(unittest.TestCase):
                 captured["cmd"] = cmd
                 return subprocess.CompletedProcess(cmd, 0, stdout="tok/s 100.0\nms per token 1.0\n", stderr="")
 
-            import adaptive_quant.backend as backend_module
+            import adaptive_quant.backends.llama_cpp as backend_module
 
             original_run = backend_module.subprocess.run
             backend_module.subprocess.run = fake_run  # type: ignore[assignment]
@@ -246,7 +246,7 @@ class LlamaCppHardeningTests(unittest.TestCase):
             def fake_run(cmd, **kwargs):  # type: ignore[no-untyped-def]
                 return subprocess.CompletedProcess(cmd, 0, stdout="tok/s 100.0\nms per token 1.0\n", stderr="")
 
-            import adaptive_quant.backend as backend_module
+            import adaptive_quant.backends.llama_cpp as backend_module
 
             original_run = backend_module.subprocess.run
             backend_module.subprocess.run = fake_run  # type: ignore[assignment]
@@ -289,7 +289,7 @@ class LlamaCppHardeningTests(unittest.TestCase):
             def fake_run(cmd, **kwargs):  # type: ignore[no-untyped-def]
                 return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="fatal backend failure")
 
-            import adaptive_quant.backend as backend_module
+            import adaptive_quant.backends.llama_cpp as backend_module
 
             original_run = backend_module.subprocess.run
             backend_module.subprocess.run = fake_run  # type: ignore[assignment]

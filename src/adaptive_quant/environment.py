@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import random
+from collections.abc import Callable
 from dataclasses import replace
+from typing import Any
 
-from adaptive_quant.backend import build_backend
+from adaptive_quant.backends import build_backend
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.features import estimate_layer_sensitivity, extract_input_features
 from adaptive_quant.hardware import detect_host_hardware, host_aware_hardware_profiles
@@ -40,10 +42,15 @@ class AdaptiveQuantizationEnv:
         log_path: str | None = None,
         *,
         enable_logging: bool = True,
+        backend_factory: Callable[[FrameworkConfig], Any] | None = None,
+        prompt_library: PromptLibrary | None = None,
+        expert_bank: ExpertBank | None = None,
+        auto_expert_bank: bool = True,
     ) -> None:
+        """Optional ``backend_factory`` defaults to :func:`adaptive_quant.backends.build_backend`."""
         self.config = config
         self.rng = random.Random(config.seed)
-        self.prompt_library = PromptLibrary()
+        self.prompt_library = prompt_library or PromptLibrary()
         self._prompt_split_rng = random.Random(config.prompt_split_seed)
         self.train_prompt_ids: set[str] | None = None
         self.eval_prompt_ids: set[str] | None = None
@@ -54,8 +61,13 @@ class AdaptiveQuantizationEnv:
             )
         self.detected_hardware = detect_host_hardware() if config.detect_host_hardware else None
         self.hardware_profiles = host_aware_hardware_profiles(self.detected_hardware)
-        self.backend = build_backend(config)
-        self.expert_bank = ExpertBank(config) if config.moe_enabled else None
+        self.backend = (backend_factory or build_backend)(config)
+        if expert_bank is not None:
+            self.expert_bank = expert_bank
+        elif auto_expert_bank and config.moe_enabled:
+            self.expert_bank = ExpertBank(config)
+        else:
+            self.expert_bank = None
         self.logger = (
             JsonlLogger(
                 log_path or f"{config.log_dir}/{config.run_name}.jsonl",

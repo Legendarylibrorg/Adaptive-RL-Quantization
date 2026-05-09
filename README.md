@@ -68,7 +68,7 @@ source .venv/bin/activate
 python3 -m pip install -e .
 python3 -m unittest discover -s tests -q
 adaptive-rl-quant --config config.e2e_smoke.json   # fast smoke
-adaptive-rl-quant                                 # full run from config.py
+adaptive-rl-quant                                 # full run (default preset from installed config module / presets)
 ```
 
 Installed console commands are the public interface shown throughout this README. Source-checkout equivalents remain `python3 run_research.py ...` if you prefer calling the repo files directly.
@@ -102,16 +102,17 @@ Detailed install (distro packages, **WSL2**, SSH clone, llama.cpp): **[docs/INST
 
 | Path | Role |
 | --- | --- |
-| `adaptive_quant/` | Core library: env, trainers, policies, backends, **`easy_config.py`** (JSON/TOML), **`runner_cli.py`** (shared `--config`) |
-| `config.py`, `config_*.py` | Python experiment presets (imported by `run_*.py`) |
+| `src/` | **Packaged source layout** (`src/adaptive_quant/`, `src/analysis/`, `src/config*.py`) |
+| `src/adaptive_quant/` | Core library: env, trainers, policies, backends, CLI under **`cli/`**, **`easy_config.py`**, presets under **`presets/`** |
+| `src/config.py`, `src/config_*.py` | Python experiment presets (also exposed as top-level `config` modules after `pip install -e .`) |
 | `config.example.json` | Example **JSON** config (`preset` + overrides) |
 | `config.e2e_smoke.json` | **Short reproducible RL run** (train+eval+benchmarks+analysis) for CI and quick tuning |
 | `config.example.pytorch.toml` | Example **TOML** for `run_pytorch.py --config` (needs CUDA PyTorch) |
-| `run_*.py` | Source-checkout equivalents to the installed console commands — run from repo root |
+| `run_*.py` (repo root) | Thin shims (prepend `src/` to `sys.path`) matching the installed console commands |
 | `Makefile` | **Research** targets: `make help` — `run` / `reproduce` (`smoke`) / `multiseed` / `pytorch`; quality: `lint` / `format` / `check` (Ruff needs `pip install -e ".[dev]"`) |
 | `scripts/` | Cross-platform **`setup_from_clone.py`**, **`pre_commit_check.py`**, **`secret_scan.py`** plus Unix wrappers (`*.sh`), **`run_4090_pipeline.sh`**, **`_resolve_venv_python.sh`** |
 | `requirements/ci.txt` + `security/dependency_hashes.json` | Pinned CI bootstrap dependencies plus the separate sha256 manifest used to render a `--require-hashes` install file |
-| `analysis/` | Post-hoc analysis CLIs |
+| `src/analysis/` | Post-hoc analysis CLIs and analyzers |
 | `docs/` | Install, running, config reference, troubleshooting |
 | `CONTRIBUTING.md` | Contributing policy, PR expectations, local quality gate |
 | `CHANGELOG.md`, `RELEASING.md` | Version history and release process |
@@ -130,7 +131,7 @@ Detailed install (distro packages, **WSL2**, SSH clone, llama.cpp): **[docs/INST
 
 ## Configuration
 
-**1. Python presets** — Edit or copy `config.py`, `config_gpu.py`, `config_moe.py`, etc. This is the default path used when you do **not** pass `--config`.
+**1. Python presets** — Edit or copy `src/config.py`, `src/config_gpu.py`, `src/config_moe.py`, etc. (or use `adaptive_quant.presets` in code). After `pip install -e .`, `from config import CONFIG` still works. This is the default when you do **not** pass `--config`.
 
 **2. JSON / TOML** — Copy **`config.example.json`**, or write a `.toml` file with the same keys. Optional top-level **`preset`**: `default`, `minimal`, `pytorch`, `reproducible`. A file passed with `--config` replaces the Python preset selected by the entrypoint; put `preset` inside the JSON/TOML when you want layering. Config paths and default artifact directories such as `outputs/` are resolved relative to the current working directory, so run these commands from the repository root or use absolute paths.
 Load from the installed CLI:

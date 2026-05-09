@@ -15,7 +15,7 @@ See [Usage Guide](USAGE.md) for repository conventions and where preflight/summa
 
 ## Supported profiles
 
-The profile system lives in [`adaptive_quant/gpu_profiles.py`](../adaptive_quant/gpu_profiles.py).
+The profile system lives in [`adaptive_quant/gpu_profiles.py`](../src/adaptive_quant/gpu_profiles.py).
 
 Current named profiles:
 

@@ -412,13 +412,13 @@ python3 -m unittest discover -s tests -v
 
 ### Appendix B. Main Implementation Files
 
-- `adaptive_quant/environment.py`
-- `adaptive_quant/quantization.py`
-- `adaptive_quant/policy.py`
-- `adaptive_quant/torch_policy.py`
-- `adaptive_quant/torch_trainer.py`
-- `adaptive_quant/moe.py`
-- `adaptive_quant/benchmark.py`
+- `src/adaptive_quant/environment.py`
+- `src/adaptive_quant/quantization.py`
+- `src/adaptive_quant/policy.py`
+- `src/adaptive_quant/torch_policy.py`
+- `src/adaptive_quant/torch_trainer.py`
+- `src/adaptive_quant/moe.py`
+- `src/adaptive_quant/benchmark.py`
 - `analysis/analyzers.py`
 - `analysis/hardware_generalization.py`
 - `analysis/input_adaptation.py`
