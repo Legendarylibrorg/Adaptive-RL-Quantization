@@ -24,7 +24,7 @@ The code is intentionally split into a small number of layers so experiments sta
 - `run_calibrate_llama_cpp.py`: simulator calibration from local `llama.cpp` measurements
 - `run_route_learning.py`: GGUF route catalog and contextual bandit workflow
 
-These files should stay thin wrappers around package code.
+Root `run_*.py` files prepend `src/` on `sys.path` and delegate to `adaptive_quant.cli`; installed commands call the same modules directly.
 
 Installed console commands map onto those wrappers:
 
@@ -38,9 +38,10 @@ Installed console commands map onto those wrappers:
 
 ## 2. Configuration layer
 
-- `adaptive_quant/configuration.py`: canonical experiment contract
-- `adaptive_quant/easy_config.py`: JSON/TOML loading and preset layering
-- `config.py`, `config_*.py`: curated Python presets
+- `src/adaptive_quant/configuration/`: canonical experiment contract (`FrameworkConfig`, validation)
+- `src/adaptive_quant/easy_config.py`: JSON/TOML loading and preset layering
+- `src/config.py`, `src/config_*.py`: curated Python presets (also top-level `config*` modules when installed)
+- `src/adaptive_quant/presets/`: preset definitions used by those modules
 
 This layer defines reproducibility knobs such as:
 
@@ -52,23 +53,24 @@ This layer defines reproducibility knobs such as:
 
 ## 3. Core runtime
 
-- `adaptive_quant/environment.py`: prompt + hardware state construction and reward evaluation
-- `adaptive_quant/policy.py`: stdlib policy and checkpointable policy state
-- `adaptive_quant/trainer.py`: stdlib trainer
-- `adaptive_quant/torch_trainer.py`, `adaptive_quant/torch_policy.py`: PyTorch backend
-- `adaptive_quant/backend.py`: simulator and `llama.cpp` measurement backends
-- `adaptive_quant/benchmark.py`: fixed benchmark comparisons
-- `adaptive_quant/recommendation.py`: deterministic recommendation pass
-- `adaptive_quant/online_learning.py`, `adaptive_quant/online_pipeline.py`: online adaptation flow
+- `src/adaptive_quant/environment.py`: prompt + hardware state construction and reward evaluation
+- `src/adaptive_quant/policy.py`: stdlib policy and checkpointable policy state
+- `src/adaptive_quant/trainer.py`: stdlib trainer
+- `src/adaptive_quant/torch_trainer.py`, `src/adaptive_quant/torch_policy.py`: PyTorch backend
+- `src/adaptive_quant/backend.py` (facade) / `src/adaptive_quant/backends/`: simulator and `llama.cpp` measurement backends
+- `src/adaptive_quant/benchmark.py`: fixed benchmark comparisons
+- `src/adaptive_quant/recommendation.py`: deterministic recommendation pass
+- `src/adaptive_quant/online_learning.py`, `src/adaptive_quant/online_pipeline.py`: online adaptation flow
 
 The key architecture rule here is: **different backends share the same `FrameworkConfig` and artifact layout**.
 
 ## 4. Analysis and reporting
 
-- `analysis/`: CLI wrappers for post-hoc analysis
-- `analysis/analyzers.py`: shared analysis logic
-- `adaptive_quant/research_pipeline.py`: full offline pipeline orchestration
-- `adaptive_quant/run_footer.py`: consistent CLI summaries
+- `src/analysis/`: CLI wrappers for post-hoc analysis
+- `src/analysis/analyzers.py`: shared analysis logic
+- `src/adaptive_quant/research_pipeline.py`: full offline pipeline orchestration
+- `src/adaptive_quant/pipeline/`: VCS stamp, benchmark warnings, analysis runner, Markdown report
+- `src/adaptive_quant/run_footer.py`: consistent CLI summaries
 
 Reports are intended to be derived from machine-readable outputs, not handwritten after the fact.
 

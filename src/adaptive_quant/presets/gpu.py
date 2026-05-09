@@ -1,4 +1,5 @@
-from config import CONFIG
+from adaptive_quant.presets.baseline import CONFIG
+
 
 CONFIG_GPU = CONFIG.clone(
     training_backend="pytorch",
@@ -52,7 +53,6 @@ def make_rtx_torch_preset(
     torch_preflight_batch_size: int,
     torch_preflight_min_free_memory_gb: float,
 ):
-    """Shared RTX-style CUDA overrides; used by ``config_3090`` / ``config_4090`` presets."""
     return CONFIG_GPU.clone(
         training_host_label=training_host_label,
         benchmark_training_episodes=benchmark_training_episodes,

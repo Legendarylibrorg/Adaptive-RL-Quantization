@@ -13,6 +13,14 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
+def _ensure_src_on_path() -> None:
+    src = _repo_root() / "src"
+    for path in (src, _repo_root()):
+        s = str(path)
+        if s not in sys.path:
+            sys.path.insert(0, s)
+
+
 def _git(repo: Path, *args: str) -> str | None:
     try:
         p = subprocess.run(
@@ -85,6 +93,7 @@ def main() -> int:
     print("== adaptive_quant ==")
     import_ok = False
     try:
+        _ensure_src_on_path()
         import adaptive_quant  # noqa: F401
 
         print("  import:      OK")

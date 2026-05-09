@@ -15,6 +15,13 @@ from pathlib import Path
 from unittest import mock
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
+_SRC = _REPO_ROOT / "src"
+
+
+def _repo_pythonpath_env() -> dict[str, str]:
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(_SRC) + os.pathsep + env.get("PYTHONPATH", "")
+    return env
 
 
 class RunnerScriptCliTests(unittest.TestCase):
@@ -64,6 +71,11 @@ class RunnerScriptCliTests(unittest.TestCase):
         module_path = _REPO_ROOT / f"{module_name}.py"
         if module_path.is_file():
             return [sys.executable, str(module_path)]
+        nested = _REPO_ROOT / "src" / f"{module_name.replace('.', '/')}.py"
+        if nested.is_file():
+            return [sys.executable, str(nested)]
+        if "." in module_name:
+            return [sys.executable, "-m", module_name]
         return [sys.executable, "-m", module_name]
 
     def test_ci_uses_hash_verified_bootstrap_install(self) -> None:
@@ -237,15 +249,16 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertIn("Repository", project["urls"])
         self.assertIn("Issues", project["urls"])
         scripts = project["scripts"]
-        self.assertEqual(scripts["adaptive-rl-quant"], "run_research:main")
-        self.assertEqual(scripts["adaptive-rl-quant-pytorch"], "run_pytorch:main")
-        self.assertEqual(scripts["adaptive-rl-quant-online"], "run_online_learning:main")
-        self.assertEqual(scripts["adaptive-rl-quant-route"], "run_route_learning:main")
-        packages = payload["tool"]["setuptools"]["packages"]
-        self.assertIn("adaptive_quant.routes", packages)
-        py_modules = payload["tool"]["setuptools"]["py-modules"]
-        self.assertIn("run_research", py_modules)
+        self.assertEqual(scripts["adaptive-rl-quant"], "adaptive_quant.cli.research:main")
+        self.assertEqual(scripts["adaptive-rl-quant-pytorch"], "adaptive_quant.cli.pytorch:main")
+        self.assertEqual(scripts["adaptive-rl-quant-online"], "adaptive_quant.cli.online_learning:main")
+        self.assertEqual(scripts["adaptive-rl-quant-route"], "adaptive_quant.cli.route_learning:main")
+        setuptools_cfg = payload["tool"]["setuptools"]
+        self.assertEqual(setuptools_cfg["package-dir"], {"": "src"})
+        self.assertEqual(setuptools_cfg["packages"]["find"]["where"], ["src"])
+        py_modules = setuptools_cfg["py-modules"]
         self.assertIn("config_online", py_modules)
+        self.assertNotIn("run_research", py_modules)
 
     def test_console_entrypoints_have_help(self) -> None:
         for command in self._pyproject_scripts():
@@ -253,6 +266,7 @@ class RunnerScriptCliTests(unittest.TestCase):
                 proc = subprocess.run(
                     [*self._entrypoint_command(command), "--help"],
                     cwd=str(_REPO_ROOT),
+                    env=_repo_pythonpath_env(),
                     capture_output=True,
                     text=True,
                     timeout=30,
@@ -312,6 +326,7 @@ else:
         proc = subprocess.run(
             [sys.executable, "-c", code],
             cwd=str(_REPO_ROOT),
+            env=_repo_pythonpath_env(),
             capture_output=True,
             text=True,
             timeout=30,

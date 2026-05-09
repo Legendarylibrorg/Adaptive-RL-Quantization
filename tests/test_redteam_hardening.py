@@ -227,19 +227,19 @@ class GitInvocationTimeoutTests(unittest.TestCase):
     """Embedded ``git`` calls cannot block the pipeline indefinitely."""
 
     def test_git_commit_returns_none_on_timeout(self) -> None:
-        import adaptive_quant.research_pipeline as research_pipeline
+        import adaptive_quant.pipeline.vcs as vcs_mod
 
-        original_run = research_pipeline.subprocess.run
+        original_run = vcs_mod.subprocess.run
 
         def fake_run(cmd, **kwargs):  # type: ignore[no-untyped-def]
-            assert "timeout" in kwargs, "research_pipeline must pass a timeout to git"
+            assert "timeout" in kwargs, "git_commit_hash must pass a timeout to git"
             raise subprocess.TimeoutExpired(cmd=cmd, timeout=kwargs["timeout"])
 
-        research_pipeline.subprocess.run = fake_run  # type: ignore[assignment]
+        vcs_mod.subprocess.run = fake_run  # type: ignore[assignment]
         try:
             self.assertIsNone(git_commit_hash())
         finally:
-            research_pipeline.subprocess.run = original_run  # type: ignore[assignment]
+            vcs_mod.subprocess.run = original_run  # type: ignore[assignment]
 
 
 class SecretScanReadCapTests(unittest.TestCase):

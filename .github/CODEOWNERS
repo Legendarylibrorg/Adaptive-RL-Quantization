@@ -34,8 +34,8 @@
 /scripts/verify_hashes.py   @Legendarylibrorg
 /scripts/setup_from_clone.py @Legendarylibrorg
 /scripts/pre_commit_check.py @Legendarylibrorg
-/adaptive_quant/configuration.py  @Legendarylibrorg
-/adaptive_quant/easy_config.py    @Legendarylibrorg
-/adaptive_quant/torch_trainer.py  @Legendarylibrorg
-/adaptive_quant/analysis_utils.py @Legendarylibrorg
-/adaptive_quant/logging_utils.py  @Legendarylibrorg
+/src/adaptive_quant/configuration/  @Legendarylibrorg
+/src/adaptive_quant/easy_config.py    @Legendarylibrorg
+/src/adaptive_quant/torch_trainer.py  @Legendarylibrorg
+/src/adaptive_quant/analysis_utils.py @Legendarylibrorg
+/src/adaptive_quant/logging_utils.py  @Legendarylibrorg

@@ -1,27 +1,13 @@
 from __future__ import annotations
 
-import argparse
+import sys
+from pathlib import Path
 
-from adaptive_quant.online_pipeline import run_online_pipeline_entrypoint
-from adaptive_quant.runner_cli import add_config_file_argument, load_config_or_fallback
-from config_online import CONFIG_ONLINE
+_SRC = Path(__file__).resolve().parent / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
 
-
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Online adaptation pipeline: offline warm-start, simulated serving, replay updates, and rollback."
-    )
-    add_config_file_argument(parser)
-    parser.add_argument(
-        "--requests",
-        type=int,
-        default=None,
-        help="Override the number of online requests (defaults to config.online_requests).",
-    )
-    args = parser.parse_args()
-    cfg = load_config_or_fallback(args.config, CONFIG_ONLINE)
-    run_online_pipeline_entrypoint(cfg, request_count=args.requests)
-
+from adaptive_quant.cli.online_learning import main
 
 if __name__ == "__main__":
     main()

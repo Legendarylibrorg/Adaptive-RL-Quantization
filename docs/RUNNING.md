@@ -88,7 +88,7 @@ Fixed horizons and episode counts live in each `config*.py`. For long PyTorch ru
 
 ## Outputs
 
-`outputs/logs/`, `outputs/benchmarks/` (including `*_preflight.json` on GPU), `outputs/analysis/<run_name>/`, `outputs/checkpoints/`, `outputs/reports/`, and `outputs/paper_bundles/<run_name>/`.
+`outputs/logs/`, `outputs/benchmarks/` (including `*_preflight.json` on GPU), `outpu../src/analysis/<run_name>/`, `outputs/checkpoints/`, `outputs/reports/`, and `outputs/paper_bundles/<run_name>/`.
 
 ## llama.cpp
 

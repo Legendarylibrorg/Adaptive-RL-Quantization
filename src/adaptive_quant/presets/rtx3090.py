@@ -1,4 +1,4 @@
-from config_gpu import make_rtx_torch_preset
+from adaptive_quant.presets.gpu import make_rtx_torch_preset
 
 CONFIG_3090 = make_rtx_torch_preset(
     training_host_label="rtx3090",
