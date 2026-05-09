@@ -225,7 +225,7 @@ def main(argv: Iterable[str] | None = None) -> None:
     elif args.command == "train":
         _cmd_train(catalog_path, args)
     elif args.command == "recommend":
-        _cmd_recommend(catalog_path, args)
+        _cmd_recommend(args)
     else:  # pragma: no cover - argparse enforces choices.
         raise SystemExit(f"Unknown subcommand: {args.command}")
 
@@ -413,22 +413,19 @@ def _cmd_train(catalog_path: Path, args: argparse.Namespace) -> None:
     print(f"Summary:      {artifacts['summary']}")
 
 
-def _cmd_recommend(catalog_path: Path, args: argparse.Namespace) -> None:
+def _cmd_recommend(args: argparse.Namespace) -> None:
     config = _resolve_config(args.config)
     bandit_path = (
         Path(args.bandit)
         if args.bandit is not None
         else Path(config.benchmark_dir) / f"{config.run_name}_route_bandit.json"
     )
-    catalog = _load_catalog(catalog_path, allow_missing=True)
     if not bandit_path.is_file():
         raise SystemExit(
             f"Bandit artifact not found: {bandit_path}. Train the bandit first via "
             "'adaptive-rl-quant-route train' or pass --bandit."
         )
-    saved_catalog, bandit = load_bandit_artifact(bandit_path)
-    if not catalog.routes:
-        catalog = saved_catalog
+    _saved_catalog, bandit = load_bandit_artifact(bandit_path)
     selection = recommend_route(
         config=config,
         bandit=bandit,

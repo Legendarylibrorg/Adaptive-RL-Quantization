@@ -203,6 +203,13 @@ def _parse_array_items(raw: str) -> list[Any]:
     return items
 
 
+def _parse_inline_key(raw: str) -> str:
+    raw = raw.strip()
+    if raw.startswith('"') and raw.endswith('"') and len(raw) >= 2:
+        return _parse_string(raw)
+    return raw
+
+
 def _parse_inline_table(raw: str) -> dict[str, Any]:
     # Supports { key = "value", key2 = 1 } (no nested inline tables required here).
     text = raw.strip()[1:-1].strip()
@@ -214,7 +221,7 @@ def _parse_inline_table(raw: str) -> dict[str, Any]:
         if "=" not in part:
             raise ValueError(f"Invalid inline table entry: {part!r}")
         k, v = part.split("=", 1)
-        key = k.strip()
+        key = _parse_inline_key(k)
         out[key] = _parse_value(v.strip())
     return out
 

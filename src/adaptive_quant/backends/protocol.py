@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import abstractmethod
 from typing import Protocol
 
 from adaptive_quant.types import BackendMetricDict, EpisodeState, QuantizationDecision
@@ -8,7 +9,9 @@ from adaptive_quant.types import BackendMetricDict, EpisodeState, QuantizationDe
 class Backend(Protocol):
     """Evaluation backend interface (simulator or llama.cpp)."""
 
-    def evaluate(self, state: EpisodeState, decision: QuantizationDecision) -> BackendMetricDict: ...
+    @abstractmethod
+    def evaluate(self, state: EpisodeState, decision: QuantizationDecision) -> BackendMetricDict:
+        raise NotImplementedError
 
 
 def per_token_latency_fields(state: EpisodeState, latency_ms: float) -> dict[str, float]:
