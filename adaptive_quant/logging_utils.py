@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from collections import deque
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import asdict, is_dataclass
@@ -15,12 +16,84 @@ MAX_LOCAL_READ_BYTES = 256 << 20
 MAX_JSONL_LINES = 2_000_000
 # Single-line cap: one pathological line cannot exhaust memory before the line count limit trips.
 MAX_JSONL_LINE_BYTES = 4 << 20
+# After ``json.loads`` / ``tomllib``: block hostile nesting and huge container graphs (DoS / gadget hardening).
+MAX_JSON_NESTING_DEPTH = 64
+MAX_JSON_CONTAINER_NODES = 500_000
+MAX_JSON_OBJECT_KEYS = 10_000
+MAX_JSON_ARRAY_LENGTH = 2_000_000
 
 
 def enforce_local_read_limit(path: str | Path, *, label: str = "File") -> None:
     p = Path(path)
     if p.is_file() and p.stat().st_size > MAX_LOCAL_READ_BYTES:
         raise ValueError(f"{label} exceeds local read limit ({MAX_LOCAL_READ_BYTES} bytes): {p}")
+
+
+def enforce_safe_parsed_json(value: Any, *, label: str = "JSON") -> None:
+    """Reject pathological dict/list shapes from untrusted files (nested / wide JSON-like trees).
+
+    Intended for artifacts that may come from third parties or compromised experiment dirs: configs,
+    JSONL telemetry, checkpoint sidecars, external quality tables, and analysis inputs. Uses an
+    iterative walk so adversarial depth does not rely on Python recursion limits.
+    """
+    max_depth = MAX_JSON_NESTING_DEPTH
+    max_nodes = MAX_JSON_CONTAINER_NODES
+    max_keys = MAX_JSON_OBJECT_KEYS
+    max_array = MAX_JSON_ARRAY_LENGTH
+
+    q: deque[tuple[Any, int]] = deque([(value, 0)])
+    nodes = 0
+    while q:
+        obj, depth = q.popleft()
+        if isinstance(obj, dict):
+            if depth >= max_depth:
+                raise ValueError(
+                    f"{label}: exceeds maximum nesting depth ({max_depth}); "
+                    "refusing hostile or pathological JSON-like data."
+                )
+            n_keys = len(obj)
+            if n_keys > max_keys:
+                raise ValueError(
+                    f"{label}: object has {n_keys} keys (limit {max_keys}); "
+                    "refusing hostile or pathological JSON-like data."
+                )
+            nodes += 1
+            if nodes > max_nodes:
+                raise ValueError(
+                    f"{label}: exceeds maximum container count ({max_nodes}); "
+                    "refusing hostile or pathological JSON-like data."
+                )
+            for v in obj.values():
+                if isinstance(v, (dict, list)):
+                    q.append((v, depth + 1))
+        elif isinstance(obj, list):
+            if depth >= max_depth:
+                raise ValueError(
+                    f"{label}: exceeds maximum nesting depth ({max_depth}); "
+                    "refusing hostile or pathological JSON-like data."
+                )
+            n_el = len(obj)
+            if n_el > max_array:
+                raise ValueError(
+                    f"{label}: array length {n_el} exceeds limit ({max_array}); "
+                    "refusing hostile or pathological JSON-like data."
+                )
+            nodes += 1
+            if nodes > max_nodes:
+                raise ValueError(
+                    f"{label}: exceeds maximum container count ({max_nodes}); "
+                    "refusing hostile or pathological JSON-like data."
+                )
+            for v in obj:
+                if isinstance(v, (dict, list)):
+                    q.append((v, depth + 1))
+
+
+def safe_json_loads(data: str, *, label: str = "JSON") -> Any:
+    """Parse JSON from a string and apply :func:`enforce_safe_parsed_json`."""
+    parsed = json.loads(data)
+    enforce_safe_parsed_json(parsed, label=label)
+    return parsed
 
 
 def to_jsonable(value: Any) -> Any:
@@ -45,6 +118,8 @@ class JsonlLogger:
         self._pending = 0
 
     def log(self, record: dict[str, Any]) -> None:
+        # Bound outbound records so a poisoned in-process dict cannot write multi-GB lines.
+        enforce_safe_parsed_json(record, label="JsonlLogger record")
         payload = json.dumps(to_jsonable(record), sort_keys=True) + "\n"
         if not self._buffered:
             # Re-open per append so temporary test directories and partially initialized
@@ -118,14 +193,15 @@ def load_jsonl(path: str) -> list[dict[str, Any]]:
                 )
             line = line.strip()
             if line:
-                records.append(json.loads(line))
+                line_label = f"JSONL {source} line {i + 1}"
+                records.append(safe_json_loads(line, label=line_label))
     return records
 
 
 def read_json(path: str | Path, *, label: str = "JSON") -> Any:
     source = Path(path)
     enforce_local_read_limit(source, label=label)
-    return json.loads(source.read_text(encoding="utf-8"))
+    return safe_json_loads(source.read_text(encoding="utf-8"), label=label)
 
 
 def md_table(headers: list[str], rows: list[list[object]]) -> list[str]:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -57,6 +58,47 @@ class LoggingUtilsTests(unittest.TestCase):
             write_text_file(path, "# Summary\n\nAll good.\n")
 
             self.assertEqual(path.read_text(encoding="utf-8"), "# Summary\n\nAll good.\n")
+
+    def test_read_json_rejects_excessive_nesting(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "evil.json"
+            # Depth 65: root dict + 64 nested dicts under key "k" -> innermost at depth 64 triggers limit.
+            inner: dict[str, object] = {"x": 1}
+            for _ in range(63):
+                inner = {"k": inner}
+            payload = {"k": inner}
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaises(ValueError) as ctx:
+                read_json(path, label="nested bomb")
+            self.assertIn("nesting depth", str(ctx.exception))
+
+    def test_load_jsonl_rejects_wide_container_graph(self) -> None:
+        import adaptive_quant.logging_utils as logging_utils
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "wide.jsonl"
+            # Many sibling dicts in one array: each dict is a container node.
+            inner = [{"i": j} for j in range(12)]
+            line_obj = {"rows": inner}
+            path.write_text(json.dumps(line_obj) + "\n", encoding="utf-8")
+            orig = logging_utils.MAX_JSON_CONTAINER_NODES
+            try:
+                logging_utils.MAX_JSON_CONTAINER_NODES = 8
+                with self.assertRaises(ValueError) as ctx:
+                    load_jsonl(str(path))
+                self.assertIn("container count", str(ctx.exception))
+            finally:
+                logging_utils.MAX_JSON_CONTAINER_NODES = orig
+
+    def test_jsonl_logger_rejects_poisoned_record_shape(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "logs" / "events.jsonl"
+            logger = JsonlLogger(str(path))
+            inner: dict[str, object] = {"x": 1}
+            for _ in range(65):
+                inner = {"k": inner}
+            with self.assertRaises(ValueError):
+                logger.log({"event": "bad", "nested": inner})
 
 
 if __name__ == "__main__":
