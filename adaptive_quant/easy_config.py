@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import warnings
 from collections.abc import Mapping
 from dataclasses import fields, replace
@@ -8,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from adaptive_quant.configuration import FrameworkConfig, RewardWeights
-from adaptive_quant.logging_utils import enforce_local_read_limit
+from adaptive_quant.logging_utils import enforce_local_read_limit, enforce_safe_parsed_json, safe_json_loads
 
 _FRAMEWORK_FIELD_NAMES = {f.name for f in fields(FrameworkConfig)}
 _REWARD_FIELD_NAMES = {f.name for f in fields(RewardWeights)}
@@ -133,10 +132,18 @@ def _parse_config_file(path: Path) -> dict[str, Any]:
     suffix = path.suffix.lower()
     enforce_local_read_limit(path, label="Config file")
     text = path.read_text(encoding="utf-8")
+    cfg_label = f"Config file {path}"
     if suffix == ".json":
-        return json.loads(text)
+        data = safe_json_loads(text, label=cfg_label)
+        if not isinstance(data, dict):
+            raise TypeError(f"Config root must be an object/dict, got {type(data).__name__}")
+        return data
     if suffix in (".toml", ".tml"):
         from adaptive_quant.compat_tomllib import loads as toml_loads
 
-        return toml_loads(text)
+        data = toml_loads(text)
+        enforce_safe_parsed_json(data, label=cfg_label)
+        if not isinstance(data, dict):
+            raise TypeError(f"Config root must be an object/dict, got {type(data).__name__}")
+        return data
     raise ValueError(f"Unsupported config extension {suffix!r} (use .json or .toml)")

@@ -5,7 +5,8 @@ These cover concerns that came out of an adversarial audit:
 - ``previous_action`` length / finiteness validation on resume,
 - subprocess timeouts on ``git`` invocations,
 - bounded reads in the secret scanner,
-- TLS/timeout-hardened network pip bootstrap path.
+- TLS/timeout-hardened network pip bootstrap path,
+- structural caps on untrusted JSON / JSONL / config files (nested/wide DoS).
 """
 
 from __future__ import annotations
@@ -21,7 +22,13 @@ from unittest import mock
 
 from adaptive_quant.base_trainer import coerce_previous_action
 from adaptive_quant.configuration import FrameworkConfig
-from adaptive_quant.logging_utils import load_jsonl
+from adaptive_quant.easy_config import load_config
+from adaptive_quant.logging_utils import (
+    enforce_safe_parsed_json,
+    load_jsonl,
+    read_json,
+    safe_json_loads,
+)
 from adaptive_quant.policy import (
     _categorical_head_from_payload,
     _gaussian_head_from_payload,
@@ -418,6 +425,111 @@ class DependencyHashVerificationTests(unittest.TestCase):
             manifest.write_text('{"requirements": []}', encoding="utf-8")
             with self.assertRaises(ValueError):
                 verify_hashes.load_dependency_hashes(manifest)
+
+
+class UntrustedJsonStructureTests(unittest.TestCase):
+    """Hostile or accidental JSON-like trees must fail before full materialization walks."""
+
+    def test_read_json_rejects_dict_key_flood(self) -> None:
+        import adaptive_quant.logging_utils as logging_utils
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "keys.json"
+            limit = 24
+            payload = {f"k{i}": i for i in range(limit + 1)}
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            orig = logging_utils.MAX_JSON_OBJECT_KEYS
+            try:
+                logging_utils.MAX_JSON_OBJECT_KEYS = limit
+                with self.assertRaises(ValueError) as ctx:
+                    read_json(path, label="key flood")
+                self.assertIn("keys", str(ctx.exception))
+            finally:
+                logging_utils.MAX_JSON_OBJECT_KEYS = orig
+
+    def test_read_json_rejects_oversized_primitive_array(self) -> None:
+        import adaptive_quant.logging_utils as logging_utils
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "arr.json"
+            limit = 50
+            path.write_text(json.dumps([0] * (limit + 1)), encoding="utf-8")
+            orig = logging_utils.MAX_JSON_ARRAY_LENGTH
+            try:
+                logging_utils.MAX_JSON_ARRAY_LENGTH = limit
+                with self.assertRaises(ValueError) as ctx:
+                    read_json(path, label="array bomb")
+                self.assertIn("array length", str(ctx.exception))
+            finally:
+                logging_utils.MAX_JSON_ARRAY_LENGTH = orig
+
+    def test_safe_json_loads_rejects_deep_nested_lists(self) -> None:
+        # Lists only: depth 65 exceeds default MAX_JSON_NESTING_DEPTH (64).
+        inner: list[object] = [1]
+        for _ in range(64):
+            inner = [inner]
+        with self.assertRaises(ValueError) as ctx:
+            safe_json_loads(json.dumps(inner), label="list nest")
+        self.assertIn("nesting depth", str(ctx.exception))
+
+    def test_load_config_json_rejects_calibration_nested_bomb(self) -> None:
+        """Deep values under a legitimate key still pass through ``json.loads`` as one tree."""
+        inner: dict[str, object] = {"v": 1.0}
+        for _ in range(70):
+            inner = {"w": inner}
+        payload = {"preset": "minimal", "sim_calibration": {"m": inner}}
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "evil.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaises(ValueError) as ctx:
+                load_config(path, strict=True)
+            self.assertIn("nesting depth", str(ctx.exception))
+
+    def test_load_config_toml_rejects_nested_bomb(self) -> None:
+        segs = ["sim_calibration"] + [f"n{i}" for i in range(80)]
+        table_path = ".".join(segs)
+        body = f'preset = "minimal"\n[{table_path}]\nv = 1.0\n'
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "evil.toml"
+            path.write_text(body, encoding="utf-8")
+            with self.assertRaises(ValueError) as ctx:
+                load_config(path, strict=True)
+            self.assertIn("nesting depth", str(ctx.exception))
+
+    def test_enforce_safe_parsed_json_allows_shallow_toml_like_datetime_leaf(self) -> None:
+        from datetime import datetime, timezone
+
+        payload = {"run_at": datetime(2026, 1, 1, tzinfo=timezone.utc), "ok": True}
+        enforce_safe_parsed_json(payload, label="toml leaf simulation")
+
+    def test_jsonl_aborts_on_hostile_second_line(self) -> None:
+        bad_inner: dict[str, object] = {"x": 1}
+        for _ in range(70):
+            bad_inner = {"k": bad_inner}
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "mix.jsonl"
+            path.write_text('{"ok": true}\n' + json.dumps({"nested": bad_inner}) + "\n", encoding="utf-8")
+            with self.assertRaises(ValueError) as ctx:
+                load_jsonl(str(path))
+            self.assertIn("line 2", str(ctx.exception))
+
+    def test_jsonl_respects_reduced_depth_per_line(self) -> None:
+        import adaptive_quant.logging_utils as logging_utils
+
+        inner: dict[str, object] = {"x": 1}
+        for _ in range(12):
+            inner = {"k": inner}
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "lines.jsonl"
+            path.write_text('{"phase": "ok"}\n' + json.dumps({"data": inner}) + "\n", encoding="utf-8")
+            orig = logging_utils.MAX_JSON_NESTING_DEPTH
+            try:
+                logging_utils.MAX_JSON_NESTING_DEPTH = 8
+                with self.assertRaises(ValueError) as ctx:
+                    load_jsonl(str(path))
+                self.assertIn("line 2", str(ctx.exception))
+            finally:
+                logging_utils.MAX_JSON_NESTING_DEPTH = orig
 
 
 class JsonlLimitTests(unittest.TestCase):
