@@ -6,7 +6,8 @@ These cover concerns that came out of an adversarial audit:
 - subprocess timeouts on ``git`` invocations,
 - bounded reads in the secret scanner,
 - TLS/timeout-hardened network pip bootstrap path,
-- structural caps on untrusted JSON / JSONL / config files (nested/wide DoS).
+- structural caps on untrusted JSON / JSONL / config files (nested / wide DoS,
+  per-string and aggregate UTF-8 limits, non-finite floats, symmetric ``write_json`` validation).
 """
 
 from __future__ import annotations
@@ -158,7 +159,8 @@ class TrainerCheckpointPoisonTests(unittest.TestCase):
             )
             with self.assertRaises(ValueError) as ctx:
                 Trainer(resume, log_path=f"{temp_dir}/logs/y.jsonl")
-            self.assertIn("must be finite", str(ctx.exception))
+            msg = str(ctx.exception).lower()
+            self.assertTrue("finite" in msg, msg)
 
     def test_resume_rejects_truncated_previous_action(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -462,6 +464,43 @@ class UntrustedJsonStructureTests(unittest.TestCase):
                 self.assertIn("array length", str(ctx.exception))
             finally:
                 logging_utils.MAX_JSON_ARRAY_LENGTH = orig
+
+    def test_read_json_rejects_oversized_string_segment(self) -> None:
+        import adaptive_quant.logging_utils as logging_utils
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "s.json"
+            limit = 64
+            path.write_text(json.dumps({"s": "x" * (limit + 1)}), encoding="utf-8")
+            orig = logging_utils.MAX_JSON_STRING_BYTES
+            try:
+                logging_utils.MAX_JSON_STRING_BYTES = limit
+                with self.assertRaises(ValueError) as ctx:
+                    read_json(path, label="string cap")
+                self.assertIn("string segment", str(ctx.exception))
+            finally:
+                logging_utils.MAX_JSON_STRING_BYTES = orig
+
+    def test_read_json_rejects_aggregate_string_flood(self) -> None:
+        import adaptive_quant.logging_utils as logging_utils
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "agg.json"
+            payload = {f"k{i}": "ab" for i in range(64)}
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            orig = logging_utils.MAX_JSON_AGGREGATE_STRING_BYTES
+            try:
+                logging_utils.MAX_JSON_AGGREGATE_STRING_BYTES = 96
+                with self.assertRaises(ValueError) as ctx:
+                    read_json(path, label="agg cap")
+                self.assertIn("aggregate string", str(ctx.exception))
+            finally:
+                logging_utils.MAX_JSON_AGGREGATE_STRING_BYTES = orig
+
+    def test_enforce_safe_parsed_json_rejects_non_finite_float(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            enforce_safe_parsed_json({"z": float("inf")}, label="inf probe")
+        self.assertIn("non-finite float", str(ctx.exception))
 
     def test_safe_json_loads_rejects_deep_nested_lists(self) -> None:
         # Lists only: depth 65 exceeds default MAX_JSON_NESTING_DEPTH (64).

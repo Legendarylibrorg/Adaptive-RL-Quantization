@@ -6,7 +6,14 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from adaptive_quant.logging_utils import JsonlLogger, load_jsonl, read_json, write_json, write_text_file
+from adaptive_quant.logging_utils import (
+    JsonlLogger,
+    MAX_JSONL_LINE_BYTES,
+    load_jsonl,
+    read_json,
+    write_json,
+    write_text_file,
+)
 
 
 class LoggingUtilsTests(unittest.TestCase):
@@ -99,6 +106,24 @@ class LoggingUtilsTests(unittest.TestCase):
                 inner = {"k": inner}
             with self.assertRaises(ValueError):
                 logger.log({"event": "bad", "nested": inner})
+
+    def test_jsonl_logger_rejects_line_serialization_over_limit(self) -> None:
+        # Structural limits allow the dict, but UTF-8 line length must stay bounded.
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "logs" / "big.jsonl"
+            logger = JsonlLogger(str(path))
+            # JSON wrapper is shorter than the string cap; nudge past the line budget.
+            big = "y" * (MAX_JSONL_LINE_BYTES - 8)
+            with self.assertRaises(ValueError) as ctx:
+                logger.log({"blob": big})
+            self.assertIn("serializes", str(ctx.exception))
+
+    def test_enforce_safe_parsed_json_rejects_non_finite_float(self) -> None:
+        from adaptive_quant.logging_utils import enforce_safe_parsed_json
+
+        with self.assertRaises(ValueError) as ctx:
+            enforce_safe_parsed_json({"x": float("nan")}, label="nan probe")
+        self.assertIn("non-finite float", str(ctx.exception))
 
 
 if __name__ == "__main__":
