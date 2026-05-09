@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import datetime
 import json
+import math
 import os
 import tempfile
 from collections import deque
@@ -21,6 +23,10 @@ MAX_JSON_NESTING_DEPTH = 64
 MAX_JSON_CONTAINER_NODES = 500_000
 MAX_JSON_OBJECT_KEYS = 10_000
 MAX_JSON_ARRAY_LENGTH = 2_000_000
+# Per UTF-8 string segment (dict key or value); aligns with JSONL single-line budget.
+MAX_JSON_STRING_BYTES = 4 << 20
+# Sum of all string key/value UTF-8 bytes in the tree (memory-DoS guard for wide short strings).
+MAX_JSON_AGGREGATE_STRING_BYTES = 96 << 20
 
 
 def enforce_local_read_limit(path: str | Path, *, label: str = "File") -> None:
@@ -34,12 +40,62 @@ def enforce_safe_parsed_json(value: Any, *, label: str = "JSON") -> None:
 
     Intended for artifacts that may come from third parties or compromised experiment dirs: configs,
     JSONL telemetry, checkpoint sidecars, external quality tables, and analysis inputs. Uses an
-    iterative walk so adversarial depth does not rely on Python recursion limits.
+    iterative walk so adversarial depth does not rely on Python recursion limits. Also bounds
+    string payloads, aggregate UTF-8 from all strings, rejects non-finite floats, and rejects
+    ambiguous leaf types (e.g. bytes) after ``to_jsonable`` conversion for writes.
     """
     max_depth = MAX_JSON_NESTING_DEPTH
     max_nodes = MAX_JSON_CONTAINER_NODES
     max_keys = MAX_JSON_OBJECT_KEYS
     max_array = MAX_JSON_ARRAY_LENGTH
+    max_str = MAX_JSON_STRING_BYTES
+    max_str_sum = MAX_JSON_AGGREGATE_STRING_BYTES
+
+    str_total = 0
+
+    def consume_str(s: str) -> None:
+        nonlocal str_total
+        raw = len(s.encode("utf-8"))
+        if raw > max_str:
+            raise ValueError(
+                f"{label}: string segment exceeds byte limit ({max_str}); "
+                "refusing hostile or pathological JSON-like data."
+            )
+        str_total += raw
+        if str_total > max_str_sum:
+            raise ValueError(
+                f"{label}: aggregate string UTF-8 bytes exceed limit ({max_str_sum}); "
+                "refusing hostile or pathological JSON-like data."
+            )
+
+    def check_leaf(v: Any) -> None:
+        if isinstance(v, str):
+            consume_str(v)
+        elif isinstance(v, bool):
+            # Must precede ``int`` because ``bool`` subclasses ``int``.
+            return
+        elif isinstance(v, int):
+            return
+        elif isinstance(v, float):
+            if not math.isfinite(v):
+                raise ValueError(
+                    f"{label}: non-finite float in JSON-like data; "
+                    "refusing hostile or non-standard numeric payloads."
+                )
+        elif v is None:
+            return
+        elif isinstance(v, datetime.date):
+            # ``tomllib`` (config files) can attach dates; ``json.loads`` never produces these.
+            return
+        else:
+            raise TypeError(
+                f"{label}: unsupported JSON-like leaf type {type(v).__name__}; "
+                "refusing ambiguous serialized data."
+            )
+
+    if not isinstance(value, (dict, list)):
+        check_leaf(value)
+        return
 
     q: deque[tuple[Any, int]] = deque([(value, 0)])
     nodes = 0
@@ -63,9 +119,17 @@ def enforce_safe_parsed_json(value: Any, *, label: str = "JSON") -> None:
                     f"{label}: exceeds maximum container count ({max_nodes}); "
                     "refusing hostile or pathological JSON-like data."
                 )
-            for v in obj.values():
+            for k, v in obj.items():
+                if not isinstance(k, str):
+                    raise TypeError(
+                        f"{label}: object keys must be str, got {type(k).__name__}; "
+                        "refusing ambiguous serialized data."
+                    )
+                consume_str(k)
                 if isinstance(v, (dict, list)):
                     q.append((v, depth + 1))
+                else:
+                    check_leaf(v)
         elif isinstance(obj, list):
             if depth >= max_depth:
                 raise ValueError(
@@ -87,6 +151,8 @@ def enforce_safe_parsed_json(value: Any, *, label: str = "JSON") -> None:
             for v in obj:
                 if isinstance(v, (dict, list)):
                     q.append((v, depth + 1))
+                else:
+                    check_leaf(v)
 
 
 def safe_json_loads(data: str, *, label: str = "JSON") -> Any:
@@ -119,8 +185,14 @@ class JsonlLogger:
 
     def log(self, record: dict[str, Any]) -> None:
         # Bound outbound records so a poisoned in-process dict cannot write multi-GB lines.
-        enforce_safe_parsed_json(record, label="JsonlLogger record")
-        payload = json.dumps(to_jsonable(record), sort_keys=True) + "\n"
+        safe = to_jsonable(record)
+        enforce_safe_parsed_json(safe, label="JsonlLogger record")
+        payload = json.dumps(safe, sort_keys=True) + "\n"
+        line_bytes = len(payload.encode("utf-8"))
+        if line_bytes > MAX_JSONL_LINE_BYTES:
+            raise ValueError(
+                f"JsonlLogger record serializes to {line_bytes} bytes (limit {MAX_JSONL_LINE_BYTES})."
+            )
         if not self._buffered:
             # Re-open per append so temporary test directories and partially initialized
             # trainers do not keep Windows file handles alive past their cleanup scope.
@@ -160,8 +232,11 @@ class NullJsonlLogger:
 
 
 def write_json(path: str | Path, payload: Any) -> None:
+    safe = to_jsonable(payload)
+    enforce_safe_parsed_json(safe, label="write_json")
+
     def _write(handle: TextIO) -> None:
-        json.dump(to_jsonable(payload), handle, indent=2, sort_keys=True)
+        json.dump(safe, handle, indent=2, sort_keys=True)
 
     _write_text_atomically(path, _write)
 
