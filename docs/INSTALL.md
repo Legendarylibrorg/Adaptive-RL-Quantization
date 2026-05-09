@@ -288,7 +288,7 @@ If you want real `llama.cpp`-backed measurements instead of the simulator backen
 - a built `llama.cpp` CLI binary
 - a local model file
 
-Then set these config values in [`config.py`](../config.py), [`config_gpu.py`](../config_gpu.py), or [`config_4090.py`](../config_4090.py):
+Then set these config values in [`config.py`](../src/config.py), [`config_gpu.py`](../src/config_gpu.py), or [`config_4090.py`](../src/config_4090.py):
 
 - `backend="llama_cpp"`
 - `llama_cpp_binary="/absolute/path/to/llama-cli-or-equivalent"`
@@ -318,7 +318,7 @@ cd Adaptive-RL-Quantization
 sudo apt update && sudo apt install -y git curl python3 python3-venv   # Debian/Ubuntu; skip if already installed
 python3 scripts/setup_from_clone.py
 source .venv/bin/activate
-adaptive-rl-quant         # full baseline from config.py (smoke already ran during the script)
+adaptive-rl-quant         # full baseline from default preset (smoke already ran during the script)
 ```
 
 **WSL2 — simulator (recommended Windows workflow):**

@@ -13,7 +13,7 @@ from adaptive_quant.easy_config import (
     named_preset,
     quick_config,
 )
-from run_calibrate_llama_cpp import _build_calibration_config
+from adaptive_quant.cli.calibrate_llama_cpp import _build_calibration_config
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 

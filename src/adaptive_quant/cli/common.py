@@ -1,9 +1,4 @@
-"""Shared CLI helpers: ``--config`` / ``-c`` loading and one-call **full pipeline** startup.
-
-``run_research_pipeline_cli`` wires argparse to ``run_pipeline_entrypoint`` (train → eval → benchmarks → analysis).
-When ``--config`` is supplied, that file replaces the Python fallback preset; use the file's
-top-level ``preset`` key when you want layered JSON/TOML config.
-"""
+"""Shared CLI helpers: ``--config`` / ``-c`` loading and research pipeline startup."""
 
 from __future__ import annotations
 
@@ -29,7 +24,6 @@ def add_config_file_argument(
 
 
 def load_config_or_fallback(path: str | None, fallback: FrameworkConfig) -> FrameworkConfig:
-    """Return FrameworkConfig from file if path is set, else the module preset."""
     if path is None:
         return fallback
     try:
@@ -44,7 +38,6 @@ def run_research_pipeline_cli(
     description: str,
     config_help_suffix: str = "",
 ) -> None:
-    """Parse argv for ``--config`` / ``-c`` and run the full research pipeline."""
     from adaptive_quant.research_pipeline import run_pipeline_entrypoint
 
     parser = argparse.ArgumentParser(description=description)

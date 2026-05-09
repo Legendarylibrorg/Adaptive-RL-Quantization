@@ -11,10 +11,10 @@
 .PHONY: outputs-clean clean-venv
 
 PY ?= python3
-PKG := adaptive_quant analysis tests
+PKG := src/adaptive_quant src/analysis tests
 SCRIPTS_PY := $(wildcard scripts/*.py)
 RUN := $(wildcard run_*.py)
-CFG := $(wildcard config*.py)
+CFG := $(wildcard src/config*.py)
 
 # Multiseed: preset dense|moe ; seeds "a,b,c" or "0-4"
 MULTISEED_PRESET ?= dense
@@ -148,7 +148,7 @@ check: lint
 	$(PY) scripts/pre_commit_check.py
 
 doctor:
-	@cd "$(CURDIR)" && PYTHONPATH="$(CURDIR):$$PYTHONPATH" $(PY) scripts/env_report.py
+	@cd "$(CURDIR)" && PYTHONPATH="$(CURDIR)/src:$(CURDIR):$$PYTHONPATH" $(PY) scripts/env_report.py
 
 # --- Secure Docker ---
 

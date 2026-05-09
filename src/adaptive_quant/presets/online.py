@@ -1,4 +1,4 @@
-from config import CONFIG
+from adaptive_quant.presets.baseline import CONFIG
 
 CONFIG_ONLINE = CONFIG.clone(
     training_episodes=160,

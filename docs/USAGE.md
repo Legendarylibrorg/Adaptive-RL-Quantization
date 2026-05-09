@@ -2,7 +2,7 @@
 
 ## Platform and working directory
 
-- **Simulator path:** supported on **Linux, macOS, and Windows**. Work in the **repo root** (directory with `config.py` and `pyproject.toml`).
+- **Simulator path:** supported on **Linux, macOS, and Windows**. Work in the **repo root** (directory with `pyproject.toml` and `src/`). Python presets live under **`src/config*.py`** (or use `from config import CONFIG` after `pip install -e .`).
 - **Windows:** use `py -3.11` or `python` instead of `python3`, and venv `Scripts\activate`.
 - **GPU workflows:** remain **Linux-first**.
 - **WSL2:** recommended on Windows when you want Linux shell, Makefile, and GPU-oriented workflow parity.
@@ -40,7 +40,7 @@ trainer = build_trainer(cfg)
 cfg2 = quick_config(run_name="ablation", training_episodes=500)
 ```
 
-Or `ResearchPipeline(cfg).run()`, `FrameworkConfig.from_file`, `FrameworkConfig.from_mapping`. Heavy symbols on `import adaptive_quant` (e.g. `Trainer`) load lazily — see [`__init__.py`](../adaptive_quant/__init__.py).
+Or `ResearchPipeline(cfg).run()`, `FrameworkConfig.from_file`, `FrameworkConfig.from_mapping`. Heavy symbols on `import adaptive_quant` (e.g. `Trainer`) load lazily — see [`__init__.py`](../src/adaptive_quant/__init__.py) (package source under `src/adaptive_quant/`).
 
 ## Outputs
 
@@ -55,9 +55,9 @@ For `adaptive-rl-quant-online` (or `run_online_learning.py` from a source checko
 From repo root, pass **log or history path** then **output dir**:
 
 ```bash
-python3 analysis/hardware_generalization.py path/to/*_multi_hw.jsonl out/
-python3 analysis/input_adaptation.py path/to/*_dynamic.jsonl out/
-python3 analysis/quant_function_behavior.py path/to/*_learned.jsonl out/
+python3 src/analysis/hardware_generalization.py path/to/*_multi_hw.jsonl out/
+python3 src/analysis/input_adaptation.py path/to/*_dynamic.jsonl out/
+python3 src/analysis/quant_function_behavior.py path/to/*_learned.jsonl out/
 ```
 
-Logic is in [`analysis/analyzers.py`](../analysis/analyzers.py); other files under `analysis/` are thin CLIs.
+Logic is in [`analysis/analyzers.py`](../src/analysis/analyzers.py); other files under `src/analysis/` are thin CLIs.

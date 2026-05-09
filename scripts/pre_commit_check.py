@@ -38,9 +38,9 @@ def _has_staged_changes(root: Path) -> bool:
 
 def _python_compile(root: Path) -> None:
     print("== Python compile (syntax) ==")
-    if not compileall.compile_dir(str(root / "adaptive_quant"), quiet=1):
+    if not compileall.compile_dir(str(root / "src" / "adaptive_quant"), quiet=1):
         raise SystemExit(1)
-    if not compileall.compile_dir(str(root / "analysis"), quiet=1):
+    if not compileall.compile_dir(str(root / "src" / "analysis"), quiet=1):
         raise SystemExit(1)
     for path in sorted(root.glob("*.py")):
         py_compile.compile(str(path), doraise=True)

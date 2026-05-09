@@ -59,8 +59,8 @@ We will keep you in the loop on the advisory thread, and credit you in the publi
 
 - Code in this repository, including:
   - the `adaptive_quant` package and `analysis` package,
-  - configuration loading (`adaptive_quant/configuration.py`, `adaptive_quant/easy_config.py`),
-  - artifact and SVG generation (`adaptive_quant/analysis_utils.py`, `adaptive_quant/logging_utils.py`),
+  - configuration loading (`src/adaptive_quant/configuration/`, `src/adaptive_quant/easy_config.py`),
+  - artifact and SVG generation (`src/adaptive_quant/analysis_utils.py`, `src/adaptive_quant/logging_utils.py`),
   - subprocess and external-binary integrations (`llama.cpp` calibration, `git` invocations),
   - bootstrap and verification scripts under `scripts/` (e.g., `verify_hashes.py`, `secret_scan.py`, `setup_from_clone.py`, `pre_commit_check.py`),
   - CI and supply-chain configuration in `.github/` (`requirements/ci.txt`, `security/dependency_hashes.json`).
@@ -115,7 +115,7 @@ The following are deliberate, repo-level mitigations. They are not a substitute 
   - The PyTorch v2 checkpoint loader prefers `torch.load(weights_only=True)` and does **not** fall back to pickle-capable loads. Legacy single-file pickle checkpoints are refused in this runtime; convert them only in a separate trusted environment.
   - The stdlib trainer's JSON checkpoint refuses to load any payload that lacks a serialized `policy_state` (i.e., legacy checkpoints from before this format are rejected by default).
 - **`FrameworkConfig` path fields** (`*_dir`, optional `resume_from_checkpoint`, `llama_cpp_*` paths) reject `..` path components and NUL/newlines to limit traversal surprises when merging untrusted JSON/TOML with `run_name`-based filenames. Absolute paths are allowed by design so users can point at their own data; if you load shared/CI-supplied configs, prefer relative paths under the repo and review absolute targets before running.
-- **Optional Hugging Face router embeddings** (`router_feature_backend="hf"` in [`adaptive_quant/routing.py`](adaptive_quant/routing.py)): `AutoModel.from_pretrained` loads **safetensors** weights only (`use_safetensors=True`) with **`trust_remote_code=False`**. Pin revisions and prefer offline cache (`router_hf_local_files_only`) after vetting a snapshot.
+- **Optional Hugging Face router embeddings** (`router_feature_backend="hf"` in [`adaptive_quant/routing.py`](src/adaptive_quant/routing.py)): `AutoModel.from_pretrained` loads **safetensors** weights only (`use_safetensors=True`) with **`trust_remote_code=False`**. Pin revisions and prefer offline cache (`router_hf_local_files_only`) after vetting a snapshot.
 - **`LlamaCppBackend` shells out to a user-supplied `llama_cpp_main_path`** (and optional model/calibration files). Treat that binary and **GGUF** (or other on-disk model) paths as part of your trust boundary: do **not** point them at unverified third-party builds when running against shared infrastructure. The default backend is the in-process simulator; switch to `llama_cpp` only when you own the artifact.
 - **SVG charts** (analysis bar/scatter plots) HTML-escape titles and labels so user-provided strings (e.g. MoE variant names) cannot inject markup if a viewer renders the SVG inline.
 - **JSONL analysis** caps per-file size, line count, and **per-line UTF-8 byte length** so a single huge line cannot exhaust memory as easily.

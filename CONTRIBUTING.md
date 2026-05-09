@@ -93,10 +93,10 @@ Force-pushing during review is fine once agreed; avoid rewriting history after m
 
 ## Code and architecture expectations
 
-- **Match existing style** in `adaptive_quant/`: imports, typing, dataclasses, naming.
+- **Match existing style** in `src/adaptive_quant/`: imports, typing, dataclasses, naming.
 - **No unnecessary dependencies** for the simulator path. Core library and analysis should remain usable with the stdlib where that is already the design.
 - **Prefer small, testable units**; add or extend **`tests/`** when behavior is non-trivial or regression-prone.
-- **GPU / PyTorch paths:** guard heavy imports; follow patterns in `adaptive_quant/torch_*.py` and existing tests (skips when PyTorch is absent).
+- **GPU / PyTorch paths:** guard heavy imports; follow patterns in `src/adaptive_quant/torch_*.py` and existing tests (skips when PyTorch is absent).
 
 ---
 
