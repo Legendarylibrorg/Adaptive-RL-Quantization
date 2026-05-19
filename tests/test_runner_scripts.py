@@ -99,12 +99,12 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertIn("pip_audit", workflow_text)
         self.assertIn("verify_lockfiles.py", workflow_text)
 
-    def test_ci_installs_hash_pinned_dev_and_pytorch_lockfiles(self) -> None:
+    def test_ci_installs_hash_pinned_dev_lockfile(self) -> None:
         workflow_text = (_REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(
             encoding="utf-8"
         )
         self.assertIn("requirements/dev.txt", workflow_text)
-        self.assertIn("requirements/pytorch-cpu.txt", workflow_text)
+        self.assertNotIn("pip_audit -r requirements/pytorch-cpu.txt", workflow_text)
         self.assertNotIn("pytorch-smoke:", workflow_text)
         self.assertNotIn('pip install -e ".[torch,dev]"', workflow_text)
 

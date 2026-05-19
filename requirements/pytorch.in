@@ -1,4 +1,5 @@
-# Locked PyTorch CPU wheels for pip-audit, scheduled audit, and Docker INSTALL_EXTRAS=torch.
+# Locked PyTorch CPU wheels for Docker INSTALL_EXTRAS=torch (not pip-audit in CI: Linux
+# torch 2.12 pulls cuda-toolkit transitives that are platform-specific and unhashable).
 # Regenerate: python scripts/compile_locked_requirements.py
 # torch 2.12 requires setuptools<82; pin explicitly for --require-hashes installs.
 --extra-index-url https://download.pytorch.org/whl/cpu
