@@ -16,12 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Analysis unit tests (`tests/test_analysis_analyzers.py`) and optional real llama.cpp integration test (`ADAPTIVE_RL_RUN_LLAMA_CPP=1`).
-- CI: PyTorch CPU smoke job (`config.pytorch_smoke.json`) and coverage gate (68% floor on `adaptive_quant`).
+- CI coverage gate (68% floor on `adaptive_quant`).
 
 ### Security
 
 - Reject Hugging Face route ids passed as `llama_cpp_model_path` overrides; clarify online router GGUF path via `RouteCandidate.llama_cpp_model_path()`.
 - Harden Hugging Face model selection: require `router_hf_allowed_models` + pinned `router_hf_embedding_revision` for the HF router backend; validate `org/name` repo ids; GGUF filenames must end in `.gguf`; optional repo allowlists via `route_hf_allowed_repos` / `ADAPTIVE_RL_HF_ALLOWED_REPOS`.
+
+### Removed
+
+- Orphaned `config.pytorch_smoke.json` (CI no longer runs a separate PyTorch CPU smoke job; use `config.example.pytorch.toml` locally).
+- `adaptive_quant.runner_cli` re-export shim; use `adaptive_quant.cli.common` instead.
 
 ### Changed
 

@@ -78,7 +78,7 @@ Summaries:
 
 Analysis:
 
-- `outpu../src/analysis/<run_name>/online`
+- `outputs/analysis/<run_name>/online`
 
 Reports and checkpoints:
 

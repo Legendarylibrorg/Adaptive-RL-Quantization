@@ -56,7 +56,7 @@ Use [`config.py`](../src/config.py) as the canonical offline research baseline w
 
 ## Research / reproducibility fields
 
-- **`env_sampling_mode`**: `random` (default) | `sequential` | `forced` — controls how prompts and hardware are chosen on `reset()`; **`sequential`** uses `episode_index` for a fixed schedule (see [`runner_cli` / trainers passing `episode_index`](../src/adaptive_quant/trainer_utils.py)).
+- **`env_sampling_mode`**: `random` (default) | `sequential` | `forced` — controls how prompts and hardware are chosen on `reset()`; **`sequential`** uses `episode_index` for a fixed schedule (see [trainers passing `episode_index`](../src/adaptive_quant/trainer_utils.py)).
 - **`env_forced_prompt_id`**, **`env_forced_hardware`**: used when `env_sampling_mode="forced"` if `reset()` does not pass explicit prompt/hardware.
 - **`rl_train_policy_mode`**: `stochastic` (sample π during training) | `deterministic` (greedy / argmax during training rollouts).
 - **`stability_probe_sampling`**: `random` | `deterministic` — probe order for the stability penalty term.
