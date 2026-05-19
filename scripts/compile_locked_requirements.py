@@ -35,6 +35,7 @@ def main() -> int:
             "piptools",
             "compile",
             "--generate-hashes",
+            "--allow-unsafe",
             "--output-file",
             "requirements/pytorch-cpu.txt",
             "requirements/pytorch.in",
