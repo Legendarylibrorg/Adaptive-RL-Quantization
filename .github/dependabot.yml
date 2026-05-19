@@ -5,6 +5,9 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns: ["*"]
     labels:
       - dependencies
       - ci
@@ -14,6 +17,13 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      python-optional-extras:
+        patterns:
+          - "torch"
+          - "transformers"
+          - "safetensors"
+          - "ruff"
     labels:
       - dependencies
       - python
@@ -23,6 +33,9 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      ci-bootstrap:
+        patterns: ["*"]
     labels:
       - dependencies
       - ci

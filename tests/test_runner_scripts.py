@@ -102,6 +102,7 @@ class RunnerScriptCliTests(unittest.TestCase):
         )
         self.assertIn("github.event.repository.private == false", workflow_text)
         self.assertIn("actions/dependency-review-action@", workflow_text)
+        self.assertIn("fail-on-severity: high", workflow_text)
 
     def test_pre_commit_config_uses_isolated_python_hook(self) -> None:
         config_text = (_REPO_ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")

@@ -592,7 +592,7 @@ class DockerComposeHardeningTests(unittest.TestCase):
         dockerfile = (Path(__file__).resolve().parent.parent / "Dockerfile").read_text(
             encoding="utf-8"
         )
-        self.assertIn("FROM python:3.12.10-slim-bookworm@sha256:", dockerfile)
+        self.assertIn("FROM python:3.12-slim-bookworm@sha256:", dockerfile)
 
     def test_compose_keeps_security_contract(self) -> None:
         compose = (Path(__file__).resolve().parent.parent / "docker-compose.yml").read_text(
