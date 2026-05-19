@@ -233,6 +233,43 @@ class ConfigPathValidationMatrixTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             FrameworkConfig(run_name="bad_hf_allowed", router_hf_allowed_models=("org/../model",))
 
+    def test_router_hf_backend_requires_allowlist_and_pinned_revision(self) -> None:
+        with self.assertRaises(ValueError):
+            FrameworkConfig(
+                run_name="hf_strict",
+                training_episodes=1,
+                evaluation_episodes=1,
+                stability_probe_count=1,
+                router_feature_backend="hf",
+                router_hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+            )
+        with self.assertRaises(ValueError):
+            FrameworkConfig(
+                run_name="hf_strict2",
+                training_episodes=1,
+                evaluation_episodes=1,
+                stability_probe_count=1,
+                router_feature_backend="hf",
+                router_hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+                router_hf_embedding_revision="main",
+            )
+
+    def test_hf_download_rejects_repo_outside_allowlist(self) -> None:
+        from adaptive_quant.huggingface_cli import HuggingFaceCli, build_download_command
+
+        env = {
+            **os.environ,
+            "ADAPTIVE_RL_HF_ALLOWED_REPOS": "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF",
+        }
+        cli = HuggingFaceCli(binary="hf", dialect="hf")
+        with mock.patch.dict(os.environ, env, clear=True):
+            with self.assertRaises(ValueError):
+                build_download_command(
+                    cli,
+                    repo_id="evil-org/evil-model",
+                    filename="weights.gguf",
+                )
+
 
 class GitInvocationTimeoutTests(unittest.TestCase):
     """Embedded ``git`` calls cannot block the pipeline indefinitely."""

@@ -43,7 +43,8 @@ The default Compose service uses a non-root user, read-only root filesystem, dro
 
 ## Model artifacts
 
-- **`router_feature_backend="hf"`** (`transformers`): load **safetensors** weights only; pin revisions and use `router_hf_local_files_only=true` after caching a vetted snapshot.
+- **`router_feature_backend="hf"`** (`transformers`): load **safetensors** weights only; set a non-empty `router_hf_allowed_models`, pin `router_hf_embedding_revision`, and use `router_hf_local_files_only=true` after caching a vetted snapshot.
+- **Route / CLI downloads**: set `ADAPTIVE_RL_HF_ALLOWED_REPOS=org/model,org/other` (comma-separated) and/or `route_hf_allowed_repos` in config so only vetted Hub repos can be downloaded.
 - **`backend="llama_cpp"`**: **GGUF** files and the **llama.cpp** binary are native artifacts—use builds and files you trust; mount GGUF **read-only**; pin Hub revisions when using `hf download`.
 
 ## Cleanup

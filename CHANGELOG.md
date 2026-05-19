@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Harden Hugging Face model selection: require `router_hf_allowed_models` + pinned `router_hf_embedding_revision` for the HF router backend; validate `org/name` repo ids; GGUF filenames must end in `.gguf`; optional repo allowlists via `route_hf_allowed_repos` / `ADAPTIVE_RL_HF_ALLOWED_REPOS`.
+
 ### Changed
 
 - Enforce **ruff** (lint + format) and **mypy** (configuration, logging, easy_config) in `pre_commit_check.py` and CI (`pip install -e ".[dev]"`).

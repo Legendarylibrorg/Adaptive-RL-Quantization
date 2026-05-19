@@ -22,7 +22,13 @@ from dataclasses import asdict, dataclass, field, fields, replace
 from pathlib import Path
 from typing import Any
 
-from adaptive_quant.configuration.validation import validate_optional_filesystem_path
+from adaptive_quant.configuration.validation import (
+    assert_hf_repo_allowed,
+    validate_hf_filename,
+    validate_hf_model_id,
+    validate_hf_revision,
+    validate_optional_filesystem_path,
+)
 from adaptive_quant.logging_utils import read_json, write_json
 
 # llama.cpp / GGUF effective bits per weight. K-quant family figures from llama.cpp release notes
@@ -121,8 +127,18 @@ class ModelRoute:
             )
         if self.local_path is not None:
             validate_optional_filesystem_path("local_path", self.local_path)
-        if "/" not in self.repo_id:
-            raise ValueError(f"repo_id must look like '<org>/<name>', got {self.repo_id!r}")
+        validate_hf_model_id("repo_id", self.repo_id, require_hub_namespace=True)
+        assert_hf_repo_allowed(self.repo_id)
+        if self.filename is not None:
+            validate_hf_filename("filename", self.filename)
+            if self.family.strip().lower() == "gguf" and not self.filename.lower().endswith(
+                ".gguf"
+            ):
+                raise ValueError(
+                    f"GGUF route filename must end with '.gguf', got {self.filename!r}"
+                )
+        if self.revision is not None:
+            validate_hf_revision("revision", self.revision)
         normalized_quant = (
             self.quant_label.strip().upper() if isinstance(self.quant_label, str) else ""
         )
