@@ -31,11 +31,13 @@ COPY . /app
 
 RUN set -eux; \
     python scripts/verify_hashes.py --output /tmp/requirements-ci.txt; \
+    python scripts/verify_lockfiles.py; \
     python -m pip install --require-hashes -r /tmp/requirements-ci.txt; \
-    if [ -n "${INSTALL_EXTRAS}" ]; then \
+    python -m pip install --no-build-isolation .; \
+    if [ "${INSTALL_EXTRAS}" = "torch" ]; then \
+        python -m pip install --require-hashes -r requirements/pytorch-cpu.txt; \
+    elif [ -n "${INSTALL_EXTRAS}" ]; then \
         python -m pip install --no-build-isolation ".[${INSTALL_EXTRAS}]"; \
-    else \
-        python -m pip install --no-build-isolation .; \
     fi; \
     mkdir -p /app/outputs /tmp/.cache /tmp/huggingface /tmp/matplotlib; \
     chown -R app:app /app/outputs /tmp/.cache /tmp/huggingface /tmp/matplotlib

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import subprocess
-
 from adaptive_quant.backends import (
     Backend,
     ExternalQualityScores,
@@ -34,5 +32,4 @@ __all__ = [
     "register_backend",
     "require_llama_cpp_paths",
     "run_llama_cpp_measurement",
-    "subprocess",
 ]

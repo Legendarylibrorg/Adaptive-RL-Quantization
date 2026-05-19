@@ -9,11 +9,10 @@ import subprocess
 import sys
 import sysconfig
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 from unittest import mock
-
-from adaptive_quant import compat_tomllib as tomllib
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _SRC = _REPO_ROOT / "src"
@@ -98,7 +97,7 @@ class RunnerScriptCliTests(unittest.TestCase):
         )
         self.assertIn("pip-audit:", workflow_text)
         self.assertIn("pip_audit", workflow_text)
-        self.assertIn("requirements/audit.txt", workflow_text)
+        self.assertIn("verify_lockfiles.py", workflow_text)
 
     def test_ci_installs_hash_pinned_dev_and_pytorch_lockfiles(self) -> None:
         workflow_text = (_REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(

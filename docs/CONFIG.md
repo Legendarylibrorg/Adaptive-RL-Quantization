@@ -27,7 +27,7 @@ For a **single file** instead of editing Python presets:
 
    Source-checkout equivalents remain `python3 run_research.py`, `python3 run_pytorch.py`, `python3 run_moe_research.py`, `python3 run_online_learning.py`, and `python3 run_calibrate_llama_cpp.py`.
 
-4. **API:** `FrameworkConfig.from_file(path)`, `load_config(path)` (from `adaptive_quant`), or `FrameworkConfig.from_mapping(dict, strict=True)` to reject unknown keys. TOML/JSON files are the **preferred** way to share reproducible runs (version control, CI, no import side effects). Python module presets under `config*.py` remain for local iteration and GPU-specific paths. TOML parsing uses stdlib `tomllib` via `adaptive_quant.compat_tomllib` (requires **Python 3.11+** per `pyproject.toml`).
+4. **API:** `FrameworkConfig.from_file(path)`, `load_config(path)` (from `adaptive_quant`), or `FrameworkConfig.from_mapping(dict, strict=True)` to reject unknown keys. TOML/JSON files are the **preferred** way to share reproducible runs (version control, CI, no import side effects). Python module presets under `config*.py` remain for local iteration and GPU-specific paths. TOML parsing uses stdlib **`tomllib`** (requires **Python 3.11+** per `pyproject.toml`).
 
    Untrusted config integers (episode counts, MoE topology, llama.cpp limits, etc.) are capped at load time; see `MAX_*` constants in [`validation.py`](../src/adaptive_quant/configuration/validation.py).
 

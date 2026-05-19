@@ -30,6 +30,25 @@ PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 # are caught by the binary-detection (NUL byte) heuristic anyway, and this keeps
 # the scan from OOM'ing on accidental large checkins.
 _MAX_FILE_BYTES = 4 << 20
+_SKIP_SUFFIXES = frozenset(
+    {
+        ".bin",
+        ".gguf",
+        ".ico",
+        ".jpeg",
+        ".jpg",
+        ".pkl",
+        ".png",
+        ".pt",
+        ".pth",
+        ".safetensors",
+        ".svg",
+        ".webp",
+        ".woff",
+        ".woff2",
+        ".zip",
+    }
+)
 
 
 def _redact_match(line: str, pattern: re.Pattern[str]) -> str:
@@ -54,8 +73,11 @@ def scan_tracked_files(root: Path) -> list[str]:
     for raw_path in completed.stdout.split(b"\x00"):
         if not raw_path:
             continue
-        path = root / raw_path.decode("utf-8", errors="ignore")
+        rel_posix = raw_path.decode("utf-8", errors="ignore")
+        path = root / rel_posix
         if not path.is_file():
+            continue
+        if path.suffix.lower() in _SKIP_SUFFIXES:
             continue
         try:
             file_size = path.stat().st_size

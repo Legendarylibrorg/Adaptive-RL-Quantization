@@ -34,12 +34,15 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Audit hash-pinned bootstrap dependencies
+      - name: Audit hash-pinned CI dependencies
         run: |
           python scripts/verify_hashes.py --output "${{ runner.temp }}/requirements-ci.txt"
+          python scripts/verify_lockfiles.py
           python -m pip install --require-hashes -r "${{ runner.temp }}/requirements-ci.txt"
-          python -m pip install --require-hashes -r requirements/audit.txt
+          python -m pip install --require-hashes -r requirements/dev.txt
           python -m pip_audit -r "${{ runner.temp }}/requirements-ci.txt"
+          python -m pip_audit -r requirements/dev.txt
+          python -m pip_audit -r requirements/pytorch-cpu.txt
 
   test:
     runs-on: ${{ matrix.os }}
@@ -77,8 +80,10 @@ jobs:
       - name: Secret pattern scan (tracked files, no third-party scanner)
         run: python scripts/secret_scan.py
 
-      - name: Verify dependency hashes
-        run: python scripts/verify_hashes.py --output "${{ runner.temp }}/requirements-ci.txt"
+      - name: Verify dependency hashes and lockfiles
+        run: |
+          python scripts/verify_hashes.py --output "${{ runner.temp }}/requirements-ci.txt"
+          python scripts/verify_lockfiles.py
 
       - name: Install verified bootstrap dependencies
         run: |

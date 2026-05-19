@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from adaptive_quant.configuration import FrameworkConfig
+from adaptive_quant.configuration.validation import validate_online_prompt_text
 from adaptive_quant.guardrails import passes_online_guardrails
 from adaptive_quant.logging_utils import JsonlLogger, to_jsonable, write_json
 from adaptive_quant.math_utils import mean
@@ -88,6 +89,7 @@ class OnlineLearningLoop:
         self._router_baseline_perplexity: dict[str, float] = {}
 
     def serve_request(self, request: OnlineRequest) -> dict[str, Any]:
+        validate_online_prompt_text(request.prompt_text)
         prompt = self._request_prompt(request)
         safe_mode_active = self.safe_mode_remaining > 0
         explore = bool(

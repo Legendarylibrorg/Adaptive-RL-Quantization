@@ -11,6 +11,7 @@ from adaptive_quant.analysis_utils import (
     write_bar_chart,
     write_scatter_plot,
 )
+from adaptive_quant.configuration.validation import validate_cli_path_argument
 from adaptive_quant.features import complexity_bucket
 from adaptive_quant.logging_utils import load_jsonl, read_json, write_json
 from adaptive_quant.math_utils import mean
@@ -461,8 +462,10 @@ def run_cli(key: str) -> None:
     if len(argv) != 2:
         raise SystemExit(f"Usage: {usage}")
     for label, raw in (("log/history", argv[0]), ("output", argv[1])):
-        if any(c in raw for c in "\n\r\x00"):
-            raise SystemExit(f"Invalid characters in {label} path.")
+        try:
+            validate_cli_path_argument(label, raw)
+        except (TypeError, ValueError) as exc:
+            raise SystemExit(f"Invalid {label} path: {exc}") from exc
     out = fn(argv[0], argv[1], phase=phase) if supports_phase else fn(argv[0], argv[1])
     print(f"{msg} {Path(argv[1]).resolve()}")
     print(out)

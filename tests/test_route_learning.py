@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import json
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 from unittest import mock
 
-from adaptive_quant import compat_tomllib as tomllib
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.huggingface_cli import (
     DownloadResult,
