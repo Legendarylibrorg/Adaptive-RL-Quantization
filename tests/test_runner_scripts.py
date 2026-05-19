@@ -98,6 +98,15 @@ class RunnerScriptCliTests(unittest.TestCase):
         )
         self.assertIn("pip-audit:", workflow_text)
         self.assertIn("pip_audit", workflow_text)
+        self.assertIn("requirements/audit.txt", workflow_text)
+
+    def test_ci_installs_hash_pinned_dev_and_pytorch_lockfiles(self) -> None:
+        workflow_text = (_REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("requirements/dev.txt", workflow_text)
+        self.assertIn("requirements/pytorch-cpu.txt", workflow_text)
+        self.assertNotIn('pip install -e ".[torch,dev]"', workflow_text)
 
     def test_dependabot_covers_root_and_requirements(self) -> None:
         config_text = (_REPO_ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
@@ -138,13 +147,18 @@ class RunnerScriptCliTests(unittest.TestCase):
             return_value=subprocess.CompletedProcess(["python"], 1, stdout=b"", stderr=b""),
         ):
             with mock.patch.object(
-                module, "run", side_effect=lambda cmd, cwd=None: commands.append((cmd, cwd))
+                module,
+                "render_hashed_requirements",
+                return_value=(["setuptools==82.0.1 \\\n    --hash=sha256:abc"], [], {}),
             ):
-                module._ensure_build_backend("/tmp/python")
-        self.assertEqual(
-            commands,
-            [(["/tmp/python", "-m", "pip", "install", "setuptools==82.0.1"], None)],
-        )
+                with mock.patch.object(
+                    module, "run", side_effect=lambda cmd, cwd=None: commands.append((cmd, cwd))
+                ):
+                    module._ensure_build_backend("/tmp/python", _REPO_ROOT)
+        self.assertEqual(len(commands), 1)
+        self.assertEqual(commands[0][0][:4], ["/tmp/python", "-m", "pip", "install"])
+        self.assertEqual(commands[0][0][4:6], ["--require-hashes", "-r"])
+        self.assertTrue(commands[0][0][6].endswith("-requirements-ci.txt"))
 
     def test_setup_from_clone_editable_install_uses_no_build_isolation(self) -> None:
         module = self._load_setup_from_clone_module()

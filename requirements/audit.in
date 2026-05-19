@@ -1,0 +1,3 @@
+# Hash-pinned pip-audit for the CI pip-audit job.
+# Regenerate: pip-compile --generate-hashes --output-file=requirements/audit.txt requirements/audit.in
+pip-audit==2.9.0

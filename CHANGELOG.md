@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Hash-pin CI dev tools, `pip-audit`, and PyTorch CPU smoke via `pip-compile` lockfiles (`requirements/dev.txt`, `audit.txt`, `pytorch-cpu.txt`); bootstrap `setup_from_clone.py` uses `--require-hashes` for setuptools.
+
 ### Added
 
 - Analysis unit tests (`tests/test_analysis_analyzers.py`) and optional real llama.cpp integration test (`ADAPTIVE_RL_RUN_LLAMA_CPP=1`).

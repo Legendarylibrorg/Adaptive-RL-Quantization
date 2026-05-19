@@ -35,7 +35,13 @@ updates:
     open-pull-requests-limit: 5
     groups:
       ci-bootstrap:
-        patterns: ["*"]
+        patterns:
+          - "ci.txt"
+          - "audit.in"
+          - "audit.txt"
+          - "pytorch.in"
+          - "pytorch-cpu.txt"
+          - "dev.txt"
     labels:
       - dependencies
       - ci

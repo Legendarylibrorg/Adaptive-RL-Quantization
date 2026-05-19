@@ -13,6 +13,7 @@ import urllib.request
 from pathlib import Path
 
 from _common import repo_root, run, venv_python_path
+from verify_hashes import render_hashed_requirements
 
 _NETWORK_PIP_BOOTSTRAP_ENV = "ADAPTIVE_RL_ALLOW_NETWORK_PIP_BOOTSTRAP"
 _NETWORK_PIP_BOOTSTRAP_SHA_ENV = "ADAPTIVE_RL_PIP_BOOTSTRAP_SHA256"
@@ -90,7 +91,7 @@ def _ensure_pip(python_bin: str) -> None:
         run([python_bin, str(target)])
 
 
-def _ensure_build_backend(python_bin: str) -> None:
+def _ensure_build_backend(python_bin: str, root: Path) -> None:
     probe = subprocess.run(
         [
             python_bin,
@@ -105,11 +106,24 @@ def _ensure_build_backend(python_bin: str) -> None:
     )
     if probe.returncode == 0:
         return
-    run([python_bin, "-m", "pip", "install", f"setuptools=={_SETUPTOOLS_PIN}"])
+    rendered, errors, _ = render_hashed_requirements(
+        root, requirement_path=root / "requirements" / "ci.txt"
+    )
+    if errors:
+        raise SystemExit("dependency hash verification failed:\n" + "\n".join(errors))
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix="-requirements-ci.txt", delete=False, encoding="utf-8"
+    ) as handle:
+        handle.write("\n".join(rendered) + "\n")
+        hashed_path = handle.name
+    try:
+        run([python_bin, "-m", "pip", "install", "--require-hashes", "-r", hashed_path])
+    finally:
+        Path(hashed_path).unlink(missing_ok=True)
 
 
 def _install_editable(python_bin: str, root: Path) -> None:
-    _ensure_build_backend(python_bin)
+    _ensure_build_backend(python_bin, root)
     run([python_bin, "-m", "pip", "install", "--no-build-isolation", "-e", "."], cwd=root)
 
 
