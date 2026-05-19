@@ -31,14 +31,19 @@ def passes_online_guardrails(
         return False
     if float(candidate_reward) < float(baseline_reward) - float(config.online_reward_guard):
         return False
-    if float(candidate_latency_ms) > float(baseline_latency_ms) * float(config.online_max_latency_ratio):
+    if float(candidate_latency_ms) > float(baseline_latency_ms) * float(
+        config.online_max_latency_ratio
+    ):
         return False
-    if float(candidate_memory_mb) > float(baseline_memory_mb) * float(config.online_max_memory_ratio):
+    if float(candidate_memory_mb) > float(baseline_memory_mb) * float(
+        config.online_max_memory_ratio
+    ):
         return False
-    if float(candidate_perplexity) > float(baseline_perplexity) + float(config.online_max_perplexity_delta):
+    if float(candidate_perplexity) > float(baseline_perplexity) + float(
+        config.online_max_perplexity_delta
+    ):
         return False
     return True
 
 
 __all__ = ["passes_online_guardrails", "should_fallback_due_to_instability"]
-

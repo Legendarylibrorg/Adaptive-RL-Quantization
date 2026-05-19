@@ -35,7 +35,10 @@ class HardwareProfile:
     ngl: int
 
     def one_hot(self, ordered_hardware: list[HardwareType]) -> list[float]:
-        return [1.0 if self.hardware_type == hardware_type else 0.0 for hardware_type in ordered_hardware]
+        return [
+            1.0 if self.hardware_type == hardware_type else 0.0
+            for hardware_type in ordered_hardware
+        ]
 
 
 @dataclass(frozen=True)

@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import json
 import tempfile
-from adaptive_quant import compat_tomllib as tomllib
 import unittest
 from pathlib import Path
 from unittest import mock
 
+from adaptive_quant import compat_tomllib as tomllib
 from adaptive_quant.configuration import FrameworkConfig
-from adaptive_quant.logging_utils import read_json
 from adaptive_quant.huggingface_cli import (
     DownloadResult,
     HuggingFaceCli,
@@ -17,6 +16,7 @@ from adaptive_quant.huggingface_cli import (
     parse_local_path,
     run_download,
 )
+from adaptive_quant.logging_utils import read_json
 from adaptive_quant.model_routes import (
     QUANT_BITS,
     ModelRoute,
@@ -120,7 +120,13 @@ class RouteCatalogTests(unittest.TestCase):
 
     def test_catalog_rejects_unknown_keys(self) -> None:
         with self.assertRaises(ValueError):
-            RouteCatalog.from_dict({"routes": [{"route_id": "x", "repo_id": "a/b", "quant_label": "Q4_K_M", "junk": True}]})
+            RouteCatalog.from_dict(
+                {
+                    "routes": [
+                        {"route_id": "x", "repo_id": "a/b", "quant_label": "Q4_K_M", "junk": True}
+                    ]
+                }
+            )
 
     def test_catalog_add_replace(self) -> None:
         catalog = RouteCatalog()
@@ -234,11 +240,7 @@ class HuggingFaceCliTests(unittest.TestCase):
             build_download_command(cli, repo_id="org/repo;rm -rf /")
 
     def test_parse_local_path_extracts_gguf(self) -> None:
-        text = (
-            "Fetching 1 files...\n"
-            "/Users/me/cache/llama-Q4_K_M.gguf\n"
-            "Done.\n"
-        )
+        text = "Fetching 1 files...\n/Users/me/cache/llama-Q4_K_M.gguf\nDone.\n"
         parsed = parse_local_path(text)
         self.assertIsNotNone(parsed)
         assert parsed is not None
@@ -247,7 +249,9 @@ class HuggingFaceCliTests(unittest.TestCase):
     def test_download_result_ok_property(self) -> None:
         ok = DownloadResult(command=["hf", "download"], returncode=0, stdout="", stderr="")
         bad = DownloadResult(command=["hf", "download"], returncode=1, stdout="", stderr="boom")
-        timed = DownloadResult(command=["hf", "download"], returncode=0, stdout="", stderr="", timed_out=True)
+        timed = DownloadResult(
+            command=["hf", "download"], returncode=0, stdout="", stderr="", timed_out=True
+        )
         self.assertTrue(ok.ok)
         self.assertFalse(bad.ok)
         self.assertFalse(timed.ok)

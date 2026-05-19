@@ -8,12 +8,12 @@ from typing import Any
 from adaptive_quant.backends import build_backend
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.features import estimate_layer_sensitivity, extract_input_features
+from adaptive_quant.guardrails import should_fallback_due_to_instability
 from adaptive_quant.hardware import detect_host_hardware, host_aware_hardware_profiles
 from adaptive_quant.logging_utils import JsonlLogger, NullJsonlLogger
 from adaptive_quant.math_utils import variance
 from adaptive_quant.moe import ExpertBank
 from adaptive_quant.prompts import PromptLibrary
-from adaptive_quant.guardrails import should_fallback_due_to_instability
 from adaptive_quant.quantization import finalize_decision, safe_fallback_decision
 from adaptive_quant.reward import compute_weighted_reward
 from adaptive_quant.trainer_utils import zero_previous_action
@@ -135,7 +135,9 @@ class AdaptiveQuantizationEnv:
             input_features=input_features,
             sensitivity=sensitivity,
             previous_action=previous,
-            moe_context=self.expert_bank.build_context(prompt, input_features, hardware_profile) if self.expert_bank is not None else None,
+            moe_context=self.expert_bank.build_context(prompt, input_features, hardware_profile)
+            if self.expert_bank is not None
+            else None,
         )
         return self.current_state
 
@@ -159,7 +161,9 @@ class AdaptiveQuantizationEnv:
         if should_fallback_due_to_instability(
             stability_penalty, threshold=self.config.instability_threshold
         ):
-            fallback = finalize_decision(safe_fallback_decision(self.config), self.current_state, self.config)
+            fallback = finalize_decision(
+                safe_fallback_decision(self.config), self.current_state, self.config
+            )
             fallback.fallback_applied = True
             fallback.unstable = True
             fallback.metadata["fallback_reason"] = "instability"
@@ -216,7 +220,9 @@ class AdaptiveQuantizationEnv:
             return hardware_modes[0]
         return hardware_modes[self.rng.randrange(len(hardware_modes))]
 
-    def _sample_prompt_random(self, forced_prompt_id: str | None, *, phase: str = "train") -> PromptSample:
+    def _sample_prompt_random(
+        self, forced_prompt_id: str | None, *, phase: str = "train"
+    ) -> PromptSample:
         if forced_prompt_id is not None:
             return self.prompt_library.by_id(forced_prompt_id)
         if not self.config.prompt_split_enabled:
@@ -270,7 +276,9 @@ class AdaptiveQuantizationEnv:
                 state.prompt, self.config.stability_probe_count, allowed_ids=allowed
             )
         else:
-            probes = self.prompt_library.probes(state.prompt, self.config.stability_probe_count, self.rng, allowed_ids=allowed)
+            probes = self.prompt_library.probes(
+                state.prompt, self.config.stability_probe_count, self.rng, allowed_ids=allowed
+            )
         for probe in probes:
             probe_features, probe_sensitivity = self._get_prompt_context(probe)
             probe_state = replace(

@@ -9,10 +9,11 @@ import subprocess
 import sys
 import sysconfig
 import tempfile
-from adaptive_quant import compat_tomllib as tomllib
 import unittest
 from pathlib import Path
 from unittest import mock
+
+from adaptive_quant import compat_tomllib as tomllib
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _SRC = _REPO_ROOT / "src"
@@ -79,7 +80,9 @@ class RunnerScriptCliTests(unittest.TestCase):
         return [sys.executable, "-m", module_name]
 
     def test_ci_uses_hash_verified_bootstrap_install(self) -> None:
-        workflow_text = (_REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        workflow_text = (_REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(
+            encoding="utf-8"
+        )
         self.assertIn("scripts/verify_hashes.py", workflow_text)
         self.assertIn("--require-hashes", workflow_text)
         self.assertIn("--no-build-isolation -e .", workflow_text)
@@ -90,7 +93,9 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertIn('python-version: "3.12"', workflow_text)
 
     def test_ci_runs_pip_audit_on_bootstrap_requirements(self) -> None:
-        workflow_text = (_REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        workflow_text = (_REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(
+            encoding="utf-8"
+        )
         self.assertIn("pip-audit:", workflow_text)
         self.assertIn("pip_audit", workflow_text)
 
@@ -132,7 +137,9 @@ class RunnerScriptCliTests(unittest.TestCase):
             "run",
             return_value=subprocess.CompletedProcess(["python"], 1, stdout=b"", stderr=b""),
         ):
-            with mock.patch.object(module, "run", side_effect=lambda cmd, cwd=None: commands.append((cmd, cwd))):
+            with mock.patch.object(
+                module, "run", side_effect=lambda cmd, cwd=None: commands.append((cmd, cwd))
+            ):
                 module._ensure_build_backend("/tmp/python")
         self.assertEqual(
             commands,
@@ -162,7 +169,10 @@ class RunnerScriptCliTests(unittest.TestCase):
                                     )
             self.assertEqual(code, 0)
             self.assertIn(
-                ([str(venv_python), "-m", "pip", "install", "--no-build-isolation", "-e", "."], root),
+                (
+                    [str(venv_python), "-m", "pip", "install", "--no-build-isolation", "-e", "."],
+                    root,
+                ),
                 commands,
             )
 
@@ -261,8 +271,12 @@ class RunnerScriptCliTests(unittest.TestCase):
         scripts = project["scripts"]
         self.assertEqual(scripts["adaptive-rl-quant"], "adaptive_quant.cli.research:main")
         self.assertEqual(scripts["adaptive-rl-quant-pytorch"], "adaptive_quant.cli.pytorch:main")
-        self.assertEqual(scripts["adaptive-rl-quant-online"], "adaptive_quant.cli.online_learning:main")
-        self.assertEqual(scripts["adaptive-rl-quant-route"], "adaptive_quant.cli.route_learning:main")
+        self.assertEqual(
+            scripts["adaptive-rl-quant-online"], "adaptive_quant.cli.online_learning:main"
+        )
+        self.assertEqual(
+            scripts["adaptive-rl-quant-route"], "adaptive_quant.cli.route_learning:main"
+        )
         setuptools_cfg = payload["tool"]["setuptools"]
         self.assertEqual(setuptools_cfg["package-dir"], {"": "src"})
         self.assertEqual(setuptools_cfg["packages"]["find"]["where"], ["src"])
@@ -299,7 +313,9 @@ class RunnerScriptCliTests(unittest.TestCase):
     def test_run_pytorch_config_requires_pytorch_backend(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "sim.json"
-            path.write_text(json.dumps({"preset": "minimal", "run_name": "cli_test"}), encoding="utf-8")
+            path.write_text(
+                json.dumps({"preset": "minimal", "run_name": "cli_test"}), encoding="utf-8"
+            )
             proc = subprocess.run(
                 [sys.executable, str(_REPO_ROOT / "run_pytorch.py"), "--config", str(path)],
                 cwd=str(_REPO_ROOT),
@@ -311,7 +327,7 @@ class RunnerScriptCliTests(unittest.TestCase):
             self.assertIn("training_backend", proc.stderr)
 
     def test_pytorch_trainer_factory_reports_missing_torch_cleanly(self) -> None:
-        code = r'''
+        code = r"""
 import builtins
 
 real_import = builtins.__import__
@@ -332,7 +348,7 @@ except ImportError as exc:
     print(str(exc))
 else:
     raise SystemExit("expected ImportError")
-'''
+"""
         proc = subprocess.run(
             [sys.executable, "-c", code],
             cwd=str(_REPO_ROOT),

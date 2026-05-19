@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from adaptive_quant.cli.calibrate_llama_cpp import _build_calibration_config
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.easy_config import (
     config_from_dict,
@@ -13,7 +14,6 @@ from adaptive_quant.easy_config import (
     named_preset,
     quick_config,
 )
-from adaptive_quant.cli.calibrate_llama_cpp import _build_calibration_config
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -110,14 +110,17 @@ class EasyConfigTests(unittest.TestCase):
     def test_load_config_is_strict_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "bad.json"
-            path.write_text(json.dumps({"run_name": "strict_default", "training_episode": 42}), encoding="utf-8")
+            path.write_text(
+                json.dumps({"run_name": "strict_default", "training_episode": 42}), encoding="utf-8"
+            )
             with self.assertRaises(ValueError) as ctx:
                 load_config(path)
             self.assertIn("Unknown FrameworkConfig keys", str(ctx.exception))
 
     def test_load_config_rejects_oversized_local_file(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp, mock.patch(
-            "adaptive_quant.logging_utils.MAX_LOCAL_READ_BYTES", 16
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            mock.patch("adaptive_quant.logging_utils.MAX_LOCAL_READ_BYTES", 16),
         ):
             path = Path(tmp) / "oversized.json"
             path.write_text(json.dumps({"run_name": "oversized_config"}), encoding="utf-8")

@@ -8,8 +8,8 @@ from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.trainer_utils import (
     collect_episode_results,
     feedback_vector,
-    zero_previous_action,
     summarize_episode_results,
+    zero_previous_action,
 )
 from adaptive_quant.types import EpisodeResult, HardwareType
 
@@ -38,9 +38,7 @@ def coerce_previous_action(value: Any) -> list[float]:
     coerced: list[float] = []
     for index, item in enumerate(value):
         if isinstance(item, bool) or not isinstance(item, (int, float)):
-            raise TypeError(
-                f"previous_action[{index}] must be numeric, got {type(item).__name__}"
-            )
+            raise TypeError(f"previous_action[{index}] must be numeric, got {type(item).__name__}")
         f = float(item)
         if not math.isfinite(f):
             raise ValueError(f"previous_action[{index}] must be finite, got {f!r}")
@@ -85,7 +83,9 @@ class TrainerBase:
             phase=phase,
         )
 
-    def evaluate(self, episodes: int | None = None, hardware: HardwareType | None = None) -> dict[str, float]:
+    def evaluate(
+        self, episodes: int | None = None, hardware: HardwareType | None = None
+    ) -> dict[str, float]:
         count = self.config.evaluation_episodes if episodes is None else episodes
         episode_offset = self._next_eval_episode
         self._next_eval_episode += max(0, int(count))

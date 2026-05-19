@@ -9,16 +9,52 @@ def default_prompt_library() -> list[PromptSample]:
     return [
         PromptSample("simple_qa", "What is the capital of France?", "qa"),
         PromptSample("short_code", "Write a Python function that reverses a list.", "code"),
-        PromptSample("math_reasoning", "Solve step by step: if a train travels 60 miles in 45 minutes, what is the average speed?", "reasoning"),
-        PromptSample("chain_of_thought", "Compare the causes of the French Revolution and the Russian Revolution in a concise but analytical paragraph.", "history"),
-        PromptSample("sql_generation", "Generate a SQL query to compute monthly revenue grouped by product category and region.", "code"),
-        PromptSample("legal_summary", "Summarize the main obligations in a contract termination clause with emphasis on notice periods and indemnification.", "legal"),
-        PromptSample("biomed_explanation", "Explain how mRNA vaccines trigger immune responses and note two limitations of the platform.", "biomed"),
-        PromptSample("creative_long", "Write an atmospheric scene where a stranded pilot discovers an abandoned weather station on Europa, and hint that the station is still communicating.", "creative"),
-        PromptSample("tool_use", "Plan a debugging session for intermittent latency spikes in a distributed inference service. Include hypotheses, instrumentation, and rollback criteria.", "systems"),
-        PromptSample("translation", "Translate the following paragraph from English to Japanese while preserving technical terminology about distributed systems and cache invalidation.", "translation"),
+        PromptSample(
+            "math_reasoning",
+            "Solve step by step: if a train travels 60 miles in 45 minutes, what is the average speed?",
+            "reasoning",
+        ),
+        PromptSample(
+            "chain_of_thought",
+            "Compare the causes of the French Revolution and the Russian Revolution in a concise but analytical paragraph.",
+            "history",
+        ),
+        PromptSample(
+            "sql_generation",
+            "Generate a SQL query to compute monthly revenue grouped by product category and region.",
+            "code",
+        ),
+        PromptSample(
+            "legal_summary",
+            "Summarize the main obligations in a contract termination clause with emphasis on notice periods and indemnification.",
+            "legal",
+        ),
+        PromptSample(
+            "biomed_explanation",
+            "Explain how mRNA vaccines trigger immune responses and note two limitations of the platform.",
+            "biomed",
+        ),
+        PromptSample(
+            "creative_long",
+            "Write an atmospheric scene where a stranded pilot discovers an abandoned weather station on Europa, and hint that the station is still communicating.",
+            "creative",
+        ),
+        PromptSample(
+            "tool_use",
+            "Plan a debugging session for intermittent latency spikes in a distributed inference service. Include hypotheses, instrumentation, and rollback criteria.",
+            "systems",
+        ),
+        PromptSample(
+            "translation",
+            "Translate the following paragraph from English to Japanese while preserving technical terminology about distributed systems and cache invalidation.",
+            "translation",
+        ),
         PromptSample("low_complexity", "List three benefits of daily exercise.", "wellness"),
-        PromptSample("very_complex", "Design a fault-tolerant serving stack for a multilingual assistant that must satisfy strict privacy, mixed CPU/GPU deployment, and unpredictable latency constraints. Explain tradeoffs and rollout phases.", "systems"),
+        PromptSample(
+            "very_complex",
+            "Design a fault-tolerant serving stack for a multilingual assistant that must satisfy strict privacy, mixed CPU/GPU deployment, and unpredictable latency constraints. Explain tradeoffs and rollout phases.",
+            "systems",
+        ),
     ]
 
 
@@ -65,7 +101,8 @@ class PromptLibrary:
         candidates = [
             candidate
             for candidate in self.prompts
-            if candidate.prompt_id != prompt.prompt_id and (allowed_ids is None or candidate.prompt_id in allowed_ids)
+            if candidate.prompt_id != prompt.prompt_id
+            and (allowed_ids is None or candidate.prompt_id in allowed_ids)
         ]
         if not candidates:
             return []
@@ -87,7 +124,8 @@ class PromptLibrary:
         candidates = [
             candidate
             for candidate in self.prompts
-            if candidate.prompt_id != prompt.prompt_id and (allowed_ids is None or candidate.prompt_id in allowed_ids)
+            if candidate.prompt_id != prompt.prompt_id
+            and (allowed_ids is None or candidate.prompt_id in allowed_ids)
         ]
         if not candidates:
             return []

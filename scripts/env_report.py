@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Environment summary for local debugging (`make doctor`)."""
+
 from __future__ import annotations
 
 import os
@@ -75,9 +76,13 @@ def _platform_report(repo: Path) -> tuple[bool, bool]:
         distro = os.environ.get("WSL_DISTRO_NAME")
         if distro:
             print(f"  distro:      {distro}")
-        print("  guidance:    prefer keeping the repo inside the Linux filesystem (for example ~/src/...)")
+        print(
+            "  guidance:    prefer keeping the repo inside the Linux filesystem (for example ~/src/...)"
+        )
         if on_windows_mount:
-            print("  warning:     repo appears to be under /mnt/... which is slower for Python/env workloads")
+            print(
+                "  warning:     repo appears to be under /mnt/... which is slower for Python/env workloads"
+            )
     else:
         print("  wsl2:        no")
     return is_wsl2, on_windows_mount
@@ -119,7 +124,9 @@ def main() -> int:
         if cuda:
             print(f"  device[0]:   {torch.cuda.get_device_name(0)}")
     except ImportError:
-        print("  torch:       not installed → pip install -e \".[torch]\" (CUDA wheel from pytorch.org)")
+        print(
+            '  torch:       not installed → pip install -e ".[torch]" (CUDA wheel from pytorch.org)'
+        )
 
     print("== Ruff (optional) ==")
     try:
@@ -127,7 +134,7 @@ def main() -> int:
 
         print(f"  ruff:        {md.version('ruff')}")
     except Exception:
-        print("  ruff:        not installed → pip install -e \".[dev]\"")
+        print('  ruff:        not installed → pip install -e ".[dev]"')
 
     print("== Git ==")
     head = _git(repo, "rev-parse", "--short", "HEAD")

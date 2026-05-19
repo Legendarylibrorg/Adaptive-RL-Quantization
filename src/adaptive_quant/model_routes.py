@@ -16,7 +16,6 @@ ranking, so small absolute errors do not bias the learned ordering.
 
 from __future__ import annotations
 
-import json
 import re
 from collections.abc import Iterable, Mapping
 from dataclasses import asdict, dataclass, field, fields, replace
@@ -124,7 +123,9 @@ class ModelRoute:
             validate_optional_filesystem_path("local_path", self.local_path)
         if "/" not in self.repo_id:
             raise ValueError(f"repo_id must look like '<org>/<name>', got {self.repo_id!r}")
-        normalized_quant = self.quant_label.strip().upper() if isinstance(self.quant_label, str) else ""
+        normalized_quant = (
+            self.quant_label.strip().upper() if isinstance(self.quant_label, str) else ""
+        )
         if not normalized_quant:
             raise ValueError("quant_label is required for ModelRoute")
         object.__setattr__(self, "quant_label", normalized_quant)
@@ -154,7 +155,9 @@ class ModelRoute:
             raise ValueError("size_mb must be > 0 when set")
 
     def quant_spec(self) -> QuantSpec:
-        return QuantSpec(label=self.quant_label, effective_bits=self.effective_bits or 0.0, family=self.family)
+        return QuantSpec(
+            label=self.quant_label, effective_bits=self.effective_bits or 0.0, family=self.family
+        )
 
     def matches_hardware(self, hardware_value: str) -> bool:
         return "any" in self.hardware_hints or hardware_value in self.hardware_hints
@@ -221,11 +224,22 @@ class RouteCatalog:
         for route in self.routes:
             if hardware is not None and not route.matches_hardware(hardware):
                 continue
-            if domain is not None and route.domain_hints and domain.lower() not in route.domain_hints:
+            if (
+                domain is not None
+                and route.domain_hints
+                and domain.lower() not in route.domain_hints
+            ):
                 continue
-            if max_effective_bits is not None and (route.effective_bits or 0.0) > max_effective_bits:
+            if (
+                max_effective_bits is not None
+                and (route.effective_bits or 0.0) > max_effective_bits
+            ):
                 continue
-            if max_size_mb is not None and route.size_mb is not None and route.size_mb > max_size_mb:
+            if (
+                max_size_mb is not None
+                and route.size_mb is not None
+                and route.size_mb > max_size_mb
+            ):
                 continue
             result.append(route)
         return result

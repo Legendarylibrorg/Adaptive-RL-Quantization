@@ -5,9 +5,10 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
+from adaptive_quant.types import HardwareType, QuantMode
+
 from . import validation as v
 from .reward import RewardWeights
-from adaptive_quant.types import HardwareType, QuantMode
 
 
 @dataclass
@@ -174,20 +175,44 @@ class FrameworkConfig:
         v.validate_env_sampling_mode(self.env_sampling_mode)
         v.validate_rl_train_policy_mode(self.rl_train_policy_mode)
         v.validate_stability_probe_sampling(self.stability_probe_sampling)
-        v.validate_optional_hf_revision("router_hf_embedding_revision", self.router_hf_embedding_revision)
+        v.validate_optional_hf_revision(
+            "router_hf_embedding_revision", self.router_hf_embedding_revision
+        )
         v.validate_hf_allowed_models(self.router_hf_allowed_models)
-        v.validate_positive_int("recommendation_eval_episodes", self.recommendation_eval_episodes)
-        v.validate_positive_int("recommendation_candidate_limit", self.recommendation_candidate_limit)
-        v.validate_positive_int("llama_cpp_generate_tokens", self.llama_cpp_generate_tokens)
-        v.validate_positive_int("jsonl_flush_every", self.jsonl_flush_every)
-        v.validate_positive_int("llama_cpp_cache_max_entries", self.llama_cpp_cache_max_entries)
+        v.validate_bounded_positive_int(
+            "recommendation_eval_episodes",
+            self.recommendation_eval_episodes,
+            ceiling=v.MAX_RECOMMENDATION_EVAL_EPISODES,
+        )
+        v.validate_bounded_positive_int(
+            "recommendation_candidate_limit",
+            self.recommendation_candidate_limit,
+            ceiling=v.MAX_RECOMMENDATION_CANDIDATE_LIMIT,
+        )
+        v.validate_bounded_positive_int(
+            "llama_cpp_generate_tokens",
+            self.llama_cpp_generate_tokens,
+            ceiling=v.MAX_LLAMA_CPP_GENERATE_TOKENS,
+        )
+        v.validate_bounded_positive_int(
+            "jsonl_flush_every", self.jsonl_flush_every, ceiling=v.MAX_JSONL_FLUSH_EVERY
+        )
+        v.validate_bounded_positive_int(
+            "llama_cpp_cache_max_entries",
+            self.llama_cpp_cache_max_entries,
+            ceiling=v.MAX_LLAMA_CPP_CACHE_ENTRIES,
+        )
         v.validate_bounded_positive_int("training_episodes", self.training_episodes)
         v.validate_bounded_positive_int("evaluation_episodes", self.evaluation_episodes)
         v.validate_bounded_positive_int("max_training_episodes", self.max_training_episodes)
         if self.benchmark_training_episodes is not None:
-            v.validate_bounded_positive_int("benchmark_training_episodes", self.benchmark_training_episodes)
+            v.validate_bounded_positive_int(
+                "benchmark_training_episodes", self.benchmark_training_episodes
+            )
         if self.benchmark_evaluation_episodes is not None:
-            v.validate_bounded_positive_int("benchmark_evaluation_episodes", self.benchmark_evaluation_episodes)
+            v.validate_bounded_positive_int(
+                "benchmark_evaluation_episodes", self.benchmark_evaluation_episodes
+            )
         v.validate_bounded_positive_int("online_requests", self.online_requests)
         v.validate_bounded_nonneg_int("replay_buffer_capacity", self.replay_buffer_capacity)
         v.validate_bounded_positive_int("online_replay_capacity", self.online_replay_capacity)
@@ -312,8 +337,16 @@ class FrameworkConfig:
     def state_vector_dim(self) -> int:
         return len(self.ordered_hardware()) + 5 + 2 + self.num_layers + 3 + self.moe_state_dim()
 
-    def clone(self, **changes: object) -> FrameworkConfig:
-        reward_weights = changes.pop("reward_weights", replace(self.reward_weights))
+    def clone(self, **changes: Any) -> FrameworkConfig:
+        raw_reward_weights = changes.pop("reward_weights", None)
+        if raw_reward_weights is None:
+            reward_weights = replace(self.reward_weights)
+        elif isinstance(raw_reward_weights, RewardWeights):
+            reward_weights = raw_reward_weights
+        elif isinstance(raw_reward_weights, Mapping):
+            reward_weights = replace(self.reward_weights, **dict(raw_reward_weights))
+        else:
+            reward_weights = raw_reward_weights
         return replace(self, reward_weights=reward_weights, **changes)
 
     def online_telemetry_path(self) -> str:

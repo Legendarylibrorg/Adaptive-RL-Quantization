@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import inspect
-import json
 import random
 import sys
 from pathlib import Path
@@ -9,7 +8,7 @@ from typing import Any
 
 from adaptive_quant.base_trainer import TrainerBase, coerce_previous_action
 from adaptive_quant.configuration import FrameworkConfig
-from adaptive_quant.logging_utils import enforce_local_read_limit, read_json, write_json
+from adaptive_quant.logging_utils import read_json, write_json
 from adaptive_quant.math_utils import mean
 from adaptive_quant.torch_policy import (
     TORCH_BACKEND_REQUIRED_MESSAGE,
@@ -79,7 +78,14 @@ if torch is not None:
                 gen.manual_seed(int(sampling_seed) + 17_713)
                 self._sample_gen = gen
 
-        def push(self, state_vector: list[float], reward: float, log_prob: float, value: float, record: dict[str, Any]) -> None:
+        def push(
+            self,
+            state_vector: list[float],
+            reward: float,
+            log_prob: float,
+            value: float,
+            record: dict[str, Any],
+        ) -> None:
             idx = self.cursor % self.capacity
             self.states[idx] = torch.tensor(state_vector, dtype=torch.float32, device=self.device)
             self.rewards[idx] = reward
@@ -120,10 +126,14 @@ if torch is not None:
             self.cursor += n
             self.size = min(self.size + n, self.capacity)
 
-        def sample(self, batch_size: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, list[dict[str, Any]]]:
+        def sample(
+            self, batch_size: int
+        ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, list[dict[str, Any]]]:
             n = min(batch_size, self.size)
             if self._sample_gen is not None:
-                indices = torch.randint(0, self.size, (n,), device=self.device, generator=self._sample_gen)
+                indices = torch.randint(
+                    0, self.size, (n,), device=self.device, generator=self._sample_gen
+                )
             else:
                 indices = torch.randint(0, self.size, (n,), device=self.device)
             return (
@@ -139,7 +149,6 @@ if torch is not None:
             for t in (self.states, self.rewards, self.log_probs, self.values):
                 total += t.nelement() * t.element_size()
             return total
-
 
     class TorchTrainer(TrainerBase):
         def __init__(self, config: FrameworkConfig, log_path: str | None = None) -> None:
@@ -207,7 +216,10 @@ if torch is not None:
         def _train_fixed(self) -> dict[str, float]:
             rewards: list[float] = []
             while self.global_episode < self.config.training_episodes:
-                batch_size = min(self.config.torch_batch_episodes, self.config.training_episodes - self.global_episode)
+                batch_size = min(
+                    self.config.torch_batch_episodes,
+                    self.config.training_episodes - self.global_episode,
+                )
                 batch_records, batch_rewards = self._collect_batch(batch_size)
                 self._commit_training_batch(batch_records, batch_rewards, rewards)
 
@@ -239,7 +251,9 @@ if torch is not None:
                 self._commit_training_batch(batch_records, batch_rewards, all_rewards)
                 ep_after = self.global_episode
 
-                if eval_interval > 0 and _crossed_episode_milestone(ep_before, ep_after, eval_interval):
+                if eval_interval > 0 and _crossed_episode_milestone(
+                    ep_before, ep_after, eval_interval
+                ):
                     eval_summary = self.evaluate()
                     print(
                         f"[episode {self.global_episode:,}] "
@@ -249,7 +263,9 @@ if torch is not None:
                         file=sys.stderr,
                     )
 
-                if ckpt_interval > 0 and _crossed_episode_milestone(ep_before, ep_after, ckpt_interval):
+                if ckpt_interval > 0 and _crossed_episode_milestone(
+                    ep_before, ep_after, ckpt_interval
+                ):
                     ckpt_path = self.config.final_checkpoint_path().replace(
                         "_final", f"_ep{self.global_episode}"
                     )
@@ -257,8 +273,13 @@ if torch is not None:
 
             return reward_summary(all_rewards, updates=self.update_index)
 
-        def _update_from_replay_or_batch(self, batch_records: list[dict[str, Any]]) -> dict[str, float]:
-            if self.replay_buffer is not None and self.replay_buffer.size >= self.config.torch_minibatch_size:
+        def _update_from_replay_or_batch(
+            self, batch_records: list[dict[str, Any]]
+        ) -> dict[str, float]:
+            if (
+                self.replay_buffer is not None
+                and self.replay_buffer.size >= self.config.torch_minibatch_size
+            ):
                 _, _, _, _, replay_records = self.replay_buffer.sample(
                     max(len(batch_records), self.config.torch_batch_episodes)
                 )
@@ -269,14 +290,20 @@ if torch is not None:
         def _vram_stats(self) -> dict[str, float]:
             if self.policy.device.type != "cuda":
                 return {}
-            allocated_mb = torch.cuda.memory_allocated(self.policy.device) / (1024 ** 2)
-            reserved_mb = torch.cuda.memory_reserved(self.policy.device) / (1024 ** 2)
-            replay_mb = (self.replay_buffer.vram_bytes() / (1024 ** 2)) if self.replay_buffer is not None else 0.0
+            allocated_mb = torch.cuda.memory_allocated(self.policy.device) / (1024**2)
+            reserved_mb = torch.cuda.memory_reserved(self.policy.device) / (1024**2)
+            replay_mb = (
+                (self.replay_buffer.vram_bytes() / (1024**2))
+                if self.replay_buffer is not None
+                else 0.0
+            )
             return {
                 "vram_allocated_mb": round(allocated_mb, 1),
                 "vram_reserved_mb": round(reserved_mb, 1),
                 "replay_buffer_mb": round(replay_mb, 1),
-                "replay_buffer_size": float(self.replay_buffer.size) if self.replay_buffer is not None else 0.0,
+                "replay_buffer_size": float(self.replay_buffer.size)
+                if self.replay_buffer is not None
+                else 0.0,
             }
 
         def _vram_summary(self) -> str:
@@ -315,9 +342,15 @@ if torch is not None:
         def _update_policy(self, records: list[dict[str, Any]]) -> dict[str, float]:
             device = self.policy.device
             states = self.policy.state_tensor([record["state_vector"] for record in records])
-            rewards = torch.tensor([record["reward"] for record in records], dtype=torch.float32, device=device)
-            old_log_probs = torch.tensor([record["log_prob"] for record in records], dtype=torch.float32, device=device)
-            old_values = torch.tensor([record["value"] for record in records], dtype=torch.float32, device=device)
+            rewards = torch.tensor(
+                [record["reward"] for record in records], dtype=torch.float32, device=device
+            )
+            old_log_probs = torch.tensor(
+                [record["log_prob"] for record in records], dtype=torch.float32, device=device
+            )
+            old_values = torch.tensor(
+                [record["value"] for record in records], dtype=torch.float32, device=device
+            )
             advantages = rewards - old_values
             advantages = (advantages - advantages.mean()) / (advantages.std(unbiased=False) + 1e-6)
 
@@ -338,7 +371,9 @@ if torch is not None:
                     old_log_prob_batch = old_log_probs[batch_indices]
                     advantage_batch = advantages[batch_indices]
 
-                    log_probs, entropies, values = self.policy.evaluate_actions(state_batch, record_batch)
+                    log_probs, entropies, values = self.policy.evaluate_actions(
+                        state_batch, record_batch
+                    )
                     ratios = torch.exp(log_probs - old_log_prob_batch)
                     algo = self.config.torch_policy_algorithm.strip().lower()
                     if algo == "vpg":
@@ -351,13 +386,21 @@ if torch is not None:
                     else:
                         unclipped = ratios * advantage_batch
                         clipped = (
-                            torch.clamp(ratios, 1.0 - self.config.torch_ppo_clip, 1.0 + self.config.torch_ppo_clip)
+                            torch.clamp(
+                                ratios,
+                                1.0 - self.config.torch_ppo_clip,
+                                1.0 + self.config.torch_ppo_clip,
+                            )
                             * advantage_batch
                         )
                         policy_loss = -torch.min(unclipped, clipped).mean()
                     value_loss = torch.nn.functional.mse_loss(values.float(), reward_batch)
                     entropy_bonus = entropies.mean()
-                    loss = policy_loss + self.config.torch_value_coef * value_loss - self.config.torch_entropy_coef * entropy_bonus
+                    loss = (
+                        policy_loss
+                        + self.config.torch_value_coef * value_loss
+                        - self.config.torch_entropy_coef * entropy_bonus
+                    )
                     policy_losses.append(float(policy_loss.detach().item()))
                     value_losses.append(float(value_loss.detach().item()))
                     entropies_seen.append(float(entropy_bonus.detach().item()))
@@ -365,7 +408,9 @@ if torch is not None:
 
                     self.optimizer.zero_grad(set_to_none=True)
                     loss.backward()
-                    torch.nn.utils.clip_grad_norm_(self.policy.model.parameters(), self.config.torch_max_grad_norm)
+                    torch.nn.utils.clip_grad_norm_(
+                        self.policy.model.parameters(), self.config.torch_max_grad_norm
+                    )
                     self.optimizer.step()
             return {
                 "policy_loss": mean(policy_losses),

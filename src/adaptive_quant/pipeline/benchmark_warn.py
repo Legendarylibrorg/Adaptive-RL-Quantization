@@ -7,8 +7,16 @@ from adaptive_quant.configuration import FrameworkConfig
 
 
 def warn_if_benchmarks_are_large(config: FrameworkConfig) -> None:
-    bench_train = config.training_episodes if config.benchmark_training_episodes is None else config.benchmark_training_episodes
-    bench_eval = config.evaluation_episodes if config.benchmark_evaluation_episodes is None else config.benchmark_evaluation_episodes
+    bench_train = (
+        config.training_episodes
+        if config.benchmark_training_episodes is None
+        else config.benchmark_training_episodes
+    )
+    bench_eval = (
+        config.evaluation_episodes
+        if config.benchmark_evaluation_episodes is None
+        else config.benchmark_evaluation_episodes
+    )
     variant_trains = 6 + (3 if config.moe_enabled else 0)
     estimated_train_episodes = int(bench_train) * int(variant_trains)
     if estimated_train_episodes < 25_000 and int(bench_eval) <= 1_000:

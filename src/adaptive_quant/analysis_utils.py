@@ -18,7 +18,9 @@ def ensure_directory(path: str) -> Path:
     return target
 
 
-def grouped_mean(records: list[dict], group_key: str, metric_path: tuple[str, ...]) -> dict[str, float]:
+def grouped_mean(
+    records: list[dict], group_key: str, metric_path: tuple[str, ...]
+) -> dict[str, float]:
     buckets: dict[str, list[float]] = {}
     for record in records:
         group = record.get(group_key, "unknown")
@@ -57,15 +59,23 @@ def write_bar_chart(path: str, title: str, values: dict[str, float], y_label: st
         x = margin + index * (bar_width + gap) + gap
         y = height - margin - bar_height
         color = ["#2a6f97", "#c9713d", "#5b8c5a", "#8f5d8f"][index % 4]
-        parts.append(f'<rect x="{x:.1f}" y="{y:.1f}" width="{bar_width:.1f}" height="{bar_height:.1f}" fill="{color}" rx="6" />')
-        parts.append(f'<text x="{x + bar_width / 2:.1f}" y="{height - margin + 20}" text-anchor="middle" font-size="13" font-family="Georgia">{_svg_text(label)}</text>')
-        parts.append(f'<text x="{x + bar_width / 2:.1f}" y="{y - 8:.1f}" text-anchor="middle" font-size="12" font-family="Georgia">{value:.2f}</text>')
+        parts.append(
+            f'<rect x="{x:.1f}" y="{y:.1f}" width="{bar_width:.1f}" height="{bar_height:.1f}" fill="{color}" rx="6" />'
+        )
+        parts.append(
+            f'<text x="{x + bar_width / 2:.1f}" y="{height - margin + 20}" text-anchor="middle" font-size="13" font-family="Georgia">{_svg_text(label)}</text>'
+        )
+        parts.append(
+            f'<text x="{x + bar_width / 2:.1f}" y="{y - 8:.1f}" text-anchor="middle" font-size="12" font-family="Georgia">{value:.2f}</text>'
+        )
 
     parts.append("</svg>")
     write_text_file(path, "\n".join(parts))
 
 
-def write_scatter_plot(path: str, title: str, points: list[tuple[float, float]], x_label: str, y_label: str) -> None:
+def write_scatter_plot(
+    path: str, title: str, points: list[tuple[float, float]], x_label: str, y_label: str
+) -> None:
     width = 780
     height = 420
     margin = 60

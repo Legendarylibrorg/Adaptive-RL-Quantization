@@ -154,7 +154,9 @@ _GPU_PROFILE_SIM_PRESETS: dict[str, dict[str, float]] = {
 def detect_host_hardware() -> DetectedHardware:
     gpu_name, gpu_memory_gb, cuda_available = _detect_accelerator()
     accelerator_type = HardwareType.GPU if gpu_name is not None else HardwareType.CPU
-    accelerator_profile = infer_gpu_profile(gpu_name, gpu_memory_gb) if gpu_name is not None else None
+    accelerator_profile = (
+        infer_gpu_profile(gpu_name, gpu_memory_gb) if gpu_name is not None else None
+    )
     return DetectedHardware(
         system=platform.system().lower(),
         machine=platform.machine().lower(),
@@ -211,7 +213,9 @@ def host_aware_hardware_profiles(
     )
 
     if detected.accelerator_type == HardwareType.GPU and detected.accelerator_profile is not None:
-        template = _GPU_PROFILE_SIM_PRESETS.get(detected.accelerator_profile, _GPU_PROFILE_SIM_PRESETS["consumer_8gb"])
+        template = _GPU_PROFILE_SIM_PRESETS.get(
+            detected.accelerator_profile, _GPU_PROFILE_SIM_PRESETS["consumer_8gb"]
+        )
         gpu_memory_gb = detected.accelerator_memory_gb or 8.0
         profiles[HardwareType.GPU] = HardwareProfile(
             hardware_type=HardwareType.GPU,
@@ -260,7 +264,7 @@ def _detect_accelerator_from_torch() -> tuple[str | None, float | None, bool]:
             return None, None, False
         index = torch.cuda.current_device()
         props = torch.cuda.get_device_properties(index)
-        memory_gb = round(float(props.total_memory) / float(1024 ** 3), 2)
+        memory_gb = round(float(props.total_memory) / float(1024**3), 2)
         return str(props.name), memory_gb, True
     except Exception:
         return None, None, False
@@ -298,7 +302,7 @@ def _detect_total_memory_gb() -> float | None:
     memory_bytes = _detect_total_memory_bytes()
     if memory_bytes is None or memory_bytes <= 0:
         return None
-    return round(float(memory_bytes) / float(1024 ** 3), 2)
+    return round(float(memory_bytes) / float(1024**3), 2)
 
 
 def _detect_total_memory_bytes() -> int | None:
@@ -312,7 +316,12 @@ def _detect_total_memory_bytes() -> int | None:
                 page_size = os.sysconf(page_size_key)
             except (OSError, ValueError):
                 continue
-            if isinstance(pages, int) and isinstance(page_size, int) and pages > 0 and page_size > 0:
+            if (
+                isinstance(pages, int)
+                and isinstance(page_size, int)
+                and pages > 0
+                and page_size > 0
+            ):
                 return pages * page_size
     if platform.system().lower() == "darwin":
         try:

@@ -49,7 +49,10 @@ def write_research_report_markdown(
         rel_root = Path("..") / "analysis" / config.run_name
         candidates = [
             ("hardware reward", analysis_root / "hardware" / "hardware_generalization_reward.svg"),
-            ("hardware latency", analysis_root / "hardware" / "hardware_generalization_latency.svg"),
+            (
+                "hardware latency",
+                analysis_root / "hardware" / "hardware_generalization_latency.svg",
+            ),
             ("input complexity vs bits", analysis_root / "inputs" / "input_complexity_vs_bits.svg"),
             ("input adaptation scatter", analysis_root / "inputs" / "input_adaptation_scatter.svg"),
             ("quant function params", analysis_root / "quant" / "quant_function_parameters.svg"),
@@ -71,7 +74,9 @@ def write_research_report_markdown(
     ]
     eval_rows = [[k, _fmt_num(v)] for k, v in eval_metrics]
     recommendation = recommendation_summary if isinstance(recommendation_summary, dict) else None
-    recommended_quant = recommendation.get("recommended_quant") if isinstance(recommendation, dict) else None
+    recommended_quant = (
+        recommendation.get("recommended_quant") if isinstance(recommendation, dict) else None
+    )
 
     bench = benchmark_summary
     single_vs_multi = bench.get("single_vs_multi") if isinstance(bench, dict) else None

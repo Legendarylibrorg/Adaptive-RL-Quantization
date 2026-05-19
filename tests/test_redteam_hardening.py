@@ -19,9 +19,11 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from datetime import UTC
 from pathlib import Path
 from unittest import mock
 
+from adaptive_quant.backends.llama_cpp import require_llama_cpp_paths
 from adaptive_quant.base_trainer import coerce_previous_action
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.easy_config import load_config
@@ -31,13 +33,12 @@ from adaptive_quant.logging_utils import (
     read_json,
     safe_json_loads,
 )
+from adaptive_quant.model_routes import ModelRoute, RouteCatalog
 from adaptive_quant.policy import (
     _categorical_head_from_payload,
     _gaussian_head_from_payload,
     _value_head_from_payload,
 )
-from adaptive_quant.backends.llama_cpp import require_llama_cpp_paths
-from adaptive_quant.model_routes import ModelRoute, RouteCatalog
 from adaptive_quant.research_pipeline import git_commit_hash
 from adaptive_quant.routing import parse_route
 from adaptive_quant.trainer import Trainer
@@ -202,7 +203,13 @@ class TrainerCheckpointPoisonTests(unittest.TestCase):
 
 class ConfigPathValidationMatrixTests(unittest.TestCase):
     def test_artifact_dirs_reject_parent_reference(self) -> None:
-        for field in ("outputs_dir", "benchmark_dir", "analysis_dir", "checkpoint_dir", "report_dir"):
+        for field in (
+            "outputs_dir",
+            "benchmark_dir",
+            "analysis_dir",
+            "checkpoint_dir",
+            "report_dir",
+        ):
             with self.subTest(field=field):
                 kwargs = {
                     "run_name": f"pathmatrix_{field}",
@@ -363,7 +370,9 @@ class PipBootstrapTLSAndCapsTests(unittest.TestCase):
                         run_mock.assert_not_called()
 
         oversize = b"x" * (setup_from_clone._GET_PIP_MAX_BYTES + 1)
-        env[setup_from_clone._NETWORK_PIP_BOOTSTRAP_SHA_ENV] = setup_from_clone._hash_bytes(oversize)
+        env[setup_from_clone._NETWORK_PIP_BOOTSTRAP_SHA_ENV] = setup_from_clone._hash_bytes(
+            oversize
+        )
         with mock.patch.dict("os.environ", env, clear=False):
             with mock.patch.object(
                 setup_from_clone.subprocess,
@@ -540,9 +549,9 @@ class UntrustedJsonStructureTests(unittest.TestCase):
             self.assertIn("nesting depth", str(ctx.exception))
 
     def test_enforce_safe_parsed_json_allows_shallow_toml_like_datetime_leaf(self) -> None:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        payload = {"run_at": datetime(2026, 1, 1, tzinfo=timezone.utc), "ok": True}
+        payload = {"run_at": datetime(2026, 1, 1, tzinfo=UTC), "ok": True}
         enforce_safe_parsed_json(payload, label="toml leaf simulation")
 
     def test_jsonl_aborts_on_hostile_second_line(self) -> None:
@@ -551,7 +560,9 @@ class UntrustedJsonStructureTests(unittest.TestCase):
             bad_inner = {"k": bad_inner}
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "mix.jsonl"
-            path.write_text('{"ok": true}\n' + json.dumps({"nested": bad_inner}) + "\n", encoding="utf-8")
+            path.write_text(
+                '{"ok": true}\n' + json.dumps({"nested": bad_inner}) + "\n", encoding="utf-8"
+            )
             with self.assertRaises(ValueError) as ctx:
                 load_jsonl(str(path))
             self.assertIn("line 2", str(ctx.exception))
@@ -564,7 +575,9 @@ class UntrustedJsonStructureTests(unittest.TestCase):
             inner = {"k": inner}
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "lines.jsonl"
-            path.write_text('{"phase": "ok"}\n' + json.dumps({"data": inner}) + "\n", encoding="utf-8")
+            path.write_text(
+                '{"phase": "ok"}\n' + json.dumps({"data": inner}) + "\n", encoding="utf-8"
+            )
             orig = logging_utils.MAX_JSON_NESTING_DEPTH
             try:
                 logging_utils.MAX_JSON_NESTING_DEPTH = 8
@@ -686,6 +699,17 @@ class LlamaBinaryAllowlistTests(unittest.TestCase):
 
 
 class EpisodeCountCapTests(unittest.TestCase):
+    def test_recommendation_candidate_limit_rejects_absurd_values(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            FrameworkConfig(
+                run_name="rec_cap",
+                training_episodes=1,
+                evaluation_episodes=1,
+                stability_probe_count=1,
+                recommendation_candidate_limit=10**9,
+            )
+        self.assertIn("recommendation_candidate_limit", str(ctx.exception))
+
     def test_training_episodes_rejects_absurd_values(self) -> None:
         with self.assertRaises(ValueError):
             FrameworkConfig(

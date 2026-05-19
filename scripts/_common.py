@@ -36,7 +36,11 @@ def run(cmd: list[str], *, cwd: Path | None = None, timeout: float | None = None
     cannot wedge the dev-tool indefinitely. ``subprocess.TimeoutExpired`` is
     surfaced to the caller unchanged.
     """
-    if not isinstance(cmd, list) or not cmd or not all(isinstance(item, str) and item for item in cmd):
+    if (
+        not isinstance(cmd, list)
+        or not cmd
+        or not all(isinstance(item, str) and item for item in cmd)
+    ):
         raise TypeError("cmd must be a non-empty list[str]")
     subprocess.run(
         cmd,

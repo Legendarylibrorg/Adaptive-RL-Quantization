@@ -46,7 +46,12 @@ class FrameworkTests(unittest.TestCase):
         self.assertEqual(CONFIG_4090_UNIVERSAL.hardware_modes, ("gpu", "cpu", "low_resource"))
 
     def test_state_contains_hardware_and_input_features(self) -> None:
-        config = FrameworkConfig(training_episodes=4, evaluation_episodes=2, stability_probe_count=1, run_name="state_test")
+        config = FrameworkConfig(
+            training_episodes=4,
+            evaluation_episodes=2,
+            stability_probe_count=1,
+            run_name="state_test",
+        )
         env = AdaptiveQuantizationEnv(config, log_path=f"{tempfile.gettempdir()}/state_test.jsonl")
         state = env.reset(forced_hardware=HardwareType.GPU, forced_prompt_id="very_complex")
         vector = state.to_vector(config.ordered_hardware())
@@ -56,7 +61,12 @@ class FrameworkTests(unittest.TestCase):
         self.assertGreater(state.input_features.complexity_score, 0.0)
 
     def test_learned_quantization_is_clamped(self) -> None:
-        config = FrameworkConfig(training_episodes=4, evaluation_episodes=2, stability_probe_count=1, run_name="clamp_test")
+        config = FrameworkConfig(
+            training_episodes=4,
+            evaluation_episodes=2,
+            stability_probe_count=1,
+            run_name="clamp_test",
+        )
         env = AdaptiveQuantizationEnv(config, log_path=f"{tempfile.gettempdir()}/clamp_test.jsonl")
         state = env.reset(forced_hardware=HardwareType.CPU, forced_prompt_id="very_complex")
         decision = QuantizationDecision(
@@ -67,7 +77,12 @@ class FrameworkTests(unittest.TestCase):
         )
         finalized = finalize_decision(decision, state, config)
 
-        self.assertTrue(all(min(config.discrete_bit_widths) <= bit <= max(config.discrete_bit_widths) for bit in finalized.effective_layer_bits))
+        self.assertTrue(
+            all(
+                min(config.discrete_bit_widths) <= bit <= max(config.discrete_bit_widths)
+                for bit in finalized.effective_layer_bits
+            )
+        )
         self.assertGreaterEqual(finalized.scale_factor, config.scale_bounds[0])
         self.assertLessEqual(finalized.scale_factor, config.scale_bounds[1])
 
@@ -99,7 +114,12 @@ class FrameworkTests(unittest.TestCase):
             self.assertIn("learned_episode_count", quant)
 
     def test_benchmark_releases_each_trainer_before_building_the_next(self) -> None:
-        config = FrameworkConfig(training_episodes=2, evaluation_episodes=1, stability_probe_count=1, run_name="bench_release_test")
+        config = FrameworkConfig(
+            training_episodes=2,
+            evaluation_episodes=1,
+            stability_probe_count=1,
+            run_name="bench_release_test",
+        )
         suite = BenchmarkSuite(config)
         variants = {
             "baseline": config.clone(run_name="bench_release_baseline"),
@@ -131,7 +151,9 @@ class FrameworkTests(unittest.TestCase):
                 live_trainers -= 1
                 closed.append(self.name)
 
-        def fake_build_trainer(trainer_config: FrameworkConfig, log_path: str | None = None) -> FakeTrainer:
+        def fake_build_trainer(
+            trainer_config: FrameworkConfig, log_path: str | None = None
+        ) -> FakeTrainer:
             del log_path
             return FakeTrainer(trainer_config.run_name)
 
@@ -148,12 +170,22 @@ class FrameworkTests(unittest.TestCase):
         self.assertEqual(evaluation["learned"]["hardware"], "all")
 
     def test_build_trainer_uses_python_backend_by_default(self) -> None:
-        config = FrameworkConfig(training_episodes=2, evaluation_episodes=1, stability_probe_count=1, run_name="factory_test")
+        config = FrameworkConfig(
+            training_episodes=2,
+            evaluation_episodes=1,
+            stability_probe_count=1,
+            run_name="factory_test",
+        )
         trainer = build_trainer(config, log_path=f"{tempfile.gettempdir()}/factory_test.jsonl")
         self.assertIsInstance(trainer, Trainer)
 
     def test_rollout_carries_previous_action_between_episodes(self) -> None:
-        config = FrameworkConfig(training_episodes=2, evaluation_episodes=2, stability_probe_count=1, run_name="rollout_test")
+        config = FrameworkConfig(
+            training_episodes=2,
+            evaluation_episodes=2,
+            stability_probe_count=1,
+            run_name="rollout_test",
+        )
         trainer = build_trainer(config, log_path=f"{tempfile.gettempdir()}/rollout_test.jsonl")
         results = trainer.rollout(2)
 
@@ -199,7 +231,9 @@ class FrameworkTests(unittest.TestCase):
             env.reset()
 
     def test_reproducible_research_preset_matches_documented_toggles(self) -> None:
-        cfg = FrameworkConfig.reproducible_research(seed=777, run_name="preset_test", training_episodes=4)
+        cfg = FrameworkConfig.reproducible_research(
+            seed=777, run_name="preset_test", training_episodes=4
+        )
         self.assertEqual(cfg.seed, 777)
         self.assertEqual(cfg.prompt_split_seed, 777)
         self.assertEqual(cfg.env_sampling_mode, "sequential")
@@ -221,7 +255,12 @@ class FrameworkTests(unittest.TestCase):
             FrameworkConfig(run_name="bad_probe_mode", stability_probe_sampling="coinflip")
 
     def test_reward_perplexity_reference_hinge_penalizes_over_ref(self) -> None:
-        base = FrameworkConfig(stability_probe_count=1, run_name="ppl_ref_env", training_episodes=1, evaluation_episodes=1)
+        base = FrameworkConfig(
+            stability_probe_count=1,
+            run_name="ppl_ref_env",
+            training_episodes=1,
+            evaluation_episodes=1,
+        )
         env = AdaptiveQuantizationEnv(base, log_path=f"{tempfile.gettempdir()}/ppl_ref.jsonl")
         metrics = {
             "latency_ms": 10.0,
@@ -241,10 +280,17 @@ class FrameworkTests(unittest.TestCase):
         self.assertAlmostEqual(r_base - r_guard, 2.5 * (14.0 - 10.0))
 
     def test_token_efficiency_reward_penalizes_slow_routes(self) -> None:
-        base = FrameworkConfig(stability_probe_count=1, run_name="route_eff_reward", training_episodes=1, evaluation_episodes=1)
+        base = FrameworkConfig(
+            stability_probe_count=1,
+            run_name="route_eff_reward",
+            training_episodes=1,
+            evaluation_episodes=1,
+        )
         w = replace(base.reward_weights, eta_token_latency=0.5)
         cfg = base.clone(reward_weights=w)
-        env = AdaptiveQuantizationEnv(cfg, log_path=f"{tempfile.gettempdir()}/route_eff_reward.jsonl")
+        env = AdaptiveQuantizationEnv(
+            cfg, log_path=f"{tempfile.gettempdir()}/route_eff_reward.jsonl"
+        )
         fast_metrics = {
             "latency_ms": 100.0,
             "throughput_tps": 120.0,
@@ -257,11 +303,20 @@ class FrameworkTests(unittest.TestCase):
             "latency_ms_per_token": 5.0,
         }
 
-        self.assertLess(env._compute_reward(slow_metrics, 0.0), env._compute_reward(fast_metrics, 0.0))
+        self.assertLess(
+            env._compute_reward(slow_metrics, 0.0), env._compute_reward(fast_metrics, 0.0)
+        )
 
     def test_backend_reports_per_token_latency_metrics(self) -> None:
-        config = FrameworkConfig(training_episodes=2, evaluation_episodes=1, stability_probe_count=1, run_name="per_tok_metrics")
-        env = AdaptiveQuantizationEnv(config, log_path=f"{tempfile.gettempdir()}/per_tok_metrics.jsonl")
+        config = FrameworkConfig(
+            training_episodes=2,
+            evaluation_episodes=1,
+            stability_probe_count=1,
+            run_name="per_tok_metrics",
+        )
+        env = AdaptiveQuantizationEnv(
+            config, log_path=f"{tempfile.gettempdir()}/per_tok_metrics.jsonl"
+        )
         state = env.reset(forced_hardware=HardwareType.GPU, forced_prompt_id="very_complex")
         decision = QuantizationDecision(mode=QuantMode.LEARNED, precision_level=0.25)
         result = env.evaluate_current(decision)
@@ -274,8 +329,15 @@ class FrameworkTests(unittest.TestCase):
         self.assertGreater(summary["mean_latency_ms_per_token"], 0.0)
 
     def test_single_probe_stability_short_circuits_to_zero(self) -> None:
-        config = FrameworkConfig(training_episodes=2, evaluation_episodes=1, stability_probe_count=1, run_name="stability_short_circuit")
-        env = AdaptiveQuantizationEnv(config, log_path=f"{tempfile.gettempdir()}/stability_short_circuit.jsonl")
+        config = FrameworkConfig(
+            training_episodes=2,
+            evaluation_episodes=1,
+            stability_probe_count=1,
+            run_name="stability_short_circuit",
+        )
+        env = AdaptiveQuantizationEnv(
+            config, log_path=f"{tempfile.gettempdir()}/stability_short_circuit.jsonl"
+        )
         state = env.reset(forced_hardware=HardwareType.GPU, forced_prompt_id="very_complex")
         decision = QuantizationDecision(mode=QuantMode.DISCRETE, base_bit_width=4)
         result = env.evaluate_current(decision)
@@ -305,7 +367,9 @@ class FrameworkTests(unittest.TestCase):
         finalized = finalize_decision(decision, state, config)
         self.assertEqual(len(finalized.moe_variant_indices), 2)
         self.assertEqual(len(finalized.moe_variant_names), 2)
-        self.assertTrue(all(name in config.moe_variant_names for name in finalized.moe_variant_names))
+        self.assertTrue(
+            all(name in config.moe_variant_names for name in finalized.moe_variant_names)
+        )
         self.assertTrue(finalized.metadata["moe_enabled"])
 
     def test_moe_backend_reports_swap_and_cache_penalties(self) -> None:
@@ -318,9 +382,15 @@ class FrameworkTests(unittest.TestCase):
             moe_num_experts=12,
             moe_top_k=2,
         )
-        env = AdaptiveQuantizationEnv(config, log_path=f"{tempfile.gettempdir()}/moe_metrics_test.jsonl")
-        state = env.reset(forced_hardware=HardwareType.LOW_RESOURCE, forced_prompt_id="very_complex")
-        decision = finalize_decision(QuantizationDecision(mode=QuantMode.DISCRETE, base_bit_width=4), state, config)
+        env = AdaptiveQuantizationEnv(
+            config, log_path=f"{tempfile.gettempdir()}/moe_metrics_test.jsonl"
+        )
+        state = env.reset(
+            forced_hardware=HardwareType.LOW_RESOURCE, forced_prompt_id="very_complex"
+        )
+        decision = finalize_decision(
+            QuantizationDecision(mode=QuantMode.DISCRETE, base_bit_width=4), state, config
+        )
         result = env.evaluate_current(decision)
         self.assertGreaterEqual(result.metrics.swap_cost_ms, 0.0)
         self.assertGreaterEqual(result.metrics.cache_miss_count, 0.0)
@@ -332,8 +402,12 @@ class FrameworkTests(unittest.TestCase):
         self.assertEqual(infer_gpu_profile("NVIDIA A100-SXM4-80GB", 80.0), "a100_80gb")
         self.assertEqual(infer_gpu_profile("Generic 12GB GPU", 12.0), "rtx4070")
 
-        config = FrameworkConfig(training_backend="pytorch", torch_gpu_profile="auto", run_name="gpu_profile_test")
-        tuned, metadata = apply_gpu_profile(config, device_name="NVIDIA GeForce RTX 4080", total_memory_gb=16.0)
+        config = FrameworkConfig(
+            training_backend="pytorch", torch_gpu_profile="auto", run_name="gpu_profile_test"
+        )
+        tuned, metadata = apply_gpu_profile(
+            config, device_name="NVIDIA GeForce RTX 4080", total_memory_gb=16.0
+        )
         self.assertEqual(tuned.torch_gpu_profile, "rtx4080")
         self.assertEqual(metadata["selected_gpu_profile"], "rtx4080")
         self.assertGreaterEqual(tuned.torch_batch_episodes, tuned.torch_minibatch_size)
@@ -353,7 +427,9 @@ class FrameworkTests(unittest.TestCase):
         profiles = host_aware_hardware_profiles(detected)
         self.assertGreater(profiles[HardwareType.CPU].memory_budget_mb, 7_500.0)
         self.assertGreater(profiles[HardwareType.GPU].compute_factor, 1.85)
-        self.assertGreater(profiles[HardwareType.GPU].preferred_bits, profiles[HardwareType.CPU].preferred_bits)
+        self.assertGreater(
+            profiles[HardwareType.GPU].preferred_bits, profiles[HardwareType.CPU].preferred_bits
+        )
 
     def test_host_aware_3090_uses_ampere_template_not_fallback(self) -> None:
         detected = DetectedHardware(
@@ -380,7 +456,9 @@ class FrameworkTests(unittest.TestCase):
             seed=11,
         )
         requests = build_request_stream(config, request_count=12)
-        env = AdaptiveQuantizationEnv(config, log_path=f"{tempfile.gettempdir()}/online_request_ids.jsonl")
+        env = AdaptiveQuantizationEnv(
+            config, log_path=f"{tempfile.gettempdir()}/online_request_ids.jsonl"
+        )
 
         seen_ids = set()
         for request in requests:
@@ -409,7 +487,9 @@ class FrameworkTests(unittest.TestCase):
             stability_probe_count=1,
             run_name="eval_zero_override_test",
         )
-        trainer = build_trainer(config, log_path=f"{tempfile.gettempdir()}/eval_zero_override.jsonl")
+        trainer = build_trainer(
+            config, log_path=f"{tempfile.gettempdir()}/eval_zero_override.jsonl"
+        )
         try:
             summary = trainer.evaluate(episodes=0)
         finally:
@@ -521,7 +601,11 @@ class FrameworkTests(unittest.TestCase):
             trainer = build_trainer(config)
             loop = OnlineLearningLoop(config, trainer=trainer)
             requests = [
-                OnlineRequest(prompt_text=f"Summarize deployment risk {index}.", hardware=HardwareType.GPU, prompt_id=f"online_{index}")
+                OnlineRequest(
+                    prompt_text=f"Summarize deployment risk {index}.",
+                    hardware=HardwareType.GPU,
+                    prompt_id=f"online_{index}",
+                )
                 for index in range(6)
             ]
 
@@ -531,7 +615,9 @@ class FrameworkTests(unittest.TestCase):
                 loop.close()
                 trainer.close()
 
-            analysis = analyze_online(config.online_telemetry_path(), f"{config.analysis_dir}/online")
+            analysis = analyze_online(
+                config.online_telemetry_path(), f"{config.analysis_dir}/online"
+            )
             self.assertEqual(summary["requests"], 6)
             self.assertGreater(summary["total_updates"], 0)
             self.assertIn("candidate_accept_rate", analysis)
@@ -560,13 +646,19 @@ class FrameworkTests(unittest.TestCase):
             self.assertIn("evaluation", summary)
             self.assertIn("recommendation", summary)
             self.assertIn("benchmarks", summary)
-            self.assertTrue(summary["artifacts"]["training_history"].endswith("_training_history.json"))
+            self.assertTrue(
+                summary["artifacts"]["training_history"].endswith("_training_history.json")
+            )
             self.assertTrue(summary["artifacts"]["recommendation"].endswith("_recommendation.json"))
             self.assertTrue(summary["artifacts"]["report"].endswith("_report.md"))
 
     def test_research_pipeline_preserves_trainer_build_error(self) -> None:
-        config = FrameworkConfig(training_episodes=1, evaluation_episodes=1, run_name="build_error_test")
-        with mock.patch("adaptive_quant.trainer.build_trainer", side_effect=RuntimeError("build failed")):
+        config = FrameworkConfig(
+            training_episodes=1, evaluation_episodes=1, run_name="build_error_test"
+        )
+        with mock.patch(
+            "adaptive_quant.trainer.build_trainer", side_effect=RuntimeError("build failed")
+        ):
             with self.assertRaisesRegex(RuntimeError, "build failed"):
                 ResearchPipeline(config).run()
 
@@ -601,9 +693,13 @@ class FrameworkTests(unittest.TestCase):
             self.assertIn("online", summary)
             self.assertIn("evaluation", summary)
             self.assertIn("analysis", summary)
-            self.assertTrue(summary["artifacts"]["training_history"].endswith("_training_history.json"))
+            self.assertTrue(
+                summary["artifacts"]["training_history"].endswith("_training_history.json")
+            )
             self.assertTrue(summary["artifacts"]["online_detail"].endswith("_online_summary.json"))
-            self.assertTrue(summary["artifacts"]["online_telemetry"].endswith("_online_telemetry.jsonl"))
+            self.assertTrue(
+                summary["artifacts"]["online_telemetry"].endswith("_online_telemetry.jsonl")
+            )
             self.assertTrue(summary["artifacts"]["online_replay"].endswith("_online_replay.jsonl"))
             self.assertTrue(summary["artifacts"]["report"].endswith("_report.md"))
             self.assertTrue(Path(summary["artifacts"]["report"]).is_file())

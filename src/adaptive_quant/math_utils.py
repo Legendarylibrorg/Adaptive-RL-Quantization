@@ -34,7 +34,7 @@ def variance(values: Sequence[float]) -> float:
 
 
 def dot(left: Sequence[float], right: Sequence[float]) -> float:
-    return sum(lhs * rhs for lhs, rhs in zip(left, right))
+    return sum(lhs * rhs for lhs, rhs in zip(left, right, strict=True))
 
 
 def norm(values: Sequence[float]) -> float:
@@ -105,9 +105,15 @@ def safe_ratio(numer: float, denom: float) -> float | None:
     return numer / denom
 
 
-def ratio_mean(observed: list[float], simulated: list[float], *, clamp: tuple[float, float] = (0.01, 100.0)) -> float:
+def ratio_mean(
+    observed: list[float], simulated: list[float], *, clamp: tuple[float, float] = (0.01, 100.0)
+) -> float:
     lower, upper = clamp
-    ratios = [r for o, s in zip(observed, simulated) if (r := safe_ratio(o, s)) is not None and lower < r < upper]
+    ratios = [
+        r
+        for o, s in zip(observed, simulated, strict=False)
+        if (r := safe_ratio(o, s)) is not None and lower < r < upper
+    ]
     return float(statistics.fmean(ratios)) if ratios else 1.0
 
 
@@ -117,4 +123,3 @@ def sample_std(values: list[float]) -> float:
 
 def fmt_float(x: float, *, digits: int = 2) -> str:
     return "nan" if not math.isfinite(x) else f"{x:.{digits}f}"
-

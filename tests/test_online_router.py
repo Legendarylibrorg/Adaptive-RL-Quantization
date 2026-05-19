@@ -33,7 +33,11 @@ class OnlineRouterTests(unittest.TestCase):
             loop = OnlineLearningLoop(cfg, trainer=trainer)
             try:
                 record = loop.serve_request(
-                    OnlineRequest(prompt_text="Summarize deployment risk.", hardware=HardwareType.GPU, prompt_id="router_0")
+                    OnlineRequest(
+                        prompt_text="Summarize deployment risk.",
+                        hardware=HardwareType.GPU,
+                        prompt_id="router_0",
+                    )
                 )
             finally:
                 loop.close()
@@ -66,7 +70,11 @@ class OnlineRouterTests(unittest.TestCase):
             loop = OnlineLearningLoop(cfg, trainer=trainer)
             try:
                 record = loop.serve_request(
-                    OnlineRequest(prompt_text="Summarize deployment risk.", hardware=HardwareType.GPU, prompt_id="router_1")
+                    OnlineRequest(
+                        prompt_text="Summarize deployment risk.",
+                        hardware=HardwareType.GPU,
+                        prompt_id="router_1",
+                    )
                 )
             finally:
                 loop.close()
@@ -79,4 +87,3 @@ class OnlineRouterTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

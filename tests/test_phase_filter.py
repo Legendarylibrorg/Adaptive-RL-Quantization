@@ -7,6 +7,7 @@ These tests verify that:
   - High-level analyzers (``analyze_hardware``) drop training rows by default, so reports
     no longer mix train and eval reward distributions.
 """
+
 from __future__ import annotations
 
 import tempfile

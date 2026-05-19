@@ -163,7 +163,13 @@ def _write_online_report(
     ]
     eval_rows = [
         [key, _fmt_num(eval_summary.get(key))]
-        for key in ("mean_reward", "mean_latency_ms", "mean_throughput_tps", "mean_memory_mb", "mean_perplexity")
+        for key in (
+            "mean_reward",
+            "mean_latency_ms",
+            "mean_throughput_tps",
+            "mean_memory_mb",
+            "mean_perplexity",
+        )
         if key in eval_summary
     ]
     lines = [
