@@ -23,6 +23,23 @@ env:
   PYTHONIOENCODING: "utf-8"
 
 jobs:
+  pip-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
+
+      - name: Audit hash-pinned bootstrap dependencies
+        run: |
+          python scripts/verify_hashes.py --output "${{ runner.temp }}/requirements-ci.txt"
+          python -m pip install pip-audit
+          python -m pip_audit -r "${{ runner.temp }}/requirements-ci.txt"
+
   test:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30

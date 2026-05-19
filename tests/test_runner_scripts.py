@@ -89,6 +89,11 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertIn("ubuntu-latest", workflow_text)
         self.assertIn('python-version: "3.12"', workflow_text)
 
+    def test_ci_runs_pip_audit_on_bootstrap_requirements(self) -> None:
+        workflow_text = (_REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        self.assertIn("pip-audit:", workflow_text)
+        self.assertIn("pip_audit", workflow_text)
+
     def test_dependabot_covers_root_and_requirements(self) -> None:
         config_text = (_REPO_ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
         self.assertIn("package-ecosystem: pip", config_text)

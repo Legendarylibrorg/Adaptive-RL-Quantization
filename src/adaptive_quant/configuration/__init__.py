@@ -6,6 +6,7 @@ from adaptive_quant.configuration.framework import FrameworkConfig
 from adaptive_quant.configuration.reward import RewardWeights
 from adaptive_quant.configuration.validation import (
     MAX_EPISODE_COUNT,
+    MAX_NUM_LAYERS,
     path_has_parent_reference,
     validate_artifact_dir,
     validate_backend,
@@ -13,6 +14,8 @@ from adaptive_quant.configuration.validation import (
     validate_discrete_bit_widths,
     validate_env_sampling_mode,
     validate_hf_allowed_models,
+    validate_llama_cpp_binary_allowlist,
+    validate_moe_topology,
     validate_optional_filesystem_path,
     validate_optional_hf_revision,
     validate_positive_int,
@@ -21,6 +24,7 @@ from adaptive_quant.configuration.validation import (
     validate_run_name,
     validate_runtime_filesystem_path,
     validate_stability_probe_sampling,
+    validate_structural_limits,
     validate_torch_policy_algorithm,
 )
 
@@ -28,6 +32,7 @@ __all__ = [
     "FrameworkConfig",
     "RewardWeights",
     "MAX_EPISODE_COUNT",
+    "MAX_NUM_LAYERS",
     "path_has_parent_reference",
     "validate_artifact_dir",
     "validate_backend",
@@ -35,6 +40,8 @@ __all__ = [
     "validate_discrete_bit_widths",
     "validate_env_sampling_mode",
     "validate_hf_allowed_models",
+    "validate_llama_cpp_binary_allowlist",
+    "validate_moe_topology",
     "validate_optional_filesystem_path",
     "validate_optional_hf_revision",
     "validate_positive_int",
@@ -43,5 +50,6 @@ __all__ = [
     "validate_run_name",
     "validate_runtime_filesystem_path",
     "validate_stability_probe_sampling",
+    "validate_structural_limits",
     "validate_torch_policy_algorithm",
 ]

@@ -130,5 +130,8 @@ The following are deliberate, repo-level mitigations. They are not a substitute 
 - **Dependency review** runs on pull requests through `.github/workflows/dependency-review.yml` for public clones of this repo (`fail-on-severity: high`).
 - **Runtime path validation** rejects `..` and control characters on llama.cpp binaries/models, route-catalog `local_path`, and `llama_cpp:` router routes (config load and subprocess invocation).
 - **Config episode caps** — `training_episodes`, `evaluation_episodes`, `max_training_episodes`, and related counters loaded from JSON/TOML are bounded by `MAX_EPISODE_COUNT` (1,000,000) to limit accidental or hostile DoS via huge integers.
+- **Structural config caps** — architecture and workload integers (`num_layers`, `torch_hidden_dim`, `llama_cpp_context`, MoE expert counts, etc.) are bounded in `FrameworkConfig` validation so a single hostile config cannot allocate multi-gigabyte policy tensors.
+- **Optional llama.cpp binary allowlist** — when `ADAPTIVE_RL_LLAMA_CPP_BINARY_PREFIXES` is set (``os.pathsep``-separated roots), `require_llama_cpp_paths` refuses binaries that resolve outside those directories.
+- **Bootstrap `pip-audit`** — CI audits hash-pinned packages in `requirements/ci.txt` in addition to PR dependency review.
 
 For VM/Docker layout and OS-preferred paths see [docs/SECURE_RUN.md](docs/SECURE_RUN.md); reporting and dependency notes remain in the **Security** section of [README.md](README.md).

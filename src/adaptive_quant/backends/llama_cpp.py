@@ -10,7 +10,10 @@ from adaptive_quant.backends.protocol import per_token_latency_fields
 from adaptive_quant.backends.quality import ExternalQualityScores, apply_external_quality
 from adaptive_quant.backends.simulator import SimulatorBackend
 from adaptive_quant.configuration import FrameworkConfig
-from adaptive_quant.configuration.validation import validate_runtime_filesystem_path
+from adaptive_quant.configuration.validation import (
+    validate_llama_cpp_binary_allowlist,
+    validate_runtime_filesystem_path,
+)
 from adaptive_quant.types import BackendMetricDict, EpisodeState, QuantizationDecision
 
 _NUMBER_RE = r"-?\d+(?:\.\d+)?"
@@ -170,6 +173,7 @@ def require_llama_cpp_paths(
     validate_runtime_filesystem_path("llama_cpp_model", str(model))
     binary = os.path.realpath(binary)
     model = os.path.realpath(model)
+    validate_llama_cpp_binary_allowlist(binary)
     if not os.path.isfile(binary) or not os.access(binary, os.X_OK):
         raise FileNotFoundError(f"Missing llama.cpp binary: {binary}")
     if not os.path.isfile(model):

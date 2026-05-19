@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import subprocess
 import sys
 import tempfile
@@ -633,6 +634,55 @@ class RuntimePathTraversalTests(unittest.TestCase):
     def test_parse_route_llama_cpp_rejects_parent_reference(self) -> None:
         with self.assertRaises(ValueError):
             parse_route("llama_cpp:../../etc/passwd@q4")
+
+
+class StructuralLimitTests(unittest.TestCase):
+    def test_num_layers_rejects_absurd_values(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            FrameworkConfig(
+                run_name="struct_cap",
+                training_episodes=1,
+                evaluation_episodes=1,
+                stability_probe_count=1,
+                num_layers=10**9,
+            )
+        self.assertIn("num_layers", str(ctx.exception))
+
+    def test_moe_top_k_must_not_exceed_num_experts(self) -> None:
+        with self.assertRaises(ValueError):
+            FrameworkConfig(
+                run_name="moe_cap",
+                training_episodes=1,
+                evaluation_episodes=1,
+                stability_probe_count=1,
+                moe_num_experts=4,
+                moe_top_k=8,
+            )
+
+
+class LlamaBinaryAllowlistTests(unittest.TestCase):
+    def test_allowlist_env_rejects_binary_outside_prefix(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            model_path = Path(temp_dir) / "model.gguf"
+            model_path.write_text("fake", encoding="utf-8")
+            binary_path = Path(temp_dir) / "llama-cli"
+            binary_path.write_text("#!/bin/sh\necho 'tok/s 1.0'\n", encoding="utf-8")
+            binary_path.chmod(0o755)
+            allowed_root = Path(temp_dir) / "allowed"
+            allowed_root.mkdir()
+            config = FrameworkConfig(
+                run_name="llama_allowlist",
+                training_episodes=1,
+                evaluation_episodes=1,
+                stability_probe_count=1,
+                llama_cpp_binary=str(binary_path),
+                llama_cpp_model=str(model_path),
+            )
+            env = {**os.environ, "ADAPTIVE_RL_LLAMA_CPP_BINARY_PREFIXES": str(allowed_root)}
+            with mock.patch.dict(os.environ, env, clear=True):
+                with self.assertRaises(ValueError) as ctx:
+                    require_llama_cpp_paths(config)
+            self.assertIn("ADAPTIVE_RL_LLAMA_CPP_BINARY_PREFIXES", str(ctx.exception))
 
 
 class EpisodeCountCapTests(unittest.TestCase):

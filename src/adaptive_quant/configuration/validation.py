@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -8,6 +9,27 @@ _HF_REVISION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
 
 # Absolute ceiling for episode / buffer counters loaded from JSON/TOML (DoS guard).
 MAX_EPISODE_COUNT = 1_000_000
+
+# Architecture / workload ceilings (generous vs presets; block hostile JSON/TOML blow-ups).
+MAX_NUM_LAYERS = 512
+MAX_NUM_GROUPS = 256
+MAX_MOE_EXPERTS = 4_096
+MAX_MOE_TOP_K = 64
+MAX_TORCH_HIDDEN_DIM = 8_192
+MAX_TORCH_MLP_DEPTH = 32
+MAX_TORCH_BATCH_EPISODES = 65_536
+MAX_TORCH_MINIBATCH_SIZE = 16_384
+MAX_TORCH_UPDATE_EPOCHS = 128
+MAX_TORCH_PREFLIGHT_BATCH_SIZE = 65_536
+MAX_TORCH_PREFLIGHT_STEPS = 10_000
+MAX_LLAMA_CPP_THREADS = 256
+MAX_LLAMA_CPP_CONTEXT = 262_144
+MAX_LLAMA_CPP_MAX_PROMPT_CHARS = 1_048_576
+MAX_LOG_EVERY_N_EPISODES = 100_000
+MAX_ONLINE_BATCH_SIZE = 16_384
+MAX_STABILITY_PROBE_COUNT = 1_024
+
+_LLAMA_CPP_BINARY_PREFIXES_ENV = "ADAPTIVE_RL_LLAMA_CPP_BINARY_PREFIXES"
 
 _BACKENDS = frozenset({"simulator", "llama_cpp"})
 _TORCH_POLICY_ALGORITHMS = frozenset({"ppo", "vpg", "awr"})
@@ -154,6 +176,113 @@ def validate_optional_filesystem_path(field_name: str, path: str | None) -> None
 def validate_runtime_filesystem_path(field_name: str, path: str) -> None:
     """Validate a required on-disk path (llama.cpp binary/model, route GGUF, etc.)."""
     _validate_path_string(field_name, path)
+
+
+def validate_llama_cpp_binary_allowlist(resolved_binary: str) -> None:
+    """When ``ADAPTIVE_RL_LLAMA_CPP_BINARY_PREFIXES`` is set, require the binary under those roots.
+
+    Prefixes are separated by ``os.pathsep`` (``:`` on Unix, ``;`` on Windows). Each entry is
+    resolved with :func:`os.path.realpath` before comparison. When the env var is unset, this is
+    a no-op so local dev workflows stay unchanged.
+    """
+    raw = os.environ.get(_LLAMA_CPP_BINARY_PREFIXES_ENV, "").strip()
+    if not raw:
+        return
+    prefixes: list[str] = []
+    for entry in raw.split(os.pathsep):
+        entry = entry.strip()
+        if not entry:
+            continue
+        try:
+            prefixes.append(os.path.realpath(entry))
+        except OSError as exc:
+            raise ValueError(
+                f"{_LLAMA_CPP_BINARY_PREFIXES_ENV} contains invalid prefix {entry!r}: {exc}"
+            ) from exc
+    if not prefixes:
+        return
+    if not any(
+        resolved_binary == prefix or resolved_binary.startswith(prefix + os.sep) for prefix in prefixes
+    ):
+        raise ValueError(
+            f"llama_cpp_binary resolves to {resolved_binary!r}, which is outside "
+            f"{_LLAMA_CPP_BINARY_PREFIXES_ENV}={raw!r}"
+        )
+
+
+def validate_moe_topology(*, num_experts: int, top_k: int, gpu_resident: int, max_aggressive: int) -> None:
+    validate_bounded_positive_int("moe_num_experts", num_experts, ceiling=MAX_MOE_EXPERTS)
+    validate_bounded_positive_int("moe_top_k", top_k, ceiling=MAX_MOE_TOP_K)
+    if top_k > num_experts:
+        raise ValueError(f"moe_top_k ({top_k}) must be <= moe_num_experts ({num_experts})")
+    validate_bounded_positive_int("moe_gpu_resident_experts", gpu_resident, ceiling=MAX_MOE_EXPERTS)
+    if gpu_resident > num_experts:
+        raise ValueError(
+            f"moe_gpu_resident_experts ({gpu_resident}) must be <= moe_num_experts ({num_experts})"
+        )
+    validate_bounded_positive_int("moe_max_aggressive_experts", max_aggressive, ceiling=MAX_MOE_EXPERTS)
+    if max_aggressive > num_experts:
+        raise ValueError(
+            f"moe_max_aggressive_experts ({max_aggressive}) must be <= moe_num_experts ({num_experts})"
+        )
+
+
+def validate_structural_limits(
+    *,
+    num_groups: int,
+    num_layers: int,
+    eval_interval: int,
+    checkpoint_interval: int,
+    stability_probe_count: int,
+    log_every_n_episodes: int,
+    llama_cpp_threads: int,
+    llama_cpp_context: int,
+    llama_cpp_max_prompt_chars: int,
+    torch_hidden_dim: int,
+    torch_mlp_depth: int,
+    torch_batch_episodes: int,
+    torch_minibatch_size: int,
+    torch_update_epochs: int,
+    torch_preflight_batch_size: int,
+    torch_preflight_warmup_steps: int,
+    torch_preflight_steps: int,
+    online_min_replay_size: int,
+    online_update_interval: int,
+    online_batch_size: int,
+    online_drift_window: int,
+    online_safe_mode_cooldown: int,
+) -> None:
+    """Reject pathological architecture / workload integers from untrusted config files."""
+    validate_bounded_positive_int("num_groups", num_groups, ceiling=MAX_NUM_GROUPS)
+    validate_bounded_positive_int("num_layers", num_layers, ceiling=MAX_NUM_LAYERS)
+    validate_bounded_nonneg_int("eval_interval", eval_interval, ceiling=MAX_EPISODE_COUNT)
+    validate_bounded_nonneg_int("checkpoint_interval", checkpoint_interval, ceiling=MAX_EPISODE_COUNT)
+    validate_bounded_positive_int(
+        "stability_probe_count", stability_probe_count, ceiling=MAX_STABILITY_PROBE_COUNT
+    )
+    validate_bounded_positive_int("log_every_n_episodes", log_every_n_episodes, ceiling=MAX_LOG_EVERY_N_EPISODES)
+    validate_bounded_positive_int("llama_cpp_threads", llama_cpp_threads, ceiling=MAX_LLAMA_CPP_THREADS)
+    validate_bounded_positive_int("llama_cpp_context", llama_cpp_context, ceiling=MAX_LLAMA_CPP_CONTEXT)
+    validate_bounded_positive_int(
+        "llama_cpp_max_prompt_chars", llama_cpp_max_prompt_chars, ceiling=MAX_LLAMA_CPP_MAX_PROMPT_CHARS
+    )
+    validate_bounded_positive_int("torch_hidden_dim", torch_hidden_dim, ceiling=MAX_TORCH_HIDDEN_DIM)
+    validate_bounded_positive_int("torch_mlp_depth", torch_mlp_depth, ceiling=MAX_TORCH_MLP_DEPTH)
+    validate_bounded_positive_int("torch_batch_episodes", torch_batch_episodes, ceiling=MAX_TORCH_BATCH_EPISODES)
+    validate_bounded_positive_int("torch_minibatch_size", torch_minibatch_size, ceiling=MAX_TORCH_MINIBATCH_SIZE)
+    validate_bounded_positive_int("torch_update_epochs", torch_update_epochs, ceiling=MAX_TORCH_UPDATE_EPOCHS)
+    validate_bounded_positive_int(
+        "torch_preflight_batch_size", torch_preflight_batch_size, ceiling=MAX_TORCH_PREFLIGHT_BATCH_SIZE
+    )
+    validate_bounded_positive_int(
+        "torch_preflight_warmup_steps", torch_preflight_warmup_steps, ceiling=MAX_TORCH_PREFLIGHT_STEPS
+    )
+    validate_bounded_positive_int("torch_preflight_steps", torch_preflight_steps, ceiling=MAX_TORCH_PREFLIGHT_STEPS)
+    validate_bounded_positive_int("online_min_replay_size", online_min_replay_size, ceiling=MAX_EPISODE_COUNT)
+    validate_bounded_positive_int("online_update_interval", online_update_interval, ceiling=MAX_EPISODE_COUNT)
+    validate_bounded_positive_int("online_batch_size", online_batch_size, ceiling=MAX_ONLINE_BATCH_SIZE)
+    validate_bounded_positive_int("online_drift_window", online_drift_window, ceiling=MAX_EPISODE_COUNT)
+    validate_bounded_positive_int("online_safe_mode_cooldown", online_safe_mode_cooldown, ceiling=MAX_EPISODE_COUNT)
 
 
 def validate_router_routes(routes: tuple[str, ...]) -> None:
