@@ -1,0 +1,2 @@
+{"phase": "eval", "hardware_mode": "gpu", "metrics": {"reward": 1.5, "latency_ms": 12.0, "throughput_tps": 90.0, "perplexity": 8.2}, "decision": {"effective_layer_bits": [4.0, 4.0, 4.0]}, "input_features": {"complexity_score": 0.25}}
+{"phase": "eval", "hardware_mode": "cpu", "metrics": {"reward": 0.8, "latency_ms": 40.0, "throughput_tps": 30.0, "perplexity": 9.1}, "decision": {"effective_layer_bits": [2.0, 2.0, 2.0]}, "input_features": {"complexity_score": 0.75}}

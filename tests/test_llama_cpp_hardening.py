@@ -283,6 +283,30 @@ class LlamaCppHardeningTests(unittest.TestCase):
             self.assertEqual(metrics["perplexity"], 7.25)
             self.assertEqual(metrics["perplexity_source"], "external:perplexity")
 
+    def test_require_llama_cpp_paths_rejects_route_id_masquerading_as_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            binary_path = Path(temp_dir) / "llama-cli"
+            model_path = Path(temp_dir) / "model.gguf"
+            binary_path.write_text("#!/bin/sh\necho ok\n", encoding="utf-8")
+            model_path.write_text("x", encoding="utf-8")
+            os.chmod(binary_path, 0o755)
+            config = FrameworkConfig(
+                backend="llama_cpp",
+                llama_cpp_binary=str(binary_path),
+                llama_cpp_model=str(model_path),
+                training_episodes=1,
+                evaluation_episodes=1,
+                stability_probe_count=1,
+                run_name="route_id_reject",
+            )
+            with self.assertRaises(ValueError):
+                from adaptive_quant.backends.llama_cpp import require_llama_cpp_paths
+
+                require_llama_cpp_paths(
+                    config,
+                    model_override="hf:openai-community/gpt2",
+                )
+
     def test_llama_cpp_backend_raises_on_non_zero_exit(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -330,6 +354,40 @@ class LlamaCppHardeningTests(unittest.TestCase):
 
             self.assertIn("exit code 1", str(ctx.exception))
             self.assertIn("fatal backend failure", str(ctx.exception))
+
+
+@unittest.skipUnless(
+    os.environ.get("ADAPTIVE_RL_RUN_LLAMA_CPP", "").strip() == "1",
+    "Set ADAPTIVE_RL_RUN_LLAMA_CPP=1 with llama_cpp_binary and llama_cpp_model configured",
+)
+class LlamaCppIntegrationTests(unittest.TestCase):
+    def test_real_llama_cpp_binary_runs_measurement(self) -> None:
+        binary = os.environ.get("ADAPTIVE_RL_LLAMA_CPP_BINARY", "").strip()
+        model = os.environ.get("ADAPTIVE_RL_LLAMA_CPP_MODEL", "").strip()
+        if not binary or not model:
+            self.skipTest("ADAPTIVE_RL_LLAMA_CPP_BINARY and ADAPTIVE_RL_LLAMA_CPP_MODEL required")
+        config = FrameworkConfig(
+            backend="llama_cpp",
+            llama_cpp_binary=binary,
+            llama_cpp_model=model,
+            training_episodes=1,
+            evaluation_episodes=1,
+            stability_probe_count=1,
+            run_name="llama_cpp_integration",
+            llama_cpp_timeout_s=120.0,
+        )
+        from adaptive_quant.backends.llama_cpp import run_llama_cpp_measurement
+
+        parsed = run_llama_cpp_measurement(
+            config,
+            llama_cpp_binary=binary,
+            llama_cpp_model=model,
+            prompt_text="hello",
+            ngl=0,
+        )
+        self.assertTrue(
+            parsed.get("throughput_tps", 0.0) > 0.0 or parsed.get("latency_ms_per_token", 0.0) > 0.0
+        )
 
 
 if __name__ == "__main__":

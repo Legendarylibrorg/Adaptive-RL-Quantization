@@ -1,0 +1,12 @@
+{
+  "preset": "pytorch",
+  "run_name": "pytorch_smoke",
+  "seed": 7,
+  "training_episodes": 8,
+  "evaluation_episodes": 4,
+  "benchmark_training_episodes": 4,
+  "benchmark_evaluation_episodes": 2,
+  "stability_probe_count": 1,
+  "torch_preflight": false,
+  "write_research_report": false
+}

@@ -94,3 +94,31 @@ jobs:
 
       - name: Short E2E RL smoke (simulator)
         run: python run_research.py --config config.e2e_smoke.json
+
+      - name: Coverage report (adaptive_quant)
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        run: |
+          python -m coverage run --rcfile pyproject.toml -m unittest discover -s tests -q
+          python -m coverage report --rcfile pyproject.toml
+
+  pytorch-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install package and PyTorch (CPU)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install -e ".[torch,dev]"
+
+      - name: PyTorch training smoke (CPU)
+        run: python run_pytorch.py --config config.pytorch_smoke.json

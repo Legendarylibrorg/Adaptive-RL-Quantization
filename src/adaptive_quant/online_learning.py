@@ -118,7 +118,9 @@ class OnlineLearningLoop:
             bits = route.quant_bits or int(self.config.safe_default_bits)
             metadata = {"head": "router", "route": route.key, "route_backend": route.backend}
             if route.backend == "llama_cpp":
-                metadata["llama_cpp_model_path"] = route.model_id
+                path = route.llama_cpp_model_path()
+                if path is not None:
+                    metadata["llama_cpp_model_path"] = path
             elif route.backend == "hf":
                 metadata["hf_model"] = route.model_id
             candidate_decision = QuantizationDecision(

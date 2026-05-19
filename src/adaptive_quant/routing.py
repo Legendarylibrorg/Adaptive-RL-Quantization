@@ -53,6 +53,12 @@ class RouteCandidate:
             return prefix
         return f"{prefix}@q{self.quant_bits}"
 
+    def llama_cpp_model_path(self) -> str | None:
+        """Filesystem GGUF path for ``llama_cpp`` routes (validated at parse time)."""
+        if self.backend != "llama_cpp":
+            return None
+        return self.model_id
+
 
 def parse_route(route: str) -> RouteCandidate:
     """Parse ``<model>@q<bits>`` into a ``RouteCandidate`` (or treat as bare model id)."""
