@@ -206,9 +206,7 @@ def train_route_bandit(
         raise ValueError("catalog is empty; register at least one route before training")
     if config.route_hf_allowed_repos:
         for route in catalog.routes:
-            assert_hf_repo_allowed(
-                route.repo_id, config_allowlist=config.route_hf_allowed_repos
-            )
+            assert_hf_repo_allowed(route.repo_id, config_allowlist=config.route_hf_allowed_repos)
 
     library = PromptLibrary()
     known_domains = tuple(sorted({prompt.domain for prompt in library.prompts}))

@@ -131,7 +131,9 @@ class ModelRoute:
         assert_hf_repo_allowed(self.repo_id)
         if self.filename is not None:
             validate_hf_filename("filename", self.filename)
-            if self.family.strip().lower() == "gguf" and not self.filename.lower().endswith(".gguf"):
+            if self.family.strip().lower() == "gguf" and not self.filename.lower().endswith(
+                ".gguf"
+            ):
                 raise ValueError(
                     f"GGUF route filename must end with '.gguf', got {self.filename!r}"
                 )
