@@ -50,7 +50,7 @@ For a tighter loop on your machine:
 2. **`make help`** on Linux/macOS — see [Makefile](Makefile): quality (`lint`, `format`, `check` = Ruff + `pre_commit_check.py`); experiments (`run`, `reproduce` / `smoke`, `multiseed`, `pytorch`, …). On Windows, use the Python scripts under `scripts/`.
 3. [.vscode/extensions.json](.vscode/extensions.json) recommends the Python and Ruff extensions; [.editorconfig](.editorconfig) keeps basic spacing consistent.
 
-CI does **not** install `[dev]`; Ruff is an **optional** local bar above the required `pre_commit_check.py`.
+CI installs hash-pinned dev tools from [`requirements/dev.txt`](requirements/dev.txt) (see [`requirements/README.md`](requirements/README.md)); locally, `pip install -e ".[dev]"` is still fine for Ruff and mypy.
 
 ---
 
