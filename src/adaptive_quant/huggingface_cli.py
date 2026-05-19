@@ -25,13 +25,12 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-# Conservative regex that accepts well-formed Hugging Face Hub identifiers and filenames.
-# Repos may contain a single forward slash (org/name); files allow nested directories with
-# letters/digits/dot/dash/underscore/slash. We reject anything else to guarantee that argv
-# entries cannot smuggle option flags or shell metacharacters even if accidentally splatted.
-_REPO_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}/[A-Za-z0-9][A-Za-z0-9._-]{0,95}$")
-_FILENAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$")
-_REVISION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
+from adaptive_quant.configuration.validation import (
+    assert_hf_repo_allowed,
+    validate_hf_filename,
+    validate_hf_model_id,
+    validate_hf_revision,
+)
 
 _HF_CLI_NEW = "hf"
 _HF_CLI_LEGACY = "huggingface-cli"
@@ -145,20 +144,22 @@ def build_download_command(
     revision: str | None = None,
     local_dir: str | os.PathLike[str] | None = None,
     include_patterns: list[str] | None = None,
+    allowed_repos: tuple[str, ...] = (),
 ) -> list[str]:
     """Return a validated argv list for downloading from a Hugging Face repo.
 
     The function does **not** spawn subprocesses; it only builds a vetted argv. Pass the
     return value to ``run_download`` (or ``subprocess.run`` directly) to execute.
     """
-    _validate_repo_id(repo_id)
+    validate_hf_model_id("repo_id", repo_id, require_hub_namespace=True)
+    assert_hf_repo_allowed(repo_id, config_allowlist=allowed_repos)
     if filename is not None:
-        _validate_filename(filename)
+        validate_hf_filename("filename", filename)
     if revision is not None:
-        _validate_revision(revision)
+        validate_hf_revision("revision", revision)
     if include_patterns:
         for pattern in include_patterns:
-            _validate_filename(pattern)
+            validate_hf_filename("include_pattern", pattern)
 
     argv: list[str] = [cli.binary, "download", repo_id]
     if filename is not None:
@@ -181,6 +182,7 @@ def run_download(
     revision: str | None = None,
     local_dir: str | os.PathLike[str] | None = None,
     include_patterns: list[str] | None = None,
+    allowed_repos: tuple[str, ...] = (),
     timeout_s: float = 600.0,
     env: dict[str, str] | None = None,
 ) -> DownloadResult:
@@ -197,6 +199,7 @@ def run_download(
         revision=revision,
         local_dir=local_dir,
         include_patterns=include_patterns,
+        allowed_repos=allowed_repos,
     )
     try:
         completed = subprocess.run(
@@ -242,40 +245,6 @@ def parse_local_path(text: str) -> Path | None:
                 continue
             return resolved
     return None
-
-
-def _validate_repo_id(repo_id: str) -> None:
-    if not isinstance(repo_id, str) or not _REPO_RE.match(repo_id):
-        raise ValueError(
-            f"Invalid Hugging Face repo_id {repo_id!r}: expected '<org>/<name>' with "
-            "alphanumeric, '.', '_', or '-' only."
-        )
-
-
-def _validate_filename(filename: str) -> None:
-    if not isinstance(filename, str) or not _FILENAME_RE.match(filename):
-        raise ValueError(
-            f"Invalid Hugging Face filename {filename!r}: expected alphanumeric, '.', '_', '-', or '/'."
-        )
-    if filename.startswith("-"):
-        raise ValueError(
-            f"Filename must not start with '-' (would be parsed as a flag): {filename!r}"
-        )
-    if ".." in Path(filename).parts:
-        raise ValueError(f"Filename must not contain '..': {filename!r}")
-
-
-def _validate_revision(revision: str) -> None:
-    if not isinstance(revision, str) or not _REVISION_RE.match(revision):
-        raise ValueError(
-            f"Invalid revision {revision!r}: expected alphanumeric, '.', '_', '-', or '/'."
-        )
-    if revision.startswith("-"):
-        raise ValueError(
-            f"Revision must not start with '-' (would be parsed as a flag): {revision!r}"
-        )
-    if ".." in Path(revision).parts:
-        raise ValueError(f"Revision must not contain '..': {revision!r}")
 
 
 def _validate_local_dir(local_dir: str | os.PathLike[str]) -> Path:

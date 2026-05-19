@@ -26,6 +26,7 @@ from typing import Any
 
 from adaptive_quant.backend import build_backend
 from adaptive_quant.configuration import FrameworkConfig
+from adaptive_quant.configuration.validation import assert_hf_repo_allowed
 from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.logging_utils import JsonlLogger, read_json, write_json
 from adaptive_quant.math_utils import mean
@@ -203,6 +204,11 @@ def train_route_bandit(
         raise ValueError("iterations must be > 0")
     if not catalog.routes:
         raise ValueError("catalog is empty; register at least one route before training")
+    if config.route_hf_allowed_repos:
+        for route in catalog.routes:
+            assert_hf_repo_allowed(
+                route.repo_id, config_allowlist=config.route_hf_allowed_repos
+            )
 
     library = PromptLibrary()
     known_domains = tuple(sorted({prompt.domain for prompt in library.prompts}))

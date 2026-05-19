@@ -26,6 +26,7 @@ from pathlib import Path
 
 from adaptive_quant.cli.common import add_config_file_argument, load_config_or_fallback
 from adaptive_quant.configuration import FrameworkConfig
+from adaptive_quant.configuration.validation import hf_allowed_repos_from_env
 from adaptive_quant.huggingface_cli import (
     build_download_command,
     find_huggingface_cli,
@@ -337,6 +338,7 @@ def _cmd_download(catalog_path: Path, args: argparse.Namespace) -> None:
     local_dir = Path(args.local_dir) if args.local_dir else Path("outputs/models") / route.route_id
     local_dir.parent.mkdir(parents=True, exist_ok=True)
 
+    allowed_repos = tuple(hf_allowed_repos_from_env())
     if args.dry_run:
         argv = build_download_command(
             cli,
@@ -344,6 +346,7 @@ def _cmd_download(catalog_path: Path, args: argparse.Namespace) -> None:
             filename=route.filename,
             revision=route.revision,
             local_dir=local_dir,
+            allowed_repos=allowed_repos,
         )
         print("DRY RUN — would execute:")
         print("  " + " ".join(json.dumps(part) for part in argv))
@@ -357,6 +360,7 @@ def _cmd_download(catalog_path: Path, args: argparse.Namespace) -> None:
         filename=route.filename,
         revision=route.revision,
         local_dir=local_dir,
+        allowed_repos=allowed_repos,
         timeout_s=float(args.timeout),
     )
     if result.timed_out:

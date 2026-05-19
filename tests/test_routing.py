@@ -40,7 +40,7 @@ class RoutingTests(unittest.TestCase):
             run_name="routing_reward_test",
             stability_probe_count=1,
             router_enabled=True,
-            router_routes=("hf:a@q4", "hf:b@q8"),
+            router_routes=("hf:org/a@q4", "hf:org/b@q8"),
         )
         router = EfficientTaskRouter(cfg)
         ok = router.reward_from_metrics(memory_mb=800.0, perplexity=10.2, baseline_perplexity=10.0)
@@ -52,7 +52,7 @@ class RoutingTests(unittest.TestCase):
             run_name="routing_learn_test",
             stability_probe_count=1,
             router_enabled=True,
-            router_routes=("hf:low@q4", "hf:high@q8"),
+            router_routes=("hf:example/low@q4", "hf:example/high@q8"),
             router_exploration=0.0,
         )
         router = EfficientTaskRouter(cfg)
@@ -62,7 +62,7 @@ class RoutingTests(unittest.TestCase):
         # Train: route 0 is good (low memory, ok ppl); route 1 is worse (high memory).
         for _ in range(600):
             route, trace = router.route(task_text=task, deterministic=False)
-            if "low" in route.key:
+            if "low" in route.model_id:
                 reward = router.reward_from_metrics(
                     memory_mb=300.0, perplexity=10.1, baseline_perplexity=baseline
                 )
@@ -74,7 +74,7 @@ class RoutingTests(unittest.TestCase):
 
         # Evaluate: greedy should pick low-memory.
         chosen, _trace = router.route(task_text=task, deterministic=True)
-        self.assertIn("low", chosen.key)
+        self.assertIn("low", chosen.model_id)
 
 
 if __name__ == "__main__":

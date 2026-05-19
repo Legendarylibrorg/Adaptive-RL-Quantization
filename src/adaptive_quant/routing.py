@@ -19,7 +19,10 @@ from dataclasses import dataclass
 from typing import Any
 
 from adaptive_quant.configuration import FrameworkConfig
-from adaptive_quant.configuration.validation import validate_runtime_filesystem_path
+from adaptive_quant.configuration.validation import (
+    validate_hf_model_id,
+    validate_runtime_filesystem_path,
+)
 from adaptive_quant.math_utils import argmax, dot, sample_categorical, softmax
 
 
@@ -73,6 +76,8 @@ def parse_route(route: str) -> RouteCandidate:
         candidate = RouteCandidate(backend=backend, model_id=model_part, quant_bits=None)
         if backend == "llama_cpp":
             validate_runtime_filesystem_path("llama_cpp_route_model", model_part)
+        elif backend == "hf":
+            validate_hf_model_id("router_route_model_id", model_part, require_hub_namespace=True)
         return candidate
     model_id, suffix = model_part.rsplit("@q", 1)
     model_id = model_id.strip()
@@ -88,6 +93,8 @@ def parse_route(route: str) -> RouteCandidate:
     candidate = RouteCandidate(backend=backend, model_id=model_id, quant_bits=bits)
     if backend == "llama_cpp":
         validate_runtime_filesystem_path("llama_cpp_route_model", model_id)
+    elif backend == "hf":
+        validate_hf_model_id("router_route_model_id", model_id, require_hub_namespace=True)
     return candidate
 
 
@@ -251,12 +258,6 @@ class EfficientTaskRouter:
             raise ValueError(
                 "router_hf_embedding_model must be set for router_feature_backend='hf'."
             )
-        allowed_models = set(self.config.router_hf_allowed_models)
-        if allowed_models and model_id not in allowed_models:
-            raise ValueError(
-                f"router_hf_embedding_model {model_id!r} is not in router_hf_allowed_models."
-            )
-
         device = "cuda" if torch.cuda.is_available() else "cpu"
         tokenizer_kw, model_kw = _router_hf_pretrained_kwargs(self.config)
         tokenizer = AutoTokenizer.from_pretrained(model_id, **tokenizer_kw)

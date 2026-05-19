@@ -24,7 +24,7 @@ class OnlineRouterTests(unittest.TestCase):
                 stability_probe_count=1,
                 backend="simulator",
                 router_enabled=True,
-                router_routes=("hf:distilgpt2@q8",),
+                router_routes=("hf:openai-community/gpt2@q8",),
                 online_learning=False,
                 training_episodes=2,
                 evaluation_episodes=1,

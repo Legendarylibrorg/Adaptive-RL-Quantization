@@ -89,10 +89,11 @@ Adaptive behavior:
 - `learned_quant`
 - `moe_enabled`
 - `router_feature_backend`: `"hash"` (stdlib default) or `"hf"` (optional Transformers/PyTorch embeddings).
-- `router_hf_embedding_model`: model id for the HF embedding backend.
-- `router_hf_embedding_revision`: optional pinned model revision for HF loads.
-- `router_hf_local_files_only`: require a pre-warmed local HF cache instead of network access.
-- `router_hf_allowed_models`: optional tuple allowlist; when set, the configured embedding model must be listed.
+- `router_hf_embedding_model`: model id for the HF embedding backend (`org/name` format).
+- `router_hf_embedding_revision`: **required** when `router_feature_backend="hf"` — pin a commit hash or tag (never load floating `main` in production).
+- `router_hf_local_files_only`: require a pre-warmed local HF cache instead of network access (recommended after vetting a snapshot).
+- `router_hf_allowed_models`: **required** non-empty allowlist when using the HF backend; must include `router_hf_embedding_model`.
+- `route_hf_allowed_repos`: optional allowlist of Hub `org/name` repos for route-catalog training/downloads (also settable via `ADAPTIVE_RL_HF_ALLOWED_REPOS`, comma-separated).
 - `quant_mode`
 - `prompt_split_enabled`: if true, sample different prompt subsets for training vs evaluation
 - `prompt_split_seed`: RNG seed for the prompt split

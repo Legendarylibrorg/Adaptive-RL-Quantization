@@ -6,6 +6,12 @@ from pathlib import Path
 
 _RUN_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 _HF_REVISION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
+# Hub repo ids: ``org/name`` (preferred) or a single legacy segment (e.g. ``gpt2``).
+_HF_REPO_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}/[A-Za-z0-9][A-Za-z0-9._-]{0,95}$")
+_HF_LEGACY_MODEL_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$")
+_HF_FILENAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$")
+
+_HF_ALLOWED_REPOS_ENV = "ADAPTIVE_RL_HF_ALLOWED_REPOS"
 
 # Absolute ceiling for episode / buffer counters loaded from JSON/TOML (DoS guard).
 MAX_EPISODE_COUNT = 1_000_000
@@ -348,6 +354,129 @@ def validate_router_routes(routes: tuple[str, ...]) -> None:
             raise ValueError(f"router_routes[{index}] is invalid ({route!r}): {exc}") from exc
 
 
+def validate_hf_model_id(
+    field_name: str,
+    model_id: str,
+    *,
+    require_hub_namespace: bool = False,
+) -> None:
+    """Validate a Hugging Face Hub model or repo identifier (no shell metacharacters)."""
+    if not isinstance(model_id, str) or not model_id.strip():
+        raise ValueError(f"{field_name} must be a non-empty string")
+    normalized = model_id.strip()
+    if "\x00" in normalized or "\n" in normalized or "\r" in normalized:
+        raise ValueError(f"{field_name} contains invalid control characters")
+    if path_has_parent_reference(normalized):
+        raise ValueError(f"{field_name} must not contain '..' ({normalized!r})")
+    if normalized.startswith("-"):
+        raise ValueError(f"{field_name} must not start with '-' ({normalized!r})")
+    if "/" in normalized:
+        if not _HF_REPO_ID_RE.match(normalized):
+            raise ValueError(
+                f"{field_name} {normalized!r} is invalid: expected '<org>/<name>' with "
+                "alphanumeric, '.', '_', or '-' only."
+            )
+        return
+    if require_hub_namespace:
+        raise ValueError(
+            f"{field_name} {normalized!r} must use '<org>/<name>' format for Hugging Face Hub."
+        )
+    if not _HF_LEGACY_MODEL_ID_RE.match(normalized):
+        raise ValueError(
+            f"{field_name} {normalized!r} is invalid: expected alphanumeric, '.', '_', or '-' only."
+        )
+
+
+def validate_hf_filename(field_name: str, filename: str) -> None:
+    if not isinstance(filename, str) or not _HF_FILENAME_RE.match(filename):
+        raise ValueError(
+            f"{field_name} {filename!r} is invalid: expected alphanumeric, '.', '_', '-', or '/'."
+        )
+    if filename.startswith("-"):
+        raise ValueError(f"{field_name} must not start with '-' ({filename!r})")
+    if ".." in Path(filename).parts:
+        raise ValueError(f"{field_name} must not contain '..' ({filename!r})")
+
+
+def validate_hf_revision(field_name: str, revision: str) -> None:
+    validate_optional_hf_revision(field_name, revision)
+
+
+def hf_allowed_repos_from_env() -> frozenset[str]:
+    raw = os.environ.get(_HF_ALLOWED_REPOS_ENV, "").strip()
+    if not raw:
+        return frozenset()
+    repos: set[str] = set()
+    for entry in raw.split(","):
+        entry = entry.strip()
+        if not entry:
+            continue
+        validate_hf_model_id(_HF_ALLOWED_REPOS_ENV, entry, require_hub_namespace=True)
+        repos.add(entry)
+    return frozenset(repos)
+
+
+def assert_hf_repo_allowed(
+    repo_id: str,
+    *,
+    field_name: str = "repo_id",
+    config_allowlist: tuple[str, ...] = (),
+) -> None:
+    """When an allowlist is configured, require ``repo_id`` to be listed exactly."""
+    env_repos = hf_allowed_repos_from_env()
+    combined = env_repos | frozenset(config_allowlist)
+    if not combined:
+        return
+    normalized = repo_id.strip()
+    if normalized not in combined:
+        raise ValueError(
+            f"{field_name} {normalized!r} is not in the Hugging Face repo allowlist "
+            f"({sorted(combined)!r}). Set router_hf_allowed_models / route_hf_allowed_repos "
+            f"in config or {_HF_ALLOWED_REPOS_ENV} (comma-separated org/name ids)."
+        )
+
+
+def validate_router_hf_settings(
+    *,
+    router_feature_backend: str,
+    router_hf_embedding_model: str | None,
+    router_hf_embedding_revision: str | None,
+    router_hf_allowed_models: tuple[str, ...],
+) -> None:
+    """Harden HF embedding router: allowlist + pinned revision + vetted model id format."""
+    backend = router_feature_backend.strip().lower()
+    if backend != "hf":
+        return
+    if not router_hf_embedding_model or not str(router_hf_embedding_model).strip():
+        raise ValueError(
+            "router_feature_backend='hf' requires router_hf_embedding_model to be set."
+        )
+    if not router_hf_embedding_revision or not str(router_hf_embedding_revision).strip():
+        raise ValueError(
+            "router_feature_backend='hf' requires router_hf_embedding_revision "
+            "(pin a commit hash or tag; do not leave revision unset)."
+        )
+    if not router_hf_allowed_models:
+        raise ValueError(
+            "router_feature_backend='hf' requires a non-empty router_hf_allowed_models "
+            "allowlist; list every embedding model id you permit."
+        )
+    model_id = str(router_hf_embedding_model).strip()
+    validate_hf_model_id("router_hf_embedding_model", model_id, require_hub_namespace=True)
+    allowed = {entry.strip() for entry in router_hf_allowed_models}
+    if model_id not in allowed:
+        raise ValueError(
+            f"router_hf_embedding_model {model_id!r} is not in router_hf_allowed_models."
+        )
+
+
+def validate_route_hf_allowed_repos(repos: tuple[str, ...]) -> None:
+    if not isinstance(repos, tuple):
+        raise TypeError("route_hf_allowed_repos must be a tuple of strings")
+    for repo in repos:
+        validate_hf_model_id("route_hf_allowed_repos", repo, require_hub_namespace=True)
+
+
 def validate_optional_hf_revision(field_name: str, revision: str | None) -> None:
     if revision is None:
         return
@@ -369,5 +498,4 @@ def validate_hf_allowed_models(models: tuple[str, ...]) -> None:
     for model in models:
         if not isinstance(model, str) or not model.strip():
             raise ValueError("router_hf_allowed_models entries must be non-empty strings")
-        if "\x00" in model or "\n" in model or "\r" in model or path_has_parent_reference(model):
-            raise ValueError(f"Invalid router_hf_allowed_models entry: {model!r}")
+        validate_hf_model_id("router_hf_allowed_models", model.strip(), require_hub_namespace=True)

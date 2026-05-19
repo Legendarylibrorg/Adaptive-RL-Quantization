@@ -147,6 +147,7 @@ class FrameworkConfig:
     router_hf_embedding_revision: str | None = None
     router_hf_local_files_only: bool = False
     router_hf_allowed_models: tuple[str, ...] = ()
+    route_hf_allowed_repos: tuple[str, ...] = ()
     router_learning_rate: float = 0.050
     router_value_learning_rate: float = 0.025
     router_exploration: float = 0.10
@@ -179,6 +180,13 @@ class FrameworkConfig:
             "router_hf_embedding_revision", self.router_hf_embedding_revision
         )
         v.validate_hf_allowed_models(self.router_hf_allowed_models)
+        v.validate_route_hf_allowed_repos(self.route_hf_allowed_repos)
+        v.validate_router_hf_settings(
+            router_feature_backend=self.router_feature_backend,
+            router_hf_embedding_model=self.router_hf_embedding_model,
+            router_hf_embedding_revision=self.router_hf_embedding_revision,
+            router_hf_allowed_models=self.router_hf_allowed_models,
+        )
         v.validate_bounded_positive_int(
             "recommendation_eval_episodes",
             self.recommendation_eval_episodes,
