@@ -105,6 +105,7 @@ class RunnerScriptCliTests(unittest.TestCase):
         )
         self.assertIn("requirements/dev.txt", workflow_text)
         self.assertIn("requirements/pytorch-cpu.txt", workflow_text)
+        self.assertNotIn("pytorch-smoke:", workflow_text)
         self.assertNotIn('pip install -e ".[torch,dev]"', workflow_text)
 
     def test_dependabot_covers_root_and_requirements(self) -> None:

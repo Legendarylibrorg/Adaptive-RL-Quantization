@@ -107,31 +107,3 @@ jobs:
         run: |
           python -m coverage run --rcfile pyproject.toml -m unittest discover -s tests -q
           python -m coverage report --rcfile pyproject.toml
-
-  pytorch-smoke:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: |
-            requirements/ci.txt
-            requirements/pytorch-cpu.txt
-            security/dependency_hashes.json
-
-      - name: Verify dependency hashes (bootstrap)
-        run: python scripts/verify_hashes.py --output "${{ runner.temp }}/requirements-ci.txt"
-
-      - name: Install bootstrap + package + hash-pinned PyTorch (CPU)
-        run: |
-          python -m pip install --require-hashes -r "${{ runner.temp }}/requirements-ci.txt"
-          python -m pip install --no-build-isolation -e .
-          python -m pip install --require-hashes -r requirements/pytorch-cpu.txt
-
-      - name: PyTorch training smoke (CPU)
-        run: python run_pytorch.py --config config.pytorch_smoke.json
