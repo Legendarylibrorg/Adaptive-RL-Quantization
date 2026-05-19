@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import compileall
+import importlib.util
 import os
 import py_compile
 import subprocess
@@ -15,6 +16,13 @@ from verify_hashes import render_hashed_requirements
 # Bound the dev-tool git invocations so a hung/slow filesystem (e.g. NFS,
 # WSL2 over a Windows mount) cannot wedge the quality gate indefinitely.
 _GIT_TIMEOUT_S = 30.0
+
+
+def _require_dev_module(module: str) -> None:
+    if importlib.util.find_spec(module) is None:
+        raise SystemExit(
+            f'{module} is required for the quality gate; install with: pip install -e ".[dev]"'
+        )
 
 
 def _has_staged_changes(root: Path) -> bool:
@@ -139,20 +147,12 @@ def main(argv: list[str] | None = None) -> int:
     _python_compile(root)
 
     if not args.skip_ruff:
-        try:
-            _ruff_check(root, python_bin)
-        except FileNotFoundError as exc:
-            raise SystemExit(
-                'ruff is required for the quality gate; install with: pip install -e ".[dev]"'
-            ) from exc
+        _require_dev_module("ruff")
+        _ruff_check(root, python_bin)
 
     if not args.skip_mypy:
-        try:
-            _mypy_check(root, python_bin)
-        except FileNotFoundError as exc:
-            raise SystemExit(
-                'mypy is required for the quality gate; install with: pip install -e ".[dev]"'
-            ) from exc
+        _require_dev_module("mypy")
+        _mypy_check(root, python_bin)
 
     if not args.skip_bash_syntax:
         _bash_syntax(root)
