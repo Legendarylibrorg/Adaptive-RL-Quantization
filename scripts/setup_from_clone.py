@@ -65,9 +65,7 @@ def _ensure_pip(python_bin: str) -> None:
     expected_sha256 = _require_expected_sha256(os.environ.get(_NETWORK_PIP_BOOTSTRAP_SHA_ENV))
 
     if not _GET_PIP_URL.startswith("https://"):
-        raise SystemExit(
-            f"Refusing to bootstrap pip from non-HTTPS URL: {_GET_PIP_URL!r}"
-        )
+        raise SystemExit(f"Refusing to bootstrap pip from non-HTTPS URL: {_GET_PIP_URL!r}")
     ssl_context = ssl.create_default_context()
     with tempfile.TemporaryDirectory() as tmp:
         target = Path(tmp) / "get-pip.py"
@@ -130,14 +128,18 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Cross-platform bootstrap: venv, editable install, tests, and RL smoke run."
     )
-    parser.add_argument("--venv-dir", default=".venv", help="Virtualenv directory relative to repo root.")
+    parser.add_argument(
+        "--venv-dir", default=".venv", help="Virtualenv directory relative to repo root."
+    )
     parser.add_argument(
         "--config",
         default="config.e2e_smoke.json",
         help="Config path for the smoke pipeline, relative to repo root.",
     )
     parser.add_argument("--skip-tests", action="store_true", help="Skip unittest.")
-    parser.add_argument("--skip-smoke", action="store_true", help="Skip run_research smoke execution.")
+    parser.add_argument(
+        "--skip-smoke", action="store_true", help="Skip run_research smoke execution."
+    )
     args = parser.parse_args(argv)
 
     root = repo_root()

@@ -9,7 +9,11 @@ from adaptive_quant.features import COMPLEXITY_BASELINE_THRESHOLDS, complexity_b
 from adaptive_quant.logging_utils import write_json
 from adaptive_quant.quantization import finalize_decision, nearest_allowed_discrete_bit_width
 from adaptive_quant.trainer import build_trainer
-from adaptive_quant.trainer_utils import feedback_vector, summarize_episode_results, zero_previous_action
+from adaptive_quant.trainer_utils import (
+    feedback_vector,
+    summarize_episode_results,
+    zero_previous_action,
+)
 from adaptive_quant.types import HardwareType, QuantizationDecision, QuantMode
 
 
@@ -41,12 +45,16 @@ class BenchmarkSuite:
         config = self._benchmark_config()
 
         def always_safe(_state) -> QuantizationDecision:
-            return QuantizationDecision(mode=QuantMode.DISCRETE, base_bit_width=int(config.safe_default_bits))
+            return QuantizationDecision(
+                mode=QuantMode.DISCRETE, base_bit_width=int(config.safe_default_bits)
+            )
 
         def hardware_preferred(state) -> QuantizationDecision:
             return QuantizationDecision(
                 mode=QuantMode.DISCRETE,
-                base_bit_width=nearest_allowed_discrete_bit_width(state.hardware_profile.preferred_bits, config),
+                base_bit_width=nearest_allowed_discrete_bit_width(
+                    state.hardware_profile.preferred_bits, config
+                ),
             )
 
         def complexity_aware(state) -> QuantizationDecision:
@@ -75,7 +83,9 @@ class BenchmarkSuite:
         return per_baseline
 
     def _evaluate_heuristic(self, config: FrameworkConfig, act_fn) -> dict[str, float]:
-        env = AdaptiveQuantizationEnv(config, log_path=f"{config.log_dir}/{config.run_name}_heuristic.jsonl")
+        env = AdaptiveQuantizationEnv(
+            config, log_path=f"{config.log_dir}/{config.run_name}_heuristic.jsonl"
+        )
         try:
             results = []
             previous_action = zero_previous_action()
@@ -257,7 +267,11 @@ class BenchmarkSuite:
             if _torch.cuda.is_available():
                 _torch.cuda.empty_cache()
         except Exception as exc:
-            warnings.warn(f"Unable to clear CUDA cache after benchmark trainer release: {exc}", UserWarning, stacklevel=2)
+            warnings.warn(
+                f"Unable to clear CUDA cache after benchmark trainer release: {exc}",
+                UserWarning,
+                stacklevel=2,
+            )
 
     def _run_variants(
         self,

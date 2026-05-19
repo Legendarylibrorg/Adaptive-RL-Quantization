@@ -63,9 +63,13 @@ class RoutingTests(unittest.TestCase):
         for _ in range(600):
             route, trace = router.route(task_text=task, deterministic=False)
             if "low" in route.key:
-                reward = router.reward_from_metrics(memory_mb=300.0, perplexity=10.1, baseline_perplexity=baseline)
+                reward = router.reward_from_metrics(
+                    memory_mb=300.0, perplexity=10.1, baseline_perplexity=baseline
+                )
             else:
-                reward = router.reward_from_metrics(memory_mb=900.0, perplexity=10.1, baseline_perplexity=baseline)
+                reward = router.reward_from_metrics(
+                    memory_mb=900.0, perplexity=10.1, baseline_perplexity=baseline
+                )
             router.update(trace, reward=reward)
 
         # Evaluate: greedy should pick low-memory.
@@ -75,4 +79,3 @@ class RoutingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

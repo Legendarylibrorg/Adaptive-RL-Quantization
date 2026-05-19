@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import tempfile
 import unittest
 from pathlib import Path
-import tempfile
 
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import read_json
@@ -68,7 +68,13 @@ class OutputSchemaTests(unittest.TestCase):
             self.assertTrue(Path(artifacts["report"]).is_file())
 
             # Recommendation file: stable keys and basic types.
-            for key in ("target_hardware", "episodes", "adaptive_policy", "candidate_count", "recommended_quant"):
+            for key in (
+                "target_hardware",
+                "episodes",
+                "adaptive_policy",
+                "candidate_count",
+                "recommended_quant",
+            ):
                 self.assertIn(key, recommendation)
             self.assertIsInstance(recommendation["target_hardware"], str)
             self.assertIsInstance(recommendation["episodes"], int)
@@ -81,4 +87,3 @@ class OutputSchemaTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

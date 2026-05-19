@@ -213,7 +213,9 @@ def resolve_gpu_profile(
     if requested_profile and requested_profile != "auto":
         if requested_profile not in GPU_PROFILES:
             supported = ", ".join(available_gpu_profiles())
-            raise ValueError(f"Unsupported GPU profile '{requested_profile}'. Available profiles: {supported}")
+            raise ValueError(
+                f"Unsupported GPU profile '{requested_profile}'. Available profiles: {supported}"
+            )
         return requested_profile
     return infer_gpu_profile(device_name, total_memory_gb)
 
@@ -225,7 +227,9 @@ def apply_gpu_profile(
     total_memory_gb: float | None = None,
 ) -> tuple[FrameworkConfig, dict[str, object]]:
     requested = requested_profile or config.torch_gpu_profile
-    selected = resolve_gpu_profile(requested, device_name=device_name, total_memory_gb=total_memory_gb)
+    selected = resolve_gpu_profile(
+        requested, device_name=device_name, total_memory_gb=total_memory_gb
+    )
     profile = GPU_PROFILES[selected]
     updated = config.clone(torch_gpu_profile=selected, **profile.overrides)
     metadata = {

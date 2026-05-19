@@ -42,7 +42,9 @@ class RunNameValidationTests(unittest.TestCase):
 
 class JsonlReadLimitsTests(unittest.TestCase):
     def test_load_jsonl_rejects_huge_line(self) -> None:
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False, encoding="utf-8") as tmp:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".jsonl", delete=False, encoding="utf-8"
+        ) as tmp:
             tmp.write('{"ok":true}\n')
             tmp.write("x" * (MAX_JSONL_LINE_BYTES + 16) + "\n")
             path = tmp.name
@@ -56,4 +58,3 @@ class JsonlReadLimitsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

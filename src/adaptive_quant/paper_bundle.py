@@ -11,7 +11,7 @@ from typing import Any
 
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import load_jsonl, write_json, write_text_file
-from adaptive_quant.math_utils import fmt_float, sample_std
+from adaptive_quant.math_utils import sample_std
 
 
 def paper_bundle_dir(config: FrameworkConfig, *, run_name: str | None = None) -> Path:
@@ -47,7 +47,8 @@ def create_pipeline_paper_bundle(
     _write_csv(metrics_csv_path, ["metric", "value"], metric_rows)
     episode_count = _write_episode_csv(
         episodes_csv_path,
-        telemetry_path or _first_existing_path(
+        telemetry_path
+        or _first_existing_path(
             [
                 f"{config.log_dir}/{config.run_name}_route_telemetry.jsonl",
                 f"{config.log_dir}/{config.run_name}.jsonl",
@@ -63,7 +64,9 @@ def create_pipeline_paper_bundle(
         _appendix_markdown(
             run_name=config.run_name,
             bundle_dir=bundle_dir,
-            artifacts=summary.get("artifacts", {}) if isinstance(summary.get("artifacts"), Mapping) else {},
+            artifacts=summary.get("artifacts", {})
+            if isinstance(summary.get("artifacts"), Mapping)
+            else {},
             episode_count=episode_count,
             claims=claims,
         ),
@@ -157,7 +160,15 @@ def create_multiseed_paper_bundle(
 def aggregate_values(values: Sequence[float]) -> dict[str, float | int]:
     finite = [float(value) for value in values if math.isfinite(float(value))]
     if not finite:
-        return {"mean": 0.0, "std": 0.0, "n": 0, "stderr": 0.0, "ci95_low": 0.0, "ci95_high": 0.0, "effect_size_vs_zero": 0.0}
+        return {
+            "mean": 0.0,
+            "std": 0.0,
+            "n": 0,
+            "stderr": 0.0,
+            "ci95_low": 0.0,
+            "ci95_high": 0.0,
+            "effect_size_vs_zero": 0.0,
+        }
     mean = sum(finite) / len(finite)
     std = sample_std(finite)
     stderr = std / math.sqrt(len(finite)) if finite else 0.0
@@ -221,11 +232,19 @@ def _select_metrics(metrics: Mapping[str, float], *, config: FrameworkConfig) ->
         "reward_delta",
         "quality_variance_delta",
     )
-    needles = base_needles if config.backend == "llama_cpp" else base_needles + simulator_only_needles
-    return {key: metrics[key] for key in sorted(metrics) if any(needle in key.lower() for needle in needles)}
+    needles = (
+        base_needles if config.backend == "llama_cpp" else base_needles + simulator_only_needles
+    )
+    return {
+        key: metrics[key]
+        for key in sorted(metrics)
+        if any(needle in key.lower() for needle in needles)
+    }
 
 
-def _manifest(*, config: FrameworkConfig, run_name: str, summary: Mapping[str, Any]) -> dict[str, Any]:
+def _manifest(
+    *, config: FrameworkConfig, run_name: str, summary: Mapping[str, Any]
+) -> dict[str, Any]:
     config_dict = summary.get("config") if isinstance(summary.get("config"), Mapping) else {}
     llama_binary = getattr(config, "llama_cpp_binary", None)
     llama_model = getattr(config, "llama_cpp_model", None)
@@ -285,27 +304,41 @@ def _metric_sources(config: FrameworkConfig) -> dict[str, str]:
     }
 
 
-def _claims_validation(*, config: FrameworkConfig, summary: Mapping[str, Any], metrics: Mapping[str, float]) -> dict[str, Any]:
+def _claims_validation(
+    *, config: FrameworkConfig, summary: Mapping[str, Any], metrics: Mapping[str, float]
+) -> dict[str, Any]:
     evidence_level = "local_llama_cpp" if config.backend == "llama_cpp" else "simulator"
     warnings: list[str] = []
     has_external_quality = bool(getattr(config, "external_quality_path", None))
     if config.backend == "llama_cpp":
         if has_external_quality:
-            warnings.append("Latency/throughput are locally measured and quality uses an external sidecar, but this is still single-machine evidence.")
-            warnings.append("Verify the external quality sidecar was generated from real datasets and fixed scoring code before citing quality claims.")
+            warnings.append(
+                "Latency/throughput are locally measured and quality uses an external sidecar, but this is still single-machine evidence."
+            )
+            warnings.append(
+                "Verify the external quality sidecar was generated from real datasets and fixed scoring code before citing quality claims."
+            )
         else:
-            warnings.append("Latency/throughput are locally measured, but perplexity remains simulator-derived unless an external quality metric is supplied.")
-        warnings.append("Local results are single-machine evidence, not deployment-grade multi-device validation.")
+            warnings.append(
+                "Latency/throughput are locally measured, but perplexity remains simulator-derived unless an external quality metric is supplied."
+            )
+        warnings.append(
+            "Local results are single-machine evidence, not deployment-grade multi-device validation."
+        )
     else:
         if has_external_quality:
-            warnings.append("Systems metrics are simulator-backed; only the configured quality metric uses an external sidecar.")
+            warnings.append(
+                "Systems metrics are simulator-backed; only the configured quality metric uses an external sidecar."
+            )
         else:
             warnings.append("All headline metrics are simulator-backed.")
     return {
         "evidence_level": evidence_level,
         "deployment_grade": False,
         "external_quality": has_external_quality,
-        "external_quality_metric": getattr(config, "external_quality_metric", None) if has_external_quality else None,
+        "external_quality_metric": getattr(config, "external_quality_metric", None)
+        if has_external_quality
+        else None,
         "metric_count": len(metrics),
         "has_benchmark_summary": isinstance(summary.get("benchmarks"), Mapping),
         "has_evaluation_summary": isinstance(summary.get("evaluation"), Mapping),

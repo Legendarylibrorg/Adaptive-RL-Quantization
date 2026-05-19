@@ -25,8 +25,6 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from adaptive_quant.configuration.validation import path_has_parent_reference
-
 # Conservative regex that accepts well-formed Hugging Face Hub identifiers and filenames.
 # Repos may contain a single forward slash (org/name); files allow nested directories with
 # letters/digits/dot/dash/underscore/slash. We reject anything else to guarantee that argv
@@ -260,7 +258,9 @@ def _validate_filename(filename: str) -> None:
             f"Invalid Hugging Face filename {filename!r}: expected alphanumeric, '.', '_', '-', or '/'."
         )
     if filename.startswith("-"):
-        raise ValueError(f"Filename must not start with '-' (would be parsed as a flag): {filename!r}")
+        raise ValueError(
+            f"Filename must not start with '-' (would be parsed as a flag): {filename!r}"
+        )
     if ".." in Path(filename).parts:
         raise ValueError(f"Filename must not contain '..': {filename!r}")
 
@@ -271,7 +271,9 @@ def _validate_revision(revision: str) -> None:
             f"Invalid revision {revision!r}: expected alphanumeric, '.', '_', '-', or '/'."
         )
     if revision.startswith("-"):
-        raise ValueError(f"Revision must not start with '-' (would be parsed as a flag): {revision!r}")
+        raise ValueError(
+            f"Revision must not start with '-' (would be parsed as a flag): {revision!r}"
+        )
     if ".." in Path(revision).parts:
         raise ValueError(f"Revision must not contain '..': {revision!r}")
 

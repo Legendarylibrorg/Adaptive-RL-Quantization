@@ -61,7 +61,7 @@ torch = ["torch>=2.12.0"]
 # Install: pip install -e ".[router]" or pip install -e ".[torch,router]" for CUDA embeddings.
 router = ["transformers>=4.57.6", "safetensors>=0.7.0"]
 # Local quality: lint + format (not required for simulator-only CI).
-dev = ["ruff>=0.15.13"]
+dev = ["mypy>=1.15.0", "ruff>=0.15.13"]
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -95,3 +95,17 @@ ignore = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["adaptive_quant", "analysis"]
+
+[tool.ruff.lint.per-file-ignores]
+# Repo-root runners insert src/ on sys.path before importing adaptive_quant.
+"run_*.py" = ["E402"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+strict_equality = true

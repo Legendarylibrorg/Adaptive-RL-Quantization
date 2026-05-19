@@ -142,7 +142,7 @@ def _write_multiseed_report(
         headline_rows.append([k, fmt_float(stat.mean), fmt_float(stat.std), str(stat.n)])
 
     per_seed_rows: list[list[object]] = []
-    for seed, summary_path in zip(seeds, per_seed_paths):
+    for seed, summary_path in zip(seeds, per_seed_paths, strict=True):
         per_seed_rows.append([str(seed), f"`{summary_path}`"])
 
     lines: list[str] = []
@@ -169,13 +169,22 @@ def _write_multiseed_report(
 
     filtered = {k: v for k, v in aggregated.items() if _default_key_filter(k)}
     broad_rows: list[list[object]] = [
-        [k, fmt_float(v.mean), fmt_float(v.std), fmt_float(v.ci95_low), fmt_float(v.ci95_high), str(v.n)]
+        [
+            k,
+            fmt_float(v.mean),
+            fmt_float(v.std),
+            fmt_float(v.ci95_low),
+            fmt_float(v.ci95_high),
+            str(v.n),
+        ]
         for k, v in filtered.items()
     ]
     lines.extend(
         [
             "## Aggregate metrics (filtered)",
-            "\n".join(md_table(["metric", "mean", "std", "ci95_low", "ci95_high", "n"], broad_rows)),
+            "\n".join(
+                md_table(["metric", "mean", "std", "ci95_low", "ci95_high", "n"], broad_rows)
+            ),
             "",
             "## Per-seed artifacts",
             "\n".join(md_table(["seed", "summary"], per_seed_rows)),
@@ -212,8 +221,12 @@ def _select_preset(name: str):
 
 
 def main(argv: Iterable[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Run a preset across multiple seeds and aggregate results.")
-    parser.add_argument("--preset", choices=["dense", "moe"], default="dense", help="Which config preset to run.")
+    parser = argparse.ArgumentParser(
+        description="Run a preset across multiple seeds and aggregate results."
+    )
+    parser.add_argument(
+        "--preset", choices=["dense", "moe"], default="dense", help="Which config preset to run."
+    )
     parser.add_argument("--seeds", default="13,17,23,29,31", help='Seeds as "a,b,c" or "a-b".')
     parser.add_argument(
         "--run-name",
@@ -226,7 +239,9 @@ def main(argv: Iterable[str] | None = None) -> None:
         type=int,
         help="Override training_episodes (useful for fast smoke tests).",
     )
-    parser.add_argument("--quiet", action="store_true", help="Suppress end-of-run CLI banners (e.g. unit tests).")
+    parser.add_argument(
+        "--quiet", action="store_true", help="Suppress end-of-run CLI banners (e.g. unit tests)."
+    )
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     seeds = _parse_seeds(args.seeds)
@@ -271,17 +286,13 @@ def main(argv: Iterable[str] | None = None) -> None:
         "seeds": seeds,
         "per_seed": [
             {"seed": seed, "run_name": f"{base_run_name}_seed{seed}", "summary_path": path}
-            for seed, path in zip(seeds, per_seed_paths)
+            for seed, path in zip(seeds, per_seed_paths, strict=True)
         ],
         "artifacts": {
             "per_seed_summaries": per_seed_paths,
             "report": output_md_path,
         },
-        "aggregates": {
-            k: v.to_dict()
-            for k, v in aggregated.items()
-            if _default_key_filter(k)
-        },
+        "aggregates": {k: v.to_dict() for k, v in aggregated.items() if _default_key_filter(k)},
     }
     paper_bundle = create_multiseed_paper_bundle(
         config=base_config,

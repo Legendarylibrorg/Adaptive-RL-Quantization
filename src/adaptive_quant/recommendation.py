@@ -9,7 +9,11 @@ from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.hardware import resolve_target_hardware
 from adaptive_quant.math_utils import mean
-from adaptive_quant.trainer_utils import feedback_vector, summarize_episode_results, zero_previous_action
+from adaptive_quant.trainer_utils import (
+    feedback_vector,
+    summarize_episode_results,
+    zero_previous_action,
+)
 from adaptive_quant.types import EpisodeResult, HardwareType, QuantizationDecision
 
 
@@ -192,6 +196,7 @@ def _candidate_template(decision: QuantizationDecision) -> QuantizationDecision:
         moe_variant_names=list(decision.moe_variant_names),
         metadata=dict(decision.metadata),
     )
+
 
 def _evaluation_sort_key(item: dict[str, Any]) -> tuple[float, float, float]:
     """Sort key: higher reward first, then lower perplexity, then lower latency; non-finite → worst bucket."""

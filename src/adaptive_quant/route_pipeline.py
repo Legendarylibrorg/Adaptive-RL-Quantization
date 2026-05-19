@@ -439,7 +439,11 @@ def save_bandit_artifacts(
     summary_payload["artifacts"]["paper_bundle"] = paper_bundle
     write_json(summary_path, summary_payload)
 
-    return {"bandit": bandit_path, "summary": summary_path, "paper_bundle": paper_bundle["paper_bundle_dir"]}
+    return {
+        "bandit": bandit_path,
+        "summary": summary_path,
+        "paper_bundle": paper_bundle["paper_bundle_dir"],
+    }
 
 
 def load_bandit_artifact(path: str | Path) -> tuple[RouteCatalog, RouteBandit]:
@@ -462,7 +466,9 @@ def load_bandit_artifact(path: str | Path) -> tuple[RouteCatalog, RouteBandit]:
     return catalog, bandit
 
 
-def _final_recommendation(bandit: RouteBandit, library: PromptLibrary) -> dict[str, str | float] | None:
+def _final_recommendation(
+    bandit: RouteBandit, library: PromptLibrary
+) -> dict[str, str | float] | None:
     if not bandit.catalog.routes:
         return None
     from adaptive_quant.features import extract_input_features

@@ -7,8 +7,8 @@ from pathlib import Path
 from unittest import mock
 
 from adaptive_quant.logging_utils import (
-    JsonlLogger,
     MAX_JSONL_LINE_BYTES,
+    JsonlLogger,
     load_jsonl,
     read_json,
     write_json,

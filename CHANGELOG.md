@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Enforce **ruff** (lint + format) and **mypy** (configuration, logging, easy_config) in `pre_commit_check.py` and CI (`pip install -e ".[dev]"`).
+- `compat_tomllib` always uses stdlib `tomllib` (Python 3.11+ only; minimal fallback removed from the public path).
+- CONFIG guide: prefer JSON/TOML for shared/CI runs; Python presets for local iteration.
 - Bumped optional runtime pins (`torch`, `transformers`, `safetensors`) and dev `ruff` floor in `pyproject.toml`.
 - Refreshed Docker base image digest (`python:3.12-slim-bookworm`) and pinned `dependency-review-action` with `fail-on-severity: high`.
 - Grouped Dependabot updates for GitHub Actions, CI bootstrap, and optional Python extras.
@@ -20,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cap episode / replay counters loaded from config at `MAX_EPISODE_COUNT` (1,000,000).
 - Ignore `HF_CLI` overrides whose path contains `..`; skip `..` segments when parsing HF download stdout paths.
 - Cap structural config integers (`num_layers`, torch dims, llama.cpp context, MoE topology, etc.) to block JSON/TOML memory DoS.
+- Cap `recommendation_*`, `llama_cpp_generate_tokens`, `jsonl_flush_every`, and `llama_cpp_cache_max_entries` at config load.
 - Optional `ADAPTIVE_RL_LLAMA_CPP_BINARY_PREFIXES` env var restricts resolved `llama_cpp_binary` to allowed directory roots.
 - CI `pip-audit` job scans hash-pinned bootstrap requirements (`requirements/ci.txt`).
 

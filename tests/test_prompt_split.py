@@ -54,8 +54,12 @@ class PromptSplitTests(unittest.TestCase):
                 run_name="prompt_split_repro_test",
                 seed=9,
             )
-            env_a = AdaptiveQuantizationEnv(config, log_path=f"{temp_dir}/logs/prompt_split_a.jsonl")
-            env_b = AdaptiveQuantizationEnv(config, log_path=f"{temp_dir}/logs/prompt_split_b.jsonl")
+            env_a = AdaptiveQuantizationEnv(
+                config, log_path=f"{temp_dir}/logs/prompt_split_a.jsonl"
+            )
+            env_b = AdaptiveQuantizationEnv(
+                config, log_path=f"{temp_dir}/logs/prompt_split_b.jsonl"
+            )
 
             train_seq_a = [env_a.reset(phase="train").prompt.prompt_id for _ in range(20)]
             train_seq_b = [env_b.reset(phase="train").prompt.prompt_id for _ in range(20)]

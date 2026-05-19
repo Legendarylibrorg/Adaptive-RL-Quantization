@@ -11,9 +11,8 @@ used by this repository (including `pyproject.toml` and simple config TOML files
 
 from __future__ import annotations
 
-import io
 import re
-from typing import Any, BinaryIO, TextIO
+from typing import Any, BinaryIO
 
 _TABLE_RE = re.compile(r"^\[(?P<name>[A-Za-z0-9_.-]+)\]\s*$")
 
@@ -264,4 +263,3 @@ def _split_top_level_commas(text: str) -> list[str]:
         token += ch
     flush()
     return parts
-

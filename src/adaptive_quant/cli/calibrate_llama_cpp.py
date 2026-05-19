@@ -10,11 +10,11 @@ from adaptive_quant.backend import (
     require_llama_cpp_paths,
     run_llama_cpp_measurement,
 )
+from adaptive_quant.cli.common import add_config_file_argument, load_config_or_fallback
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.logging_utils import write_json
 from adaptive_quant.math_utils import ratio_mean
-from adaptive_quant.cli.common import add_config_file_argument, load_config_or_fallback
 from adaptive_quant.types import HardwareType, QuantizationDecision, QuantMode
 
 
@@ -23,10 +23,16 @@ def _build_calibration_config(base_cfg: FrameworkConfig, seed: int) -> Framework
 
 
 def main(argv: Iterable[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Fit simulator calibration multipliers from llama.cpp measurements.")
+    parser = argparse.ArgumentParser(
+        description="Fit simulator calibration multipliers from llama.cpp measurements."
+    )
     add_config_file_argument(parser, help_suffix="Otherwise uses config.py as base.")
-    parser.add_argument("--run-name", default="llama_cpp_calibration", help="Output artifact run name prefix.")
-    parser.add_argument("--prompts", default="6", help="Number of random prompts to sample for calibration.")
+    parser.add_argument(
+        "--run-name", default="llama_cpp_calibration", help="Output artifact run name prefix."
+    )
+    parser.add_argument(
+        "--prompts", default="6", help="Number of random prompts to sample for calibration."
+    )
     parser.add_argument("--seed", default="1234", help="RNG seed for prompt sampling.")
     args = parser.parse_args(list(argv) if argv is not None else None)
 
@@ -42,11 +48,15 @@ def main(argv: Iterable[str] | None = None) -> None:
 
     prompt_count = max(1, int(args.prompts))
 
-    env = AdaptiveQuantizationEnv(config, log_path=f"{config.log_dir}/{args.run_name}_calibration.jsonl")
+    env = AdaptiveQuantizationEnv(
+        config, log_path=f"{config.log_dir}/{args.run_name}_calibration.jsonl"
+    )
     sim_backend = SimulatorBackend(config.clone(backend="simulator"))
 
     # Use a fixed decision so we calibrate the raw backend response, not policy behavior.
-    fixed_decision = QuantizationDecision(mode=QuantMode.DISCRETE, base_bit_width=config.safe_default_bits)
+    fixed_decision = QuantizationDecision(
+        mode=QuantMode.DISCRETE, base_bit_width=config.safe_default_bits
+    )
 
     by_hw: dict[str, dict[str, Any]] = {}
     for hw in (HardwareType.GPU, HardwareType.CPU, HardwareType.LOW_RESOURCE):
@@ -69,7 +79,10 @@ def main(argv: Iterable[str] | None = None) -> None:
             sim_metrics = sim_backend.evaluate(state, fixed_decision)
             # Convert "ms per token" to "total latency" consistent with env metric definition.
             if "latency_ms_per_token" in parsed:
-                observed_latency.append(float(parsed["latency_ms_per_token"]) * max(1, state.input_features.prompt_length))
+                observed_latency.append(
+                    float(parsed["latency_ms_per_token"])
+                    * max(1, state.input_features.prompt_length)
+                )
                 sim_latency.append(float(sim_metrics["latency_ms"]))
             if "throughput_tps" in parsed:
                 observed_throughput.append(float(parsed["throughput_tps"]))
@@ -91,9 +104,15 @@ def main(argv: Iterable[str] | None = None) -> None:
                 "memory_mb": sim_memory,
             },
             "fit": {
-                "latency_multiplier": ratio_mean(observed_latency, sim_latency) if observed_latency else 1.0,
-                "throughput_multiplier": ratio_mean(observed_throughput, sim_throughput) if observed_throughput else 1.0,
-                "memory_multiplier": ratio_mean(observed_memory, sim_memory) if observed_memory else 1.0,
+                "latency_multiplier": ratio_mean(observed_latency, sim_latency)
+                if observed_latency
+                else 1.0,
+                "throughput_multiplier": ratio_mean(observed_throughput, sim_throughput)
+                if observed_throughput
+                else 1.0,
+                "memory_multiplier": ratio_mean(observed_memory, sim_memory)
+                if observed_memory
+                else 1.0,
             },
         }
 

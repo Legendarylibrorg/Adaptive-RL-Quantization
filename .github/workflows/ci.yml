@@ -86,6 +86,9 @@ jobs:
         run: |
           python -m pip install --no-build-isolation -e .
 
+      - name: Install dev tools (ruff, mypy)
+        run: python -m pip install --no-build-isolation -e ".[dev]"
+
       - name: Pre-commit checks (syntax, whitespace, tests)
         run: python scripts/pre_commit_check.py --skip-hash-checks
 

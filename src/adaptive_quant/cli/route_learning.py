@@ -24,6 +24,7 @@ import sys
 from collections.abc import Iterable
 from pathlib import Path
 
+from adaptive_quant.cli.common import add_config_file_argument, load_config_or_fallback
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.huggingface_cli import (
     build_download_command,
@@ -48,7 +49,6 @@ from adaptive_quant.route_pipeline import (
     train_route_bandit,
     validate_local_route_models,
 )
-from adaptive_quant.cli.common import add_config_file_argument, load_config_or_fallback
 from adaptive_quant.types import HardwareType
 
 DEFAULT_CATALOG_PATH = "outputs/routes/catalog.json"
@@ -71,7 +71,9 @@ def main(argv: Iterable[str] | None = None) -> None:
     sub = parser.add_subparsers(dest="command", required=True)
 
     seed_parser = sub.add_parser("seed", help="Write a default catalog with curated GGUF entries.")
-    seed_parser.add_argument("--force", action="store_true", help="Overwrite the catalog if it already exists.")
+    seed_parser.add_argument(
+        "--force", action="store_true", help="Overwrite the catalog if it already exists."
+    )
 
     list_parser = sub.add_parser("list", help="Print the catalog.")
     list_parser.add_argument(
@@ -83,18 +85,30 @@ def main(argv: Iterable[str] | None = None) -> None:
 
     register_parser = sub.add_parser("register", help="Add or replace a route in the catalog.")
     register_parser.add_argument("--route-id", required=True, help="Stable route identifier.")
-    register_parser.add_argument("--repo", required=True, help="Hugging Face '<org>/<name>' repo id.")
-    register_parser.add_argument("--quant", required=True, help="Quant label, e.g. Q4_K_M, Q8_0, F16.")
-    register_parser.add_argument("--filename", default=None, help="Specific GGUF filename inside the repo.")
-    register_parser.add_argument("--revision", default=None, help="Optional Hub revision (branch / tag / sha).")
+    register_parser.add_argument(
+        "--repo", required=True, help="Hugging Face '<org>/<name>' repo id."
+    )
+    register_parser.add_argument(
+        "--quant", required=True, help="Quant label, e.g. Q4_K_M, Q8_0, F16."
+    )
+    register_parser.add_argument(
+        "--filename", default=None, help="Specific GGUF filename inside the repo."
+    )
+    register_parser.add_argument(
+        "--revision", default=None, help="Optional Hub revision (branch / tag / sha)."
+    )
     register_parser.add_argument(
         "--effective-bits",
         type=float,
         default=None,
         help="Override effective bits per weight (for novel quants not in the built-in table).",
     )
-    register_parser.add_argument("--parameters-b", type=float, default=None, help="Parameter count in billions.")
-    register_parser.add_argument("--size-mb", type=float, default=None, help="On-disk file size in MB.")
+    register_parser.add_argument(
+        "--parameters-b", type=float, default=None, help="Parameter count in billions."
+    )
+    register_parser.add_argument(
+        "--size-mb", type=float, default=None, help="On-disk file size in MB."
+    )
     register_parser.add_argument(
         "--local-path",
         default=None,

@@ -1,4 +1,5 @@
 """Log/history analysis for pipeline reports (previously split across analysis/*.py)."""
+
 from __future__ import annotations
 
 import sys
@@ -15,6 +16,7 @@ from adaptive_quant.logging_utils import load_jsonl, read_json, write_json
 from adaptive_quant.math_utils import mean
 
 DEFAULT_ANALYSIS_PHASE = "eval"
+
 
 def _summary_stats(values: list[float]) -> dict[str, float]:
     if not values:
@@ -93,8 +95,18 @@ def analyze_hardware(
         "generalization_gap": (max(rewards) - min(rewards)) if rewards else 0.0,
     }
     write_json(str(output_root / "hardware_generalization_summary.json"), summary)
-    write_bar_chart(str(output_root / "hardware_generalization_reward.svg"), "Policy Reward by Hardware", reward_by_hardware, "Reward")
-    write_bar_chart(str(output_root / "hardware_generalization_latency.svg"), "Latency by Hardware", latency_by_hardware, "Latency (ms)")
+    write_bar_chart(
+        str(output_root / "hardware_generalization_reward.svg"),
+        "Policy Reward by Hardware",
+        reward_by_hardware,
+        "Reward",
+    )
+    write_bar_chart(
+        str(output_root / "hardware_generalization_latency.svg"),
+        "Latency by Hardware",
+        latency_by_hardware,
+        "Latency (ms)",
+    )
     return summary
 
 
@@ -140,7 +152,13 @@ def analyze_inputs(
         {b: v["average_bits"] for b, v in by_c.items()},
         "Average effective bits",
     )
-    write_scatter_plot(str(output_root / "input_adaptation_scatter.svg"), "Complexity vs Precision", points, "Input complexity", "Average effective bits")
+    write_scatter_plot(
+        str(output_root / "input_adaptation_scatter.svg"),
+        "Complexity vs Precision",
+        points,
+        "Input complexity",
+        "Average effective bits",
+    )
     return summary
 
 
@@ -176,11 +194,26 @@ def analyze_moe_cache(
     write_bar_chart(
         str(output_root / "moe_cache_metrics.svg"),
         "MoE Cache Metrics",
-        {"swap_cost_ms": summary["mean_swap_cost_ms"], "cache_miss_count": summary["mean_cache_miss_count"]},
+        {
+            "swap_cost_ms": summary["mean_swap_cost_ms"],
+            "cache_miss_count": summary["mean_cache_miss_count"],
+        },
         "Average value",
     )
-    write_scatter_plot(str(output_root / "moe_cache_miss_vs_latency.svg"), "Cache Misses vs Latency", cache_vs_latency, "Cache miss count", "Latency (ms)")
-    write_scatter_plot(str(output_root / "moe_router_entropy_vs_reward.svg"), "Router Entropy vs Reward", entropy_vs_reward, "Router entropy", "Reward")
+    write_scatter_plot(
+        str(output_root / "moe_cache_miss_vs_latency.svg"),
+        "Cache Misses vs Latency",
+        cache_vs_latency,
+        "Cache miss count",
+        "Latency (ms)",
+    )
+    write_scatter_plot(
+        str(output_root / "moe_router_entropy_vs_reward.svg"),
+        "Router Entropy vs Reward",
+        entropy_vs_reward,
+        "Router entropy",
+        "Reward",
+    )
     return summary
 
 
@@ -201,13 +234,21 @@ def analyze_moe_experts(
         decision = record.get("decision") or {}
         variant_names = decision.get("moe_variant_names") or []
         router_entropy_vals.append(float(moe_context.get("router_entropy", 0.0)))
-        for expert, variant_name in zip(experts, variant_names):
+        for expert, variant_name in zip(experts, variant_names, strict=False):
             expert_key = f"expert_{int(expert.get('expert_index', 0))}"
             expert_frequency[expert_key] = expert_frequency.get(expert_key, 0.0) + 1.0
             variant_usage[variant_name] = variant_usage.get(variant_name, 0.0) + 1.0
-            aggressiveness = {"safe": 0.0, "balanced": 0.5, "aggressive": 1.0}.get(variant_name, 0.5)
-            sensitivity_vs_aggressiveness.append((float(expert.get("sensitivity", 0.0)), aggressiveness))
-    top_experts = dict(sorted(expert_frequency.items(), key=lambda item: item[1], reverse=True)[: min(8, len(expert_frequency))])
+            aggressiveness = {"safe": 0.0, "balanced": 0.5, "aggressive": 1.0}.get(
+                variant_name, 0.5
+            )
+            sensitivity_vs_aggressiveness.append(
+                (float(expert.get("sensitivity", 0.0)), aggressiveness)
+            )
+    top_experts = dict(
+        sorted(expert_frequency.items(), key=lambda item: item[1], reverse=True)[
+            : min(8, len(expert_frequency))
+        ]
+    )
     summary: dict[str, object] = {
         "log_path": log_path,
         "mean_router_entropy": mean(router_entropy_vals),
@@ -217,8 +258,12 @@ def analyze_moe_experts(
         "selection_count": len(sensitivity_vs_aggressiveness),
     }
     write_json(str(output_root / "moe_expert_behavior_summary.json"), summary)
-    write_bar_chart(str(output_root / "moe_variant_usage.svg"), "MoE Variant Usage", variant_usage, "Selections")
-    write_bar_chart(str(output_root / "moe_top_experts.svg"), "Most Active Experts", top_experts, "Selections")
+    write_bar_chart(
+        str(output_root / "moe_variant_usage.svg"), "MoE Variant Usage", variant_usage, "Selections"
+    )
+    write_bar_chart(
+        str(output_root / "moe_top_experts.svg"), "Most Active Experts", top_experts, "Selections"
+    )
     write_scatter_plot(
         str(output_root / "moe_sensitivity_vs_aggressiveness.svg"),
         "Expert Sensitivity vs Variant Aggressiveness",
@@ -259,7 +304,12 @@ def analyze_quant(
     write_bar_chart(
         str(output_root / "quant_function_parameters.svg"),
         "Learned Quantization Parameters",
-        {"scale": sf["mean"], "clip": cr["mean"], "precision": pl["mean"], "bits": summary["effective_bits_mean"]},
+        {
+            "scale": sf["mean"],
+            "clip": cr["mean"],
+            "precision": pl["mean"],
+            "bits": summary["effective_bits_mean"],
+        },
         "Average value",
     )
     return summary
@@ -282,7 +332,13 @@ def analyze_training_dynamics(history_path: str, output_dir: str) -> dict[str, o
         "final_reward": rewards[-1] if rewards else 0.0,
     }
     write_json(str(output_root / "training_dynamics_summary.json"), summary)
-    write_scatter_plot(str(output_root / "training_reward_curve.svg"), "Training Reward Curve", points, "Update Step", "Reward")
+    write_scatter_plot(
+        str(output_root / "training_reward_curve.svg"),
+        "Training Reward Curve",
+        points,
+        "Update Step",
+        "Reward",
+    )
     return summary
 
 
@@ -310,8 +366,19 @@ def analyze_online(
         "mean_served_reward": mean([_served_reward(r) for r in records]),
     }
     write_json(str(output_root / "online_learning_summary.json"), summary)
-    write_bar_chart(str(output_root / "online_reward_by_hardware.svg"), "Online Reward by Hardware", reward_by_hardware, "Reward")
-    write_scatter_plot(str(output_root / "online_complexity_vs_reward.svg"), "Input Complexity vs Served Reward", complexity_reward_points, "Complexity", "Reward")
+    write_bar_chart(
+        str(output_root / "online_reward_by_hardware.svg"),
+        "Online Reward by Hardware",
+        reward_by_hardware,
+        "Reward",
+    )
+    write_scatter_plot(
+        str(output_root / "online_complexity_vs_reward.svg"),
+        "Input Complexity vs Served Reward",
+        complexity_reward_points,
+        "Complexity",
+        "Reward",
+    )
     return summary
 
 

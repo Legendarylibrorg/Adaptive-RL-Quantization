@@ -18,7 +18,9 @@ def _fmt_scalar(v: object) -> str:
     return str(v)
 
 
-def _metric_rows(prefix: str, data: Mapping[str, Any], keys: tuple[str, ...]) -> list[tuple[str, str]]:
+def _metric_rows(
+    prefix: str, data: Mapping[str, Any], keys: tuple[str, ...]
+) -> list[tuple[str, str]]:
     rows: list[tuple[str, str]] = []
     for k in keys:
         if k not in data:

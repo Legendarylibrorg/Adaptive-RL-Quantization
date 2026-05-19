@@ -39,7 +39,9 @@ class ResearchPipeline:
 
                 preflight_report = run_torch_preflight(config, trainer.policy)
                 preflight_report["gpu_profile"] = gpu_profile_report
-                write_json(f"{config.benchmark_dir}/{config.run_name}_preflight.json", preflight_report)
+                write_json(
+                    f"{config.benchmark_dir}/{config.run_name}_preflight.json", preflight_report
+                )
 
             train_summary = trainer.train()
             vram_report = self._collect_vram_report(trainer)

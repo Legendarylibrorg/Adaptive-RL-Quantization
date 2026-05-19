@@ -22,6 +22,7 @@ class RequirementPin:
     line: int
     value: str
 
+
 def load_dependency_hashes(path: Path) -> dict[str, dict[str, list[str]]]:
     payload = read_json(path, label="Dependency hash manifest")
     raw = payload.get("requirements", {})
@@ -31,14 +32,20 @@ def load_dependency_hashes(path: Path) -> dict[str, dict[str, list[str]]]:
     manifest: dict[str, dict[str, list[str]]] = {}
     for requirement_path, entries in raw.items():
         if not isinstance(requirement_path, str) or not isinstance(entries, dict):
-            raise ValueError("requirement manifests must map file paths to requirement/hash entries")
+            raise ValueError(
+                "requirement manifests must map file paths to requirement/hash entries"
+            )
         normalized_entries: dict[str, list[str]] = {}
         for requirement, hashes in entries.items():
             if not isinstance(requirement, str) or not isinstance(hashes, list):
                 raise ValueError("requirement hash entries must map exact pins to hash lists")
             normalized_hashes: list[str] = []
             for value in hashes:
-                if not isinstance(value, str) or not value.startswith("sha256:") or len(value) != 71:
+                if (
+                    not isinstance(value, str)
+                    or not value.startswith("sha256:")
+                    or len(value) != 71
+                ):
                     raise ValueError(f"Invalid dependency hash for {requirement!r}: {value!r}")
                 normalized_hashes.append(value)
             if not normalized_hashes:
@@ -55,7 +62,9 @@ def parse_requirement_pins(path: Path) -> list[RequirementPin]:
         if not line:
             continue
         if line.startswith(("-", "--")):
-            raise ValueError(f"{path}:{line_number}: options are not supported in hash-verified requirements")
+            raise ValueError(
+                f"{path}:{line_number}: options are not supported in hash-verified requirements"
+            )
         if "==" not in line or any(token in line for token in ("[", "]", ";", "@", ">", "<", "~=")):
             raise ValueError(
                 f"{path}:{line_number}: only exact 'package==version' pins are supported, got {line!r}"
@@ -80,7 +89,9 @@ def render_hashed_requirements(
     relative_requirement = requirement_path.relative_to(root).as_posix()
     entries = manifest.get(relative_requirement)
     if entries is None:
-        raise ValueError(f"{manifest_path.relative_to(root)} does not define hashes for {relative_requirement}")
+        raise ValueError(
+            f"{manifest_path.relative_to(root)} does not define hashes for {relative_requirement}"
+        )
 
     pins = parse_requirement_pins(requirement_path)
     rendered: list[str] = []
@@ -153,7 +164,9 @@ def main(argv: list[str] | None = None) -> int:
         if not output_path.is_absolute():
             output_path = root / output_path
         write_text_file(output_path, "\n".join(rendered) + "\n")
-        output_label = output_path.relative_to(root) if output_path.is_relative_to(root) else output_path
+        output_label = (
+            output_path.relative_to(root) if output_path.is_relative_to(root) else output_path
+        )
         print(f"Wrote hash-verified requirements to {output_label}.")
 
     print(

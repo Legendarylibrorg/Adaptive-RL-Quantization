@@ -46,6 +46,34 @@ def _python_compile(root: Path) -> None:
         py_compile.compile(str(path), doraise=True)
 
 
+def _ruff_check(root: Path, python_bin: str) -> None:
+    print("== ruff (lint + format) ==")
+    targets = ["src", "tests", "scripts"]
+    run([python_bin, "-m", "ruff", "check", *targets], cwd=root)
+    run([python_bin, "-m", "ruff", "format", "--check", *targets], cwd=root)
+
+
+def _mypy_check(root: Path, python_bin: str) -> None:
+    print("== mypy (configuration / logging / easy_config) ==")
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(root / "src") + os.pathsep + env.get("PYTHONPATH", "")
+    subprocess.run(
+        [
+            python_bin,
+            "-m",
+            "mypy",
+            "--config-file",
+            str(root / "pyproject.toml"),
+            "src/adaptive_quant/configuration",
+            "src/adaptive_quant/logging_utils.py",
+            "src/adaptive_quant/easy_config.py",
+        ],
+        cwd=str(root),
+        env=env,
+        check=True,
+    )
+
+
 def _bash_syntax(root: Path) -> None:
     bash = bash_path()
     if bash is None:
@@ -60,11 +88,21 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Cross-platform quality gate: git whitespace checks, secret scan, syntax, and unittest."
     )
-    parser.add_argument("--skip-git-check", action="store_true", help="Skip git diff whitespace checks.")
-    parser.add_argument("--skip-secret-scan", action="store_true", help="Skip tracked-file secret scan.")
-    parser.add_argument("--skip-hash-checks", action="store_true", help="Skip dependency hash manifest checks.")
+    parser.add_argument(
+        "--skip-git-check", action="store_true", help="Skip git diff whitespace checks."
+    )
+    parser.add_argument(
+        "--skip-secret-scan", action="store_true", help="Skip tracked-file secret scan."
+    )
+    parser.add_argument(
+        "--skip-hash-checks", action="store_true", help="Skip dependency hash manifest checks."
+    )
     parser.add_argument("--skip-bash-syntax", action="store_true", help="Skip bash syntax checks.")
     parser.add_argument("--skip-tests", action="store_true", help="Skip unittest.")
+    parser.add_argument("--skip-ruff", action="store_true", help="Skip ruff lint/format checks.")
+    parser.add_argument(
+        "--skip-mypy", action="store_true", help="Skip mypy on core config modules."
+    )
     args = parser.parse_args(argv)
 
     root = repo_root()
@@ -99,6 +137,22 @@ def main(argv: list[str] | None = None) -> int:
         print(f"OK: verify_hashes.py — dependency hashes match {manifest_path.relative_to(root)}.")
 
     _python_compile(root)
+
+    if not args.skip_ruff:
+        try:
+            _ruff_check(root, python_bin)
+        except FileNotFoundError as exc:
+            raise SystemExit(
+                'ruff is required for the quality gate; install with: pip install -e ".[dev]"'
+            ) from exc
+
+    if not args.skip_mypy:
+        try:
+            _mypy_check(root, python_bin)
+        except FileNotFoundError as exc:
+            raise SystemExit(
+                'mypy is required for the quality gate; install with: pip install -e ".[dev]"'
+            ) from exc
 
     if not args.skip_bash_syntax:
         _bash_syntax(root)

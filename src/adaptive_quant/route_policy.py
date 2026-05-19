@@ -254,7 +254,9 @@ class RouteBandit:
         return self.recommend(context).route
 
     def best_route_global(self) -> ModelRoute:
-        means = [self._global.get(route.route_id, _ArmStats()).mean_reward for route in self.catalog]
+        means = [
+            self._global.get(route.route_id, _ArmStats()).mean_reward for route in self.catalog
+        ]
         return self.catalog.routes[argmax(means)]
 
     def state_dict(self) -> dict[str, Any]:
@@ -288,7 +290,9 @@ class RouteBandit:
         for route in self.catalog:
             self._global.setdefault(route.route_id, _ArmStats())
         self._buckets = {
-            bucket_key: {arm_id: _ArmStats.from_dict(arm_payload) for arm_id, arm_payload in arms.items()}
+            bucket_key: {
+                arm_id: _ArmStats.from_dict(arm_payload) for arm_id, arm_payload in arms.items()
+            }
             for bucket_key, arms in dict(state.get("buckets", {})).items()
         }
 

@@ -25,7 +25,9 @@ class LlamaCppHardeningTests(unittest.TestCase):
             temp_path = Path(temp_dir)
             binary_path = temp_path / "llama-cli"
             model_path = temp_path / "model.gguf"
-            binary_path.write_text("#!/bin/sh\necho 'tok/s 123.0\\nms per token 0.5'\n", encoding="utf-8")
+            binary_path.write_text(
+                "#!/bin/sh\necho 'tok/s 123.0\\nms per token 0.5'\n", encoding="utf-8"
+            )
             os.chmod(binary_path, 0o755)
             model_path.write_text("fake", encoding="utf-8")
 
@@ -49,16 +51,25 @@ class LlamaCppHardeningTests(unittest.TestCase):
             env = AdaptiveQuantizationEnv(config, log_path=f"{temp_dir}/logs/test.jsonl")
             state = env.reset(forced_hardware=HardwareType.GPU, forced_prompt_id="very_complex")
             # Make the prompt very long so clamp triggers.
-            state = replace(state, prompt=PromptSample(prompt_id=state.prompt.prompt_id, text="x" * 5000, domain=state.prompt.domain))
+            state = replace(
+                state,
+                prompt=PromptSample(
+                    prompt_id=state.prompt.prompt_id, text="x" * 5000, domain=state.prompt.domain
+                ),
+            )
 
-            decision = finalize_decision(QuantizationDecision(mode=QuantMode.DISCRETE, base_bit_width=4), state, config)
+            decision = finalize_decision(
+                QuantizationDecision(mode=QuantMode.DISCRETE, base_bit_width=4), state, config
+            )
 
             captured: dict[str, object] = {}
 
             def fake_run(cmd, **kwargs):  # type: ignore[no-untyped-def]
                 captured["cmd"] = cmd
                 captured["kwargs"] = kwargs
-                return subprocess.CompletedProcess(cmd, 0, stdout="tok/s 100.0\nms per token 1.0\n", stderr="")
+                return subprocess.CompletedProcess(
+                    cmd, 0, stdout="tok/s 100.0\nms per token 1.0\n", stderr=""
+                )
 
             import adaptive_quant.backends.llama_cpp as backend_module
 
@@ -89,7 +100,9 @@ class LlamaCppHardeningTests(unittest.TestCase):
             temp_path = Path(temp_dir)
             binary_path = temp_path / "llama-cli"
             model_path = temp_path / "model.gguf"
-            binary_path.write_text("#!/bin/sh\necho 'tok/s 123.0\\nms per token 0.5'\n", encoding="utf-8")
+            binary_path.write_text(
+                "#!/bin/sh\necho 'tok/s 123.0\\nms per token 0.5'\n", encoding="utf-8"
+            )
             os.chmod(binary_path, 0o755)
             model_path.write_text("fake", encoding="utf-8")
 
@@ -130,7 +143,9 @@ class LlamaCppHardeningTests(unittest.TestCase):
 
             def fake_run(cmd, **kwargs):  # type: ignore[no-untyped-def]
                 captured["cmd"] = cmd
-                return subprocess.CompletedProcess(cmd, 0, stdout="tok/s 100.0\nms per token 1.0\n", stderr="")
+                return subprocess.CompletedProcess(
+                    cmd, 0, stdout="tok/s 100.0\nms per token 1.0\n", stderr=""
+                )
 
             import adaptive_quant.backends.llama_cpp as backend_module
 
@@ -156,7 +171,9 @@ class LlamaCppHardeningTests(unittest.TestCase):
             binary_path = temp_path / "llama-cli"
             fallback_model = temp_path / "fallback.gguf"
             route_model = temp_path / "route-q4.gguf"
-            binary_path.write_text("#!/bin/sh\necho 'tok/s 123.0\\nms per token 0.5'\n", encoding="utf-8")
+            binary_path.write_text(
+                "#!/bin/sh\necho 'tok/s 123.0\\nms per token 0.5'\n", encoding="utf-8"
+            )
             os.chmod(binary_path, 0o755)
             fallback_model.write_text("fallback", encoding="utf-8")
             route_model.write_text("route", encoding="utf-8")
@@ -193,7 +210,9 @@ class LlamaCppHardeningTests(unittest.TestCase):
 
             def fake_run(cmd, **kwargs):  # type: ignore[no-untyped-def]
                 captured["cmd"] = cmd
-                return subprocess.CompletedProcess(cmd, 0, stdout="tok/s 100.0\nms per token 1.0\n", stderr="")
+                return subprocess.CompletedProcess(
+                    cmd, 0, stdout="tok/s 100.0\nms per token 1.0\n", stderr=""
+                )
 
             import adaptive_quant.backends.llama_cpp as backend_module
 
@@ -218,7 +237,9 @@ class LlamaCppHardeningTests(unittest.TestCase):
             binary_path = temp_path / "llama-cli"
             model_path = temp_path / "model.gguf"
             quality_path = temp_path / "quality.json"
-            binary_path.write_text("#!/bin/sh\necho 'tok/s 123.0\\nms per token 0.5'\n", encoding="utf-8")
+            binary_path.write_text(
+                "#!/bin/sh\necho 'tok/s 123.0\\nms per token 0.5'\n", encoding="utf-8"
+            )
             os.chmod(binary_path, 0o755)
             model_path.write_text("fake", encoding="utf-8")
             quality_path.write_text('{"very_complex": {"perplexity": 7.25}}', encoding="utf-8")
@@ -241,10 +262,14 @@ class LlamaCppHardeningTests(unittest.TestCase):
 
             env = AdaptiveQuantizationEnv(config, log_path=f"{temp_dir}/logs/test.jsonl")
             state = env.reset(forced_hardware=HardwareType.GPU, forced_prompt_id="very_complex")
-            decision = finalize_decision(QuantizationDecision(mode=QuantMode.DISCRETE, base_bit_width=4), state, config)
+            decision = finalize_decision(
+                QuantizationDecision(mode=QuantMode.DISCRETE, base_bit_width=4), state, config
+            )
 
             def fake_run(cmd, **kwargs):  # type: ignore[no-untyped-def]
-                return subprocess.CompletedProcess(cmd, 0, stdout="tok/s 100.0\nms per token 1.0\n", stderr="")
+                return subprocess.CompletedProcess(
+                    cmd, 0, stdout="tok/s 100.0\nms per token 1.0\n", stderr=""
+                )
 
             import adaptive_quant.backends.llama_cpp as backend_module
 
@@ -284,10 +309,14 @@ class LlamaCppHardeningTests(unittest.TestCase):
 
             env = AdaptiveQuantizationEnv(config, log_path=f"{temp_dir}/logs/test.jsonl")
             state = env.reset(forced_hardware=HardwareType.GPU, forced_prompt_id="very_complex")
-            decision = finalize_decision(QuantizationDecision(mode=QuantMode.DISCRETE, base_bit_width=4), state, config)
+            decision = finalize_decision(
+                QuantizationDecision(mode=QuantMode.DISCRETE, base_bit_width=4), state, config
+            )
 
             def fake_run(cmd, **kwargs):  # type: ignore[no-untyped-def]
-                return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="fatal backend failure")
+                return subprocess.CompletedProcess(
+                    cmd, 1, stdout="", stderr="fatal backend failure"
+                )
 
             import adaptive_quant.backends.llama_cpp as backend_module
 

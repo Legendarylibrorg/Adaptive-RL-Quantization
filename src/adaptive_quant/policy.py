@@ -21,7 +21,9 @@ from adaptive_quant.math_utils import (
 from adaptive_quant.types import EpisodeState, QuantizationDecision, QuantMode
 
 
-def _random_matrix(rows: int, cols: int, rng: random.Random, scale: float = 0.08) -> list[list[float]]:
+def _random_matrix(
+    rows: int, cols: int, rng: random.Random, scale: float = 0.08
+) -> list[list[float]]:
     return [[rng.uniform(-scale, scale) for _ in range(cols)] for _ in range(rows)]
 
 
@@ -39,17 +41,31 @@ class CategoricalHead:
         self.bias = [0.0] * output_dim
 
     def logits(self, state_vector: list[float]) -> list[float]:
-        return [dot(weights, state_vector) + bias for weights, bias in zip(self.weights, self.bias)]
+        return [
+            dot(weights, state_vector) + bias
+            for weights, bias in zip(self.weights, self.bias, strict=True)
+        ]
 
-    def sample(self, state_vector: list[float], rng: random.Random, deterministic: bool = False) -> tuple[int, list[float]]:
+    def sample(
+        self, state_vector: list[float], rng: random.Random, deterministic: bool = False
+    ) -> tuple[int, list[float]]:
         probabilities = softmax(self.logits(state_vector))
         if deterministic:
             return argmax(probabilities), probabilities
         return sample_categorical(probabilities, rng), probabilities
 
-    def update(self, state_vector: list[float], selected_index: int, probabilities: list[float], advantage: float, learning_rate: float) -> None:
+    def update(
+        self,
+        state_vector: list[float],
+        selected_index: int,
+        probabilities: list[float],
+        advantage: float,
+        learning_rate: float,
+    ) -> None:
         for row_index, row in enumerate(self.weights):
-            coefficient = ((1.0 if row_index == selected_index else 0.0) - probabilities[row_index]) * advantage
+            coefficient = (
+                (1.0 if row_index == selected_index else 0.0) - probabilities[row_index]
+            ) * advantage
             for column_index, value in enumerate(state_vector):
                 row[column_index] += learning_rate * coefficient * value
             self.bias[row_index] += learning_rate * coefficient
@@ -62,7 +78,10 @@ class GaussianHead:
         self.stddev = stddev
 
     def means(self, state_vector: list[float]) -> list[float]:
-        return [dot(weights, state_vector) + bias for weights, bias in zip(self.weights, self.bias)]
+        return [
+            dot(weights, state_vector) + bias
+            for weights, bias in zip(self.weights, self.bias, strict=True)
+        ]
 
     def sample(
         self,
@@ -75,11 +94,23 @@ class GaussianHead:
         if deterministic:
             raw_samples = list(raw_means)
         else:
-            raw_samples = [gaussian_sample(mean_value, self.stddev, rng) for mean_value in raw_means]
-        mapped = [_map_to_bounds(stable_sigmoid(sample), lower, upper) for sample, (lower, upper) in zip(raw_samples, bounds)]
+            raw_samples = [
+                gaussian_sample(mean_value, self.stddev, rng) for mean_value in raw_means
+            ]
+        mapped = [
+            _map_to_bounds(stable_sigmoid(sample), lower, upper)
+            for sample, (lower, upper) in zip(raw_samples, bounds, strict=True)
+        ]
         return mapped, raw_samples, raw_means
 
-    def update(self, state_vector: list[float], raw_samples: list[float], raw_means: list[float], advantage: float, learning_rate: float) -> None:
+    def update(
+        self,
+        state_vector: list[float],
+        raw_samples: list[float],
+        raw_means: list[float],
+        advantage: float,
+        learning_rate: float,
+    ) -> None:
         variance = max(self.stddev * self.stddev, 1e-6)
         for row_index, row in enumerate(self.weights):
             coefficient = ((raw_samples[row_index] - raw_means[row_index]) / variance) * advantage
@@ -114,15 +145,32 @@ class UniversalQuantizationPolicy:
         self.ordered_hardware = config.ordered_hardware()
         self.state_dim = config.state_vector_dim()
         self.mode_head = CategoricalHead(self.state_dim, len(self.supported_modes), self.rng)
-        self.discrete_head = CategoricalHead(self.state_dim, len(config.discrete_bit_widths), self.rng)
-        self.group_heads = [CategoricalHead(self.state_dim, len(config.discrete_bit_widths), self.rng) for _ in range(config.num_groups)]
-        self.layer_heads = [CategoricalHead(self.state_dim, len(config.discrete_bit_widths), self.rng) for _ in range(config.num_layers)]
+        self.discrete_head = CategoricalHead(
+            self.state_dim, len(config.discrete_bit_widths), self.rng
+        )
+        self.group_heads = [
+            CategoricalHead(self.state_dim, len(config.discrete_bit_widths), self.rng)
+            for _ in range(config.num_groups)
+        ]
+        self.layer_heads = [
+            CategoricalHead(self.state_dim, len(config.discrete_bit_widths), self.rng)
+            for _ in range(config.num_layers)
+        ]
         self.learned_head = GaussianHead(self.state_dim, 3, self.rng, config.continuous_stddev)
         self.learned_head.bias = [-0.10, -0.20, -0.45]
-        self.moe_heads = [CategoricalHead(self.state_dim, config.moe_variant_count(), self.rng) for _ in range(config.moe_top_k)] if config.moe_enabled else []
+        self.moe_heads = (
+            [
+                CategoricalHead(self.state_dim, config.moe_variant_count(), self.rng)
+                for _ in range(config.moe_top_k)
+            ]
+            if config.moe_enabled
+            else []
+        )
         self.value_head = ValueHead(self.state_dim, self.rng)
 
-    def act(self, state: EpisodeState, deterministic: bool = False) -> tuple[QuantizationDecision, PolicyTrace]:
+    def act(
+        self, state: EpisodeState, deterministic: bool = False
+    ) -> tuple[QuantizationDecision, PolicyTrace]:
         state_vector = state.to_vector(self.ordered_hardware)
         value_prediction = self.value_head.predict(state_vector)
         quant_mode = self.config.resolved_quant_mode()
@@ -130,7 +178,9 @@ class UniversalQuantizationPolicy:
         mode_trace = None
         selected_mode = quant_mode
         if quant_mode == QuantMode.HYBRID:
-            selected_index, probabilities = self.mode_head.sample(state_vector, self.rng, deterministic=deterministic)
+            selected_index, probabilities = self.mode_head.sample(
+                state_vector, self.rng, deterministic=deterministic
+            )
             selected_mode = self.supported_modes[selected_index]
             mode_trace = {
                 "selected_index": selected_index,
@@ -139,38 +189,68 @@ class UniversalQuantizationPolicy:
 
         traces: list[dict] = []
         if selected_mode in {QuantMode.DISCRETE, QuantMode.DYNAMIC}:
-            bit_index, probabilities = self.discrete_head.sample(state_vector, self.rng, deterministic=deterministic)
+            bit_index, probabilities = self.discrete_head.sample(
+                state_vector, self.rng, deterministic=deterministic
+            )
             bit_width = self.config.discrete_bit_widths[bit_index]
             decision = QuantizationDecision(
                 mode=selected_mode,
                 base_bit_width=bit_width,
                 scale_factor=1.0,
                 clipping_range=1.0,
-                precision_level=discrete_precision_level(bit_width, self.config.discrete_bit_widths),
+                precision_level=discrete_precision_level(
+                    bit_width, self.config.discrete_bit_widths
+                ),
                 metadata={"head": "discrete"},
             )
-            traces.append({"head": "discrete", "selected_index": bit_index, "probabilities": probabilities})
+            traces.append(
+                {"head": "discrete", "selected_index": bit_index, "probabilities": probabilities}
+            )
         elif selected_mode == QuantMode.GROUPED:
             group_bits: list[int] = []
             for group_index, head in enumerate(self.group_heads):
-                bit_index, probabilities = head.sample(state_vector, self.rng, deterministic=deterministic)
+                bit_index, probabilities = head.sample(
+                    state_vector, self.rng, deterministic=deterministic
+                )
                 group_bits.append(self.config.discrete_bit_widths[bit_index])
-                traces.append({"head": "group", "slot": group_index, "selected_index": bit_index, "probabilities": probabilities})
-            decision = QuantizationDecision(mode=selected_mode, group_bit_widths=group_bits, metadata={"head": "grouped"})
+                traces.append(
+                    {
+                        "head": "group",
+                        "slot": group_index,
+                        "selected_index": bit_index,
+                        "probabilities": probabilities,
+                    }
+                )
+            decision = QuantizationDecision(
+                mode=selected_mode, group_bit_widths=group_bits, metadata={"head": "grouped"}
+            )
         elif selected_mode == QuantMode.PER_LAYER:
             layer_bits: list[int] = []
             for layer_index, head in enumerate(self.layer_heads):
-                bit_index, probabilities = head.sample(state_vector, self.rng, deterministic=deterministic)
+                bit_index, probabilities = head.sample(
+                    state_vector, self.rng, deterministic=deterministic
+                )
                 layer_bits.append(self.config.discrete_bit_widths[bit_index])
-                traces.append({"head": "layer", "slot": layer_index, "selected_index": bit_index, "probabilities": probabilities})
-            decision = QuantizationDecision(mode=selected_mode, layer_bit_widths=layer_bits, metadata={"head": "per_layer"})
+                traces.append(
+                    {
+                        "head": "layer",
+                        "slot": layer_index,
+                        "selected_index": bit_index,
+                        "probabilities": probabilities,
+                    }
+                )
+            decision = QuantizationDecision(
+                mode=selected_mode, layer_bit_widths=layer_bits, metadata={"head": "per_layer"}
+            )
         elif selected_mode == QuantMode.LEARNED:
             bounds = [
                 self.config.scale_bounds,
                 self.config.clip_bounds,
                 self.config.precision_bounds,
             ]
-            samples, raw_samples, raw_means = self.learned_head.sample(state_vector, self.rng, bounds, deterministic=deterministic)
+            samples, raw_samples, raw_means = self.learned_head.sample(
+                state_vector, self.rng, bounds, deterministic=deterministic
+            )
             decision = QuantizationDecision(
                 mode=selected_mode,
                 scale_factor=samples[0],
@@ -186,10 +266,19 @@ class UniversalQuantizationPolicy:
             variant_indices: list[int] = []
             variant_names: list[str] = []
             for slot, head in enumerate(self.moe_heads[: len(state.moe_context.experts)]):
-                variant_index, probabilities = head.sample(state_vector, self.rng, deterministic=deterministic)
+                variant_index, probabilities = head.sample(
+                    state_vector, self.rng, deterministic=deterministic
+                )
                 variant_indices.append(variant_index)
                 variant_names.append(self.config.moe_variant_names[variant_index])
-                traces.append({"head": "moe", "slot": slot, "selected_index": variant_index, "probabilities": probabilities})
+                traces.append(
+                    {
+                        "head": "moe",
+                        "slot": slot,
+                        "selected_index": variant_index,
+                        "probabilities": probabilities,
+                    }
+                )
             decision.moe_variant_indices = variant_indices
             decision.moe_variant_names = variant_names
             decision.metadata["moe_head"] = "packed_expert_bank"
@@ -330,7 +419,9 @@ class UniversalQuantizationPolicy:
         self.group_heads = [_categorical_head_from_payload(item) for item in payload["group_heads"]]
         self.layer_heads = [_categorical_head_from_payload(item) for item in payload["layer_heads"]]
         self.learned_head = _gaussian_head_from_payload(payload["learned_head"])
-        self.moe_heads = [_categorical_head_from_payload(item) for item in payload.get("moe_heads", [])]
+        self.moe_heads = [
+            _categorical_head_from_payload(item) for item in payload.get("moe_heads", [])
+        ]
         self.value_head = _value_head_from_payload(payload["value_head"])
 
 
@@ -441,7 +532,9 @@ def _restore_categorical_head(head: CategoricalHead, payload: object) -> None:
         [_finite_float(value, label=f"weights[{i}][{j}]") for j, value in enumerate(row)]
         for i, row in enumerate(payload["weights"])
     ]
-    head.bias = [_finite_float(value, label=f"bias[{i}]") for i, value in enumerate(payload["bias"])]
+    head.bias = [
+        _finite_float(value, label=f"bias[{i}]") for i, value in enumerate(payload["bias"])
+    ]
 
 
 def _categorical_head_from_payload(payload: object) -> CategoricalHead:
@@ -496,8 +589,7 @@ def _gaussian_head_from_payload(payload: object) -> GaussianHead:
         for i, row in enumerate(payload["weights"])
     ]
     head.bias = [
-        _finite_float(value, label=f"gaussian.bias[{i}]")
-        for i, value in enumerate(payload["bias"])
+        _finite_float(value, label=f"gaussian.bias[{i}]") for i, value in enumerate(payload["bias"])
     ]
     return head
 

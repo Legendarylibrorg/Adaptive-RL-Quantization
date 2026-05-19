@@ -11,7 +11,7 @@ from contextlib import suppress
 from dataclasses import asdict, is_dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, TextIO
+from typing import Any, TextIO, cast
 
 # Local-use bounds (stdlib only): avoid accidental multi-GB reads on analysis / small JSON sidecars.
 MAX_LOCAL_READ_BYTES = 256 << 20
@@ -164,7 +164,7 @@ def safe_json_loads(data: str, *, label: str = "JSON") -> Any:
 
 def to_jsonable(value: Any) -> Any:
     if is_dataclass(value):
-        return {key: to_jsonable(val) for key, val in asdict(value).items()}
+        return {key: to_jsonable(val) for key, val in asdict(cast(Any, value)).items()}
     if isinstance(value, Enum):
         return value.value
     if isinstance(value, dict):
@@ -281,7 +281,9 @@ def read_json(path: str | Path, *, label: str = "JSON") -> Any:
 
 def md_table(headers: list[str], rows: list[list[object]]) -> list[str]:
     sep = "| " + " | ".join(["---"] * len(headers)) + " |"
-    return ["| " + " | ".join(headers) + " |", sep] + ["| " + " | ".join(str(c) for c in row) + " |" for row in rows]
+    return ["| " + " | ".join(headers) + " |", sep] + [
+        "| " + " | ".join(str(c) for c in row) + " |" for row in rows
+    ]
 
 
 def _write_text_atomically(path: str | Path, writer: Callable[[TextIO], None]) -> None:

@@ -97,7 +97,9 @@ def _llama_cpp_command(
     prompt_text: str,
     ngl: int,
 ) -> list[str]:
-    prompt_text = (prompt_text or "").replace("\x00", " ").replace("\r", " ").replace("\n", " ").strip()
+    prompt_text = (
+        (prompt_text or "").replace("\x00", " ").replace("\r", " ").replace("\n", " ").strip()
+    )
     max_chars = int(config.llama_cpp_max_prompt_chars)
     if max_chars > 0 and len(prompt_text) > max_chars:
         prompt_text = prompt_text[:max_chars]
@@ -206,7 +208,9 @@ class LlamaCppBackend:
         if parsed.get("throughput_tps", 0.0) > 0.0:
             metrics["throughput_tps"] = float(parsed["throughput_tps"])
         if parsed.get("latency_ms_per_token", 0.0) > 0.0:
-            metrics["latency_ms"] = float(parsed["latency_ms_per_token"]) * max(1, state.input_features.prompt_length)
+            metrics["latency_ms"] = float(parsed["latency_ms_per_token"]) * max(
+                1, state.input_features.prompt_length
+            )
         if parsed.get("memory_mb", 0.0) > 0.0:
             metrics["memory_mb"] = float(parsed["memory_mb"])
         metrics.update(per_token_latency_fields(state, metrics["latency_ms"]))
@@ -240,7 +244,9 @@ class LlamaCppBackend:
             )
 
         max_chars = int(getattr(self.config, "llama_cpp_max_prompt_chars", 0))
-        text = (prompt_text or "").replace("\x00", " ").replace("\r", " ").replace("\n", " ").strip()
+        text = (
+            (prompt_text or "").replace("\x00", " ").replace("\r", " ").replace("\n", " ").strip()
+        )
         if max_chars > 0 and len(text) > max_chars:
             text = text[:max_chars]
         digest = hashlib.blake2b(text.encode("utf-8"), digest_size=16).hexdigest()

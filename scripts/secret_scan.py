@@ -88,7 +88,10 @@ def main(argv: list[str] | None = None) -> int:
         for line in matches:
             print(line, file=sys.stderr)
         print("", file=sys.stderr)
-        print("secret_scan.py: failing — remove or rotate leaked material, then re-run.", file=sys.stderr)
+        print(
+            "secret_scan.py: failing — remove or rotate leaked material, then re-run.",
+            file=sys.stderr,
+        )
         return 1
     print("OK: secret_scan.py — no high-signal patterns in tracked files.")
     return 0

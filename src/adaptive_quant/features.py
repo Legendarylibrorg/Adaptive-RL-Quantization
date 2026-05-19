@@ -89,10 +89,26 @@ def extract_input_features(prompt: PromptSample) -> InputFeatures:
     )
 
 
-def estimate_layer_sensitivity(prompt: PromptSample, input_features: InputFeatures, num_layers: int) -> LayerSensitivity:
+def estimate_layer_sensitivity(
+    prompt: PromptSample, input_features: InputFeatures, num_layers: int
+) -> LayerSensitivity:
     domain_bias = deterministic_float(f"domain:{prompt.domain}", -0.08, 0.08)
-    attention = clamp(0.45 + 0.40 * input_features.token_entropy + 0.15 * input_features.complexity_score + domain_bias, 0.0, 1.4)
-    ffn = clamp(0.42 + 0.38 * input_features.token_variance + 0.18 * input_features.embedding_norm + domain_bias, 0.0, 1.4)
+    attention = clamp(
+        0.45
+        + 0.40 * input_features.token_entropy
+        + 0.15 * input_features.complexity_score
+        + domain_bias,
+        0.0,
+        1.4,
+    )
+    ffn = clamp(
+        0.42
+        + 0.38 * input_features.token_variance
+        + 0.18 * input_features.embedding_norm
+        + domain_bias,
+        0.0,
+        1.4,
+    )
 
     layer_stats: list[float] = []
     for layer_index in range(num_layers):
@@ -109,10 +125,14 @@ def estimate_layer_sensitivity(prompt: PromptSample, input_features: InputFeatur
             1.5,
         )
         layer_stats.append(layer_value)
-    return LayerSensitivity(attention_sensitivity=attention, ffn_sensitivity=ffn, layer_stats=layer_stats)
+    return LayerSensitivity(
+        attention_sensitivity=attention, ffn_sensitivity=ffn, layer_stats=layer_stats
+    )
 
 
-def summarize_precision_needs(input_features: InputFeatures, sensitivity: LayerSensitivity) -> float:
+def summarize_precision_needs(
+    input_features: InputFeatures, sensitivity: LayerSensitivity
+) -> float:
     combined = [
         input_features.complexity_score,
         input_features.token_entropy,
@@ -122,4 +142,3 @@ def summarize_precision_needs(input_features: InputFeatures, sensitivity: LayerS
         mean(sensitivity.layer_stats),
     ]
     return clamp(mean(combined), 0.0, 1.4)
-

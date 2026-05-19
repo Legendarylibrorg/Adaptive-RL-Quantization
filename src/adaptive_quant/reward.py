@@ -36,7 +36,8 @@ def compute_weighted_reward(
         + weights.beta_throughput * float(metrics["throughput_tps"])
         - weights.gamma_perplexity * float(metrics["perplexity"])
         - weights.delta_memory * float(metrics["memory_mb"])
-        - weights.eta_token_latency * float(metrics.get("latency_ms_per_token", latency_ms_per_token_default))
+        - weights.eta_token_latency
+        * float(metrics.get("latency_ms_per_token", latency_ms_per_token_default))
     )
     if include_instability:
         reward -= weights.epsilon_instability * float(stability_penalty)
@@ -51,4 +52,3 @@ def compute_weighted_reward(
 
 
 __all__ = ["compute_weighted_reward"]
-

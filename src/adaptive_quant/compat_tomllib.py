@@ -1,12 +1,7 @@
-"""TOML parsing for config files: stdlib ``tomllib`` on Python 3.11+, else bundled minimal parser."""
+"""TOML parsing for config files (stdlib ``tomllib``; requires Python 3.11+ per ``pyproject.toml``)."""
 
 from __future__ import annotations
 
-import sys
-
-if sys.version_info >= (3, 11):
-    from tomllib import load, loads
-else:
-    from adaptive_quant._tomllib_minimal import load, loads
+from tomllib import load, loads
 
 __all__ = ["load", "loads"]

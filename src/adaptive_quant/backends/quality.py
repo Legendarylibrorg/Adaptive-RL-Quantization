@@ -34,7 +34,9 @@ class ExternalQualityScores:
             payload = read_json(source, label="External quality file")
             scores = _quality_scores_from_payload(payload, metric=metric)
         if not scores:
-            raise ValueError(f"External quality file has no finite `{metric}` scores keyed by prompt_id: {source}")
+            raise ValueError(
+                f"External quality file has no finite `{metric}` scores keyed by prompt_id: {source}"
+            )
         return cls(scores, metric=metric, path=str(source))
 
     def score_for_prompt(self, prompt_id: str) -> float | None:

@@ -16,7 +16,9 @@ def run_torch_preflight(config: FrameworkConfig, policy: TorchPolicyAdapter) -> 
     return report
 
 
-def collect_torch_system_report(config: FrameworkConfig, policy: TorchPolicyAdapter) -> dict[str, object]:
+def collect_torch_system_report(
+    config: FrameworkConfig, policy: TorchPolicyAdapter
+) -> dict[str, object]:
     if torch is None:
         raise ImportError("PyTorch is not installed in this environment.") from TORCH_IMPORT_ERROR
 
@@ -30,7 +32,9 @@ def collect_torch_system_report(config: FrameworkConfig, policy: TorchPolicyAdap
         "resolved_device": str(device),
         "torch_version": torch.__version__,
         "cuda_version": getattr(torch.version, "cuda", None),
-        "cudnn_version": torch.backends.cudnn.version() if hasattr(torch.backends, "cudnn") else None,
+        "cudnn_version": torch.backends.cudnn.version()
+        if hasattr(torch.backends, "cudnn")
+        else None,
         "compile_enabled": bool(config.torch_compile and hasattr(torch, "compile")),
         "fused_optimizer_requested": config.torch_fused_optimizer,
         "fused_optimizer_available": fused_available,
@@ -41,14 +45,16 @@ def collect_torch_system_report(config: FrameworkConfig, policy: TorchPolicyAdap
     }
 
     if device.type != "cuda" or not torch.cuda.is_available():
-        warnings.append("CUDA is not available. The PyTorch GPU path will not run efficiently on this machine.")
+        warnings.append(
+            "CUDA is not available. The PyTorch GPU path will not run efficiently on this machine."
+        )
         return report
 
     index = device.index if device.index is not None else torch.cuda.current_device()
     properties = torch.cuda.get_device_properties(index)
     free_bytes, total_bytes = _mem_get_info(index)
-    free_gb = round(free_bytes / (1024 ** 3), 2)
-    total_gb = round(total_bytes / (1024 ** 3), 2)
+    free_gb = round(free_bytes / (1024**3), 2)
+    total_gb = round(total_bytes / (1024**3), 2)
     bf16_supported = bool(getattr(torch.cuda, "is_bf16_supported", lambda: False)())
 
     report.update(
@@ -72,24 +78,36 @@ def collect_torch_system_report(config: FrameworkConfig, policy: TorchPolicyAdap
             f"Consider closing other processes before training."
         )
     if config.torch_batch_episodes < config.torch_minibatch_size:
-        warnings.append("`torch_batch_episodes` is smaller than `torch_minibatch_size`; this wastes update capacity.")
+        warnings.append(
+            "`torch_batch_episodes` is smaller than `torch_minibatch_size`; this wastes update capacity."
+        )
     if not config.torch_compile:
-        recommendations.append("Enable `torch_compile` for longer GPU runs once the setup is stable.")
+        recommendations.append(
+            "Enable `torch_compile` for longer GPU runs once the setup is stable."
+        )
     if not config.cache_prompt_features:
-        recommendations.append("Enable `cache_prompt_features` to reduce CPU-side rollout overhead.")
+        recommendations.append(
+            "Enable `cache_prompt_features` to reduce CPU-side rollout overhead."
+        )
     if not config.torch_fused_optimizer and fused_available:
-        recommendations.append("Enable `torch_fused_optimizer` for slightly better optimizer throughput on CUDA.")
+        recommendations.append(
+            "Enable `torch_fused_optimizer` for slightly better optimizer throughput on CUDA."
+        )
     return report
 
 
-def benchmark_policy_throughput(config: FrameworkConfig, policy: TorchPolicyAdapter) -> dict[str, object]:
+def benchmark_policy_throughput(
+    config: FrameworkConfig, policy: TorchPolicyAdapter
+) -> dict[str, object]:
     if torch is None:
         raise ImportError("PyTorch is not installed in this environment.") from TORCH_IMPORT_ERROR
 
     batch_size = config.torch_preflight_batch_size
     warmup_steps = config.torch_preflight_warmup_steps
     timed_steps = config.torch_preflight_steps
-    states = torch.randn(batch_size, policy.model.state_dim, device=policy.device, dtype=torch.float32)
+    states = torch.randn(
+        batch_size, policy.model.state_dim, device=policy.device, dtype=torch.float32
+    )
 
     with torch.inference_mode():
         for _ in range(warmup_steps):

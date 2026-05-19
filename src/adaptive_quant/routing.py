@@ -102,11 +102,15 @@ class RouterTrace:
 class _CategoricalHead:
     def __init__(self, input_dim: int, output_dim: int, rng: random.Random) -> None:
         scale = 0.08
-        self.weights = [[rng.uniform(-scale, scale) for _ in range(input_dim)] for _ in range(output_dim)]
+        self.weights = [
+            [rng.uniform(-scale, scale) for _ in range(input_dim)] for _ in range(output_dim)
+        ]
         self.bias = [0.0] * output_dim
 
     def logits(self, feature_vector: list[float]) -> list[float]:
-        return [dot(row, feature_vector) + b for row, b in zip(self.weights, self.bias)]  # noqa: B905
+        return [
+            dot(row, feature_vector) + b for row, b in zip(self.weights, self.bias, strict=True)
+        ]
 
     def sample(
         self,
@@ -133,7 +137,9 @@ class _CategoricalHead:
         learning_rate: float,
     ) -> None:
         for row_index, row in enumerate(self.weights):
-            coefficient = ((1.0 if row_index == selected_index else 0.0) - probabilities[row_index]) * advantage
+            coefficient = (
+                (1.0 if row_index == selected_index else 0.0) - probabilities[row_index]
+            ) * advantage
             for column_index, value in enumerate(feature_vector):
                 row[column_index] += learning_rate * coefficient * value
             self.bias[row_index] += learning_rate * coefficient
@@ -205,13 +211,17 @@ class EfficientTaskRouter:
         backend = self.config.router_feature_backend.strip().lower()
         if backend == "hf":
             if not self.config.router_hf_embedding_model:
-                raise ValueError("router_feature_backend='hf' requires router_hf_embedding_model to be set.")
+                raise ValueError(
+                    "router_feature_backend='hf' requires router_hf_embedding_model to be set."
+                )
             # Lazy init on first call so importing this module remains light.
             self._feature_dim: int | None = None
         elif backend == "hash":
             self._feature_dim = self.hash_dim
         else:
-            raise ValueError(f"Unsupported router_feature_backend: {self.config.router_feature_backend!r}")
+            raise ValueError(
+                f"Unsupported router_feature_backend: {self.config.router_feature_backend!r}"
+            )
 
         self.policy_head = _CategoricalHead(self.feature_dim, len(self.routes), self.rng)
         self.value_head = _ValueHead(self.feature_dim, self.rng)
@@ -238,7 +248,9 @@ class EfficientTaskRouter:
 
         model_id = (self.config.router_hf_embedding_model or "").strip()
         if not model_id:
-            raise ValueError("router_hf_embedding_model must be set for router_feature_backend='hf'.")
+            raise ValueError(
+                "router_hf_embedding_model must be set for router_feature_backend='hf'."
+            )
         allowed_models = set(self.config.router_hf_allowed_models)
         if allowed_models and model_id not in allowed_models:
             raise ValueError(
@@ -283,7 +295,9 @@ class EfficientTaskRouter:
             return self._hf_features(task_text)
         return _hash_features(task_text, dim=self.hash_dim)
 
-    def route(self, *, task_text: str, deterministic: bool = False) -> tuple[RouteCandidate, RouterTrace]:
+    def route(
+        self, *, task_text: str, deterministic: bool = False
+    ) -> tuple[RouteCandidate, RouterTrace]:
         feature_vector = self.featurize(task_text=task_text)
         value_prediction = self.value_head.predict(feature_vector)
         selected_index, probabilities = self.policy_head.sample(
@@ -357,4 +371,3 @@ __all__ = [
     "RouterTrace",
     "parse_route",
 ]
-

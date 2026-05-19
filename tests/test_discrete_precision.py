@@ -30,7 +30,9 @@ class DiscretePrecisionTests(unittest.TestCase):
             run_name="single_width_policy",
             stability_probe_count=1,
         )
-        env = AdaptiveQuantizationEnv(config, log_path=f"{tempfile.gettempdir()}/single_width.jsonl")
+        env = AdaptiveQuantizationEnv(
+            config, log_path=f"{tempfile.gettempdir()}/single_width.jsonl"
+        )
         policy = UniversalQuantizationPolicy(config)
         state = env.reset(forced_hardware=HardwareType.GPU, forced_prompt_id="very_complex")
         decision, _trace = policy.act(state, deterministic=True)

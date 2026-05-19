@@ -43,7 +43,11 @@ class SimulatorBackend:
             * hardware.latency_bias
             / max(0.35, hardware.compute_factor + (8.0 - avg_bits) * 0.12 + mode_bonus)
         )
-        latency_ms *= 1.0 + complexity * 0.55 + max(0.0, bit_variance - hardware.kernel_uniformity_preference) * 0.18
+        latency_ms *= (
+            1.0
+            + complexity * 0.55
+            + max(0.0, bit_variance - hardware.kernel_uniformity_preference) * 0.18
+        )
 
         throughput_tps = (
             140.0
@@ -74,11 +78,21 @@ class SimulatorBackend:
         throughput_tps *= 1.0 - hardware_alignment * 0.02
         perplexity += hardware_alignment * 0.15
 
-        if hardware.hardware_type in {HardwareType.CPU, HardwareType.LOW_RESOURCE} and avg_bits > hardware.preferred_bits:
+        if (
+            hardware.hardware_type in {HardwareType.CPU, HardwareType.LOW_RESOURCE}
+            and avg_bits > hardware.preferred_bits
+        ):
             excess_bits = avg_bits - hardware.preferred_bits
-            latency_ms *= 1.0 + excess_bits * (0.16 if hardware.hardware_type == HardwareType.CPU else 0.24)
-            throughput_tps *= max(0.55, 1.0 - excess_bits * (0.07 if hardware.hardware_type == HardwareType.CPU else 0.12))
-            memory_mb *= 1.0 + excess_bits * (0.10 if hardware.hardware_type == HardwareType.CPU else 0.18)
+            latency_ms *= 1.0 + excess_bits * (
+                0.16 if hardware.hardware_type == HardwareType.CPU else 0.24
+            )
+            throughput_tps *= max(
+                0.55,
+                1.0 - excess_bits * (0.07 if hardware.hardware_type == HardwareType.CPU else 0.12),
+            )
+            memory_mb *= 1.0 + excess_bits * (
+                0.10 if hardware.hardware_type == HardwareType.CPU else 0.18
+            )
         elif hardware.hardware_type == HardwareType.GPU and avg_bits < hardware.preferred_bits:
             deficit_bits = hardware.preferred_bits - avg_bits
             perplexity += deficit_bits * 0.45
@@ -106,14 +120,20 @@ class SimulatorBackend:
         swap_cost_ms = 0.0
         cache_miss_count = 0.0
         variant_churn = float(decision.metadata.get("moe_variant_churn", 0.0))
-        if self.expert_bank is not None and state.moe_context is not None and decision.moe_variant_indices:
-            latency_ms, throughput_tps, perplexity, memory_mb, swap_cost_ms, cache_miss_count = self._apply_moe_adjustments(
-                state,
-                decision,
-                latency_ms,
-                throughput_tps,
-                perplexity,
-                memory_mb,
+        if (
+            self.expert_bank is not None
+            and state.moe_context is not None
+            and decision.moe_variant_indices
+        ):
+            latency_ms, throughput_tps, perplexity, memory_mb, swap_cost_ms, cache_miss_count = (
+                self._apply_moe_adjustments(
+                    state,
+                    decision,
+                    latency_ms,
+                    throughput_tps,
+                    perplexity,
+                    memory_mb,
+                )
             )
 
         metrics: BackendMetricDict = {
@@ -128,14 +148,18 @@ class SimulatorBackend:
         calibration = getattr(self.config, "sim_calibration", None)
         if isinstance(calibration, dict):
             hw_key = state.hardware_profile.hardware_type.value
-            hw_cal = calibration.get(hw_key, {}) if isinstance(calibration.get(hw_key, {}), dict) else {}
+            hw_cal = (
+                calibration.get(hw_key, {}) if isinstance(calibration.get(hw_key, {}), dict) else {}
+            )
             latency_mul = float(hw_cal.get("latency_multiplier", 1.0))
             throughput_mul = float(hw_cal.get("throughput_multiplier", 1.0))
             memory_mul = float(hw_cal.get("memory_multiplier", 1.0))
             if latency_mul > 0:
                 metrics["latency_ms"] = clamp(metrics["latency_ms"] * latency_mul, 1.0, 60_000.0)
             if throughput_mul > 0:
-                metrics["throughput_tps"] = clamp(metrics["throughput_tps"] * throughput_mul, 0.1, 100_000.0)
+                metrics["throughput_tps"] = clamp(
+                    metrics["throughput_tps"] * throughput_mul, 0.1, 100_000.0
+                )
             if memory_mul > 0:
                 metrics["memory_mb"] = clamp(metrics["memory_mb"] * memory_mul, 50.0, 512_000.0)
         metrics.update(per_token_latency_fields(state, metrics["latency_ms"]))
@@ -167,16 +191,24 @@ class SimulatorBackend:
         sensitivity_penalty = 0.0
         latency_multiplier = 1.0
 
-        for expert, variant_index in zip(state.moe_context.experts, decision.moe_variant_indices):
+        for expert, variant_index in zip(
+            state.moe_context.experts, decision.moe_variant_indices, strict=True
+        ):
             variant = self.expert_bank.variant_by_index(variant_index)
             routing_weight = 0.60 + expert.router_probability
             latency_multiplier *= 1.0 + (variant.latency_multiplier - 1.0) * routing_weight * 0.50
-            throughput_multiplier *= 1.0 + (variant.throughput_multiplier - 1.0) * routing_weight * 0.55
+            throughput_multiplier *= (
+                1.0 + (variant.throughput_multiplier - 1.0) * routing_weight * 0.55
+            )
             memory_multiplier *= 1.0 + (variant.memory_multiplier - 1.0) * routing_weight * 0.40
             sensitivity_penalty += variant.perplexity_penalty * expert.sensitivity * routing_weight
             if expert.resident_on_device < 0.5:
                 cache_misses += 1.0
-                total_swap_cost += variant.swap_cost_ms * (1.0 + expert.router_probability) * (1.10 - 0.35 * expert.hotness)
+                total_swap_cost += (
+                    variant.swap_cost_ms
+                    * (1.0 + expert.router_probability)
+                    * (1.10 - 0.35 * expert.hotness)
+                )
 
         latency_ms = latency_ms * latency_multiplier + total_swap_cost
         throughput_tps *= throughput_multiplier

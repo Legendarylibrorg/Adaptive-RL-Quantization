@@ -10,9 +10,9 @@ from adaptive_quant.guardrails import passes_online_guardrails
 from adaptive_quant.logging_utils import JsonlLogger, to_jsonable, write_json
 from adaptive_quant.math_utils import mean
 from adaptive_quant.prompts import PromptLibrary
-from adaptive_quant.trainer_utils import zero_previous_action
 from adaptive_quant.routing import EfficientTaskRouter
-from adaptive_quant.types import OnlineRequest, PromptSample, QuantMode, QuantizationDecision
+from adaptive_quant.trainer_utils import zero_previous_action
+from adaptive_quant.types import OnlineRequest, PromptSample, QuantizationDecision, QuantMode
 
 
 @dataclass
@@ -90,7 +90,11 @@ class OnlineLearningLoop:
     def serve_request(self, request: OnlineRequest) -> dict[str, Any]:
         prompt = self._request_prompt(request)
         safe_mode_active = self.safe_mode_remaining > 0
-        explore = bool(self.config.online_learning and not safe_mode_active and self.rng.random() < self.config.online_exploration_rate)
+        explore = bool(
+            self.config.online_learning
+            and not safe_mode_active
+            and self.rng.random() < self.config.online_exploration_rate
+        )
         canary = bool(explore and self.rng.random() < self.config.online_canary_ratio)
 
         state = self.trainer.env.reset(
@@ -117,7 +121,9 @@ class OnlineLearningLoop:
                 metadata["llama_cpp_model_path"] = route.model_id
             elif route.backend == "hf":
                 metadata["hf_model"] = route.model_id
-            candidate_decision = QuantizationDecision(mode=QuantMode.DISCRETE, base_bit_width=int(bits), metadata=metadata)
+            candidate_decision = QuantizationDecision(
+                mode=QuantMode.DISCRETE, base_bit_width=int(bits), metadata=metadata
+            )
             # Router updates are handled separately; do not push router payload into the policy replay buffer.
             candidate_payload = None
             # Always do a baseline comparison when router is enabled.
@@ -126,7 +132,9 @@ class OnlineLearningLoop:
         else:
             if explore:
                 self.total_explorations += 1
-                candidate_decision, candidate_payload = self.trainer.act_online(state, deterministic=False)
+                candidate_decision, candidate_payload = self.trainer.act_online(
+                    state, deterministic=False
+                )
             else:
                 candidate_decision, candidate_payload = baseline_decision, None
 
@@ -155,7 +163,9 @@ class OnlineLearningLoop:
         elif explore:
             self.total_candidate_accepts += 1
 
-        served_result = candidate_result if accepted_candidate or baseline_result is None else baseline_result
+        served_result = (
+            candidate_result if accepted_candidate or baseline_result is None else baseline_result
+        )
 
         if self.router is not None and router_trace is not None and baseline_result is not None:
             baseline_ppl = float(baseline_result.metrics.perplexity)
@@ -243,14 +253,19 @@ class OnlineLearningLoop:
     def run_stream(self, requests: list[OnlineRequest]) -> dict[str, Any]:
         records = [self.serve_request(request) for request in requests]
         served_rewards = [float(record["served_metrics"].reward) for record in records]
-        candidate_rewards = [float(record["candidate_metrics"].reward) for record in records if record.get("candidate_metrics") is not None]
+        candidate_rewards = [
+            float(record["candidate_metrics"].reward)
+            for record in records
+            if record.get("candidate_metrics") is not None
+        ]
         summary = {
             "requests": len(records),
             "mean_served_reward": mean(served_rewards),
             "mean_candidate_reward": mean(candidate_rewards),
             "exploration_rate_observed": self.total_explorations / max(1, len(records)),
             "canary_rate_observed": self.total_canaries / max(1, len(records)),
-            "candidate_accept_rate": self.total_candidate_accepts / max(1, self.total_candidate_accepts + self.total_candidate_rejects),
+            "candidate_accept_rate": self.total_candidate_accepts
+            / max(1, self.total_candidate_accepts + self.total_candidate_rejects),
             "total_updates": self.total_updates,
             "total_rollbacks": self.total_rollbacks,
             "replay_size": len(self.replay_buffer),
@@ -281,7 +296,9 @@ class OnlineLearningLoop:
                 return library_prompt
 
         prompt_id = request.prompt_id or f"online_{self.request_index:06d}"
-        return PromptSample(prompt_id=prompt_id, text=request.prompt_text, domain=request.prompt_domain)
+        return PromptSample(
+            prompt_id=prompt_id, text=request.prompt_text, domain=request.prompt_domain
+        )
 
     def _passes_guardrails(self, candidate_result, baseline_result) -> bool:
         return passes_online_guardrails(
@@ -333,7 +350,9 @@ class OnlineLearningLoop:
         return "steady"
 
 
-def build_request_stream(config: FrameworkConfig, request_count: int | None = None) -> list[OnlineRequest]:
+def build_request_stream(
+    config: FrameworkConfig, request_count: int | None = None
+) -> list[OnlineRequest]:
     rng = random.Random(config.seed + 1409)
     library = PromptLibrary()
     hardware_options = config.ordered_hardware()
