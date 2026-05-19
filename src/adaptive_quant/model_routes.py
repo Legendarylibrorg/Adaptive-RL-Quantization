@@ -23,6 +23,7 @@ from dataclasses import asdict, dataclass, field, fields, replace
 from pathlib import Path
 from typing import Any
 
+from adaptive_quant.configuration.validation import validate_optional_filesystem_path
 from adaptive_quant.logging_utils import read_json, write_json
 
 # llama.cpp / GGUF effective bits per weight. K-quant family figures from llama.cpp release notes
@@ -119,6 +120,8 @@ class ModelRoute:
             raise ValueError(
                 f"Invalid route_id {self.route_id!r}: expected /^[A-Za-z0-9][A-Za-z0-9._-]{{0,127}}$/."
             )
+        if self.local_path is not None:
+            validate_optional_filesystem_path("local_path", self.local_path)
         if "/" not in self.repo_id:
             raise ValueError(f"repo_id must look like '<org>/<name>', got {self.repo_id!r}")
         normalized_quant = self.quant_label.strip().upper() if isinstance(self.quant_label, str) else ""
@@ -265,6 +268,7 @@ class RouteCatalog:
         return str(target)
 
     def update_local_path(self, route_id: str, local_path: str | None) -> ModelRoute:
+        validate_optional_filesystem_path("local_path", local_path)
         for index, existing in enumerate(self.routes):
             if existing.route_id == route_id:
                 updated = replace(existing, local_path=local_path)

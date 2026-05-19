@@ -89,6 +89,11 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertIn("ubuntu-latest", workflow_text)
         self.assertIn('python-version: "3.12"', workflow_text)
 
+    def test_ci_runs_pip_audit_on_bootstrap_requirements(self) -> None:
+        workflow_text = (_REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        self.assertIn("pip-audit:", workflow_text)
+        self.assertIn("pip_audit", workflow_text)
+
     def test_dependabot_covers_root_and_requirements(self) -> None:
         config_text = (_REPO_ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
         self.assertIn("package-ecosystem: pip", config_text)
@@ -102,6 +107,10 @@ class RunnerScriptCliTests(unittest.TestCase):
         )
         self.assertIn("github.event.repository.private == false", workflow_text)
         self.assertIn("actions/dependency-review-action@", workflow_text)
+        self.assertIn(
+            "actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294",
+            workflow_text,
+        )
         self.assertIn("fail-on-severity: high", workflow_text)
 
     def test_pre_commit_config_uses_isolated_python_hook(self) -> None:

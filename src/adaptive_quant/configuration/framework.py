@@ -181,6 +181,47 @@ class FrameworkConfig:
         v.validate_positive_int("llama_cpp_generate_tokens", self.llama_cpp_generate_tokens)
         v.validate_positive_int("jsonl_flush_every", self.jsonl_flush_every)
         v.validate_positive_int("llama_cpp_cache_max_entries", self.llama_cpp_cache_max_entries)
+        v.validate_bounded_positive_int("training_episodes", self.training_episodes)
+        v.validate_bounded_positive_int("evaluation_episodes", self.evaluation_episodes)
+        v.validate_bounded_positive_int("max_training_episodes", self.max_training_episodes)
+        if self.benchmark_training_episodes is not None:
+            v.validate_bounded_positive_int("benchmark_training_episodes", self.benchmark_training_episodes)
+        if self.benchmark_evaluation_episodes is not None:
+            v.validate_bounded_positive_int("benchmark_evaluation_episodes", self.benchmark_evaluation_episodes)
+        v.validate_bounded_positive_int("online_requests", self.online_requests)
+        v.validate_bounded_nonneg_int("replay_buffer_capacity", self.replay_buffer_capacity)
+        v.validate_bounded_positive_int("online_replay_capacity", self.online_replay_capacity)
+        v.validate_router_routes(self.router_routes)
+        v.validate_moe_topology(
+            num_experts=self.moe_num_experts,
+            top_k=self.moe_top_k,
+            gpu_resident=self.moe_gpu_resident_experts,
+            max_aggressive=self.moe_max_aggressive_experts,
+        )
+        v.validate_structural_limits(
+            num_groups=self.num_groups,
+            num_layers=self.num_layers,
+            eval_interval=self.eval_interval,
+            checkpoint_interval=self.checkpoint_interval,
+            stability_probe_count=self.stability_probe_count,
+            log_every_n_episodes=self.log_every_n_episodes,
+            llama_cpp_threads=self.llama_cpp_threads,
+            llama_cpp_context=self.llama_cpp_context,
+            llama_cpp_max_prompt_chars=self.llama_cpp_max_prompt_chars,
+            torch_hidden_dim=self.torch_hidden_dim,
+            torch_mlp_depth=self.torch_mlp_depth,
+            torch_batch_episodes=self.torch_batch_episodes,
+            torch_minibatch_size=self.torch_minibatch_size,
+            torch_update_epochs=self.torch_update_epochs,
+            torch_preflight_batch_size=self.torch_preflight_batch_size,
+            torch_preflight_warmup_steps=self.torch_preflight_warmup_steps,
+            torch_preflight_steps=self.torch_preflight_steps,
+            online_min_replay_size=self.online_min_replay_size,
+            online_update_interval=self.online_update_interval,
+            online_batch_size=self.online_batch_size,
+            online_drift_window=self.online_drift_window,
+            online_safe_mode_cooldown=self.online_safe_mode_cooldown,
+        )
 
     def rl_train_deterministic(self) -> bool:
         return self.rl_train_policy_mode.strip().lower() == "deterministic"

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import subprocess
 import sys
 import tempfile
@@ -35,7 +36,10 @@ from adaptive_quant.policy import (
     _gaussian_head_from_payload,
     _value_head_from_payload,
 )
+from adaptive_quant.backends.llama_cpp import require_llama_cpp_paths
+from adaptive_quant.model_routes import ModelRoute, RouteCatalog
 from adaptive_quant.research_pipeline import git_commit_hash
+from adaptive_quant.routing import parse_route
 from adaptive_quant.trainer import Trainer
 
 
@@ -585,6 +589,122 @@ class JsonlLimitTests(unittest.TestCase):
                     load_jsonl(str(path))
             finally:
                 logging_utils.MAX_JSONL_LINES = original_limit
+
+
+class RuntimePathTraversalTests(unittest.TestCase):
+    """Route / llama.cpp paths must reject ``..`` even when supplied via metadata overrides."""
+
+    def test_require_llama_cpp_paths_rejects_parent_reference_in_model_override(self) -> None:
+        config = FrameworkConfig(
+            run_name="llama_path_redteam",
+            training_episodes=1,
+            evaluation_episodes=1,
+            stability_probe_count=1,
+            llama_cpp_binary="/usr/bin/true",
+            llama_cpp_model="/models/base.gguf",
+        )
+        with self.assertRaises(ValueError):
+            require_llama_cpp_paths(
+                config,
+                model_override="../../etc/passwd",
+            )
+
+    def test_model_route_local_path_rejects_parent_reference(self) -> None:
+        with self.assertRaises(ValueError):
+            ModelRoute(
+                route_id="evil",
+                repo_id="org/model",
+                quant_label="Q4_K_M",
+                local_path="../../escape.gguf",
+            )
+
+    def test_route_catalog_update_local_path_rejects_parent_reference(self) -> None:
+        catalog = RouteCatalog(
+            routes=[
+                ModelRoute(
+                    route_id="ok",
+                    repo_id="org/model",
+                    quant_label="Q4_K_M",
+                )
+            ]
+        )
+        with self.assertRaises(ValueError):
+            catalog.update_local_path("ok", "../escape.gguf")
+
+    def test_parse_route_llama_cpp_rejects_parent_reference(self) -> None:
+        with self.assertRaises(ValueError):
+            parse_route("llama_cpp:../../etc/passwd@q4")
+
+
+class StructuralLimitTests(unittest.TestCase):
+    def test_num_layers_rejects_absurd_values(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            FrameworkConfig(
+                run_name="struct_cap",
+                training_episodes=1,
+                evaluation_episodes=1,
+                stability_probe_count=1,
+                num_layers=10**9,
+            )
+        self.assertIn("num_layers", str(ctx.exception))
+
+    def test_moe_top_k_must_not_exceed_num_experts(self) -> None:
+        with self.assertRaises(ValueError):
+            FrameworkConfig(
+                run_name="moe_cap",
+                training_episodes=1,
+                evaluation_episodes=1,
+                stability_probe_count=1,
+                moe_num_experts=4,
+                moe_top_k=8,
+            )
+
+
+class LlamaBinaryAllowlistTests(unittest.TestCase):
+    def test_allowlist_env_rejects_binary_outside_prefix(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            model_path = Path(temp_dir) / "model.gguf"
+            model_path.write_text("fake", encoding="utf-8")
+            binary_path = Path(temp_dir) / "llama-cli"
+            binary_path.write_text("#!/bin/sh\necho 'tok/s 1.0'\n", encoding="utf-8")
+            binary_path.chmod(0o755)
+            allowed_root = Path(temp_dir) / "allowed"
+            allowed_root.mkdir()
+            config = FrameworkConfig(
+                run_name="llama_allowlist",
+                training_episodes=1,
+                evaluation_episodes=1,
+                stability_probe_count=1,
+                llama_cpp_binary=str(binary_path),
+                llama_cpp_model=str(model_path),
+            )
+            env = {**os.environ, "ADAPTIVE_RL_LLAMA_CPP_BINARY_PREFIXES": str(allowed_root)}
+            with mock.patch.dict(os.environ, env, clear=True):
+                with self.assertRaises(ValueError) as ctx:
+                    require_llama_cpp_paths(config)
+            self.assertIn("ADAPTIVE_RL_LLAMA_CPP_BINARY_PREFIXES", str(ctx.exception))
+
+
+class EpisodeCountCapTests(unittest.TestCase):
+    def test_training_episodes_rejects_absurd_values(self) -> None:
+        with self.assertRaises(ValueError):
+            FrameworkConfig(
+                run_name="episode_cap",
+                training_episodes=10**9,
+                evaluation_episodes=1,
+                stability_probe_count=1,
+            )
+
+    def test_router_routes_validated_at_config_load(self) -> None:
+        with self.assertRaises(ValueError):
+            FrameworkConfig(
+                run_name="bad_router",
+                training_episodes=1,
+                evaluation_episodes=1,
+                stability_probe_count=1,
+                router_enabled=True,
+                router_routes=("llama_cpp:../../etc/passwd@q4",),
+            )
 
 
 class DockerComposeHardeningTests(unittest.TestCase):

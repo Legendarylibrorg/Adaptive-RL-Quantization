@@ -25,6 +25,8 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from adaptive_quant.configuration.validation import path_has_parent_reference
+
 # Conservative regex that accepts well-formed Hugging Face Hub identifiers and filenames.
 # Repos may contain a single forward slash (org/name); files allow nested directories with
 # letters/digits/dot/dash/underscore/slash. We reject anything else to guarantee that argv
@@ -108,6 +110,8 @@ def find_huggingface_cli(*, override_env: str = "HF_CLI") -> HuggingFaceCli | No
     override = os.environ.get(override_env)
     if override:
         candidate = Path(override).expanduser()
+        if ".." in candidate.parts:
+            return None
         if candidate.is_file() and _is_plausibly_executable(candidate):
             dialect = _HF_CLI_NEW if candidate.stem.lower() == _HF_CLI_NEW else "legacy"
             return HuggingFaceCli(binary=str(candidate), dialect=dialect)
@@ -233,9 +237,12 @@ def parse_local_path(text: str) -> Path | None:
         match = pattern.search(text)
         if match:
             try:
-                return Path(match.group("path")).expanduser()
+                resolved = Path(match.group("path")).expanduser()
             except OSError:
                 continue
+            if ".." in resolved.parts:
+                continue
+            return resolved
     return None
 
 
