@@ -143,6 +143,11 @@ def main(argv: list[str] | None = None) -> int:
                 print(error)
             raise SystemExit("dependency hash verification failed")
         print(f"OK: verify_hashes.py — dependency hashes match {manifest_path.relative_to(root)}.")
+        print("== pip-compile lockfile hashes ==")
+        from verify_lockfiles import main as verify_lockfiles_main
+
+        if verify_lockfiles_main() != 0:
+            raise SystemExit("lockfile verification failed")
 
     _python_compile(root)
 

@@ -768,12 +768,58 @@ class EpisodeCountCapTests(unittest.TestCase):
             )
 
 
+class CliAndPromptHardeningTests(unittest.TestCase):
+    def test_cli_path_rejects_parent_reference(self) -> None:
+        from adaptive_quant.configuration.validation import validate_cli_path_argument
+
+        with self.assertRaises(ValueError):
+            validate_cli_path_argument("log_path", "../secrets.jsonl")
+
+    def test_router_task_text_rejects_oversized_input(self) -> None:
+        from adaptive_quant.configuration.validation import (
+            MAX_ROUTER_TASK_TEXT_CHARS,
+            validate_router_task_text,
+        )
+
+        with self.assertRaises(ValueError):
+            validate_router_task_text("x" * (MAX_ROUTER_TASK_TEXT_CHARS + 1))
+
+    def test_online_prompt_rejects_nul(self) -> None:
+        from adaptive_quant.configuration.validation import validate_online_prompt_text
+
+        with self.assertRaises(ValueError):
+            validate_online_prompt_text("hello\x00world")
+
+    def test_online_loop_rejects_oversized_prompt(self) -> None:
+        from adaptive_quant.configuration.validation import MAX_ONLINE_PROMPT_TEXT_CHARS
+        from adaptive_quant.online_learning import OnlineLearningLoop
+        from adaptive_quant.types import HardwareType, OnlineRequest
+
+        config = FrameworkConfig(
+            run_name="online_prompt_cap",
+            training_episodes=1,
+            evaluation_episodes=1,
+            stability_probe_count=1,
+            online_learning=True,
+            online_requests=1,
+        )
+        loop = OnlineLearningLoop(config)
+        with self.assertRaises(ValueError):
+            loop.serve_request(
+                OnlineRequest(
+                    prompt_text="z" * (MAX_ONLINE_PROMPT_TEXT_CHARS + 1),
+                    hardware=HardwareType.GPU,
+                )
+            )
+
+
 class DockerComposeHardeningTests(unittest.TestCase):
     def test_dockerfile_base_image_is_digest_pinned(self) -> None:
         dockerfile = (Path(__file__).resolve().parent.parent / "Dockerfile").read_text(
             encoding="utf-8"
         )
         self.assertIn("FROM python:3.12-slim-bookworm@sha256:", dockerfile)
+        self.assertIn("verify_lockfiles.py", dockerfile)
 
     def test_compose_keeps_security_contract(self) -> None:
         compose = (Path(__file__).resolve().parent.parent / "docker-compose.yml").read_text(

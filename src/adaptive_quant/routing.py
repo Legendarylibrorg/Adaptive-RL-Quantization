@@ -21,6 +21,7 @@ from typing import Any
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.configuration.validation import (
     validate_hf_model_id,
+    validate_router_task_text,
     validate_runtime_filesystem_path,
 )
 from adaptive_quant.math_utils import argmax, dot, sample_categorical, softmax
@@ -297,6 +298,7 @@ class EfficientTaskRouter:
         return _stable_l2_normalize([float(x) for x in vec])
 
     def featurize(self, *, task_text: str) -> list[float]:
+        task_text = validate_router_task_text(task_text)
         backend = self.config.router_feature_backend.strip().lower()
         if backend == "hf":
             return self._hf_features(task_text)
@@ -305,6 +307,7 @@ class EfficientTaskRouter:
     def route(
         self, *, task_text: str, deterministic: bool = False
     ) -> tuple[RouteCandidate, RouterTrace]:
+        task_text = validate_router_task_text(task_text)
         feature_vector = self.featurize(task_text=task_text)
         value_prediction = self.value_head.predict(feature_vector)
         selected_index, probabilities = self.policy_head.sample(

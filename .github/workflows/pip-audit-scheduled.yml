@@ -1,0 +1,31 @@
+name: Scheduled pip-audit
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
+
+      - name: Verify locks and audit hash-pinned requirements
+        run: |
+          python scripts/verify_hashes.py --output "${{ runner.temp }}/requirements-ci.txt"
+          python scripts/verify_lockfiles.py
+          python -m pip install --require-hashes -r "${{ runner.temp }}/requirements-ci.txt"
+          python -m pip install --require-hashes -r requirements/dev.txt
+          python -m pip_audit -r "${{ runner.temp }}/requirements-ci.txt"
+          python -m pip_audit -r requirements/dev.txt
+          python -m pip_audit -r requirements/pytorch-cpu.txt

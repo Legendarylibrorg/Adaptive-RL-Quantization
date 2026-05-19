@@ -22,8 +22,8 @@ updates:
         patterns:
           - "torch"
           - "transformers"
-          - "safetensors"
           - "ruff"
+          - "pip-audit"
     labels:
       - dependencies
       - python
@@ -37,8 +37,6 @@ updates:
       ci-bootstrap:
         patterns:
           - "ci.txt"
-          - "audit.in"
-          - "audit.txt"
           - "pytorch.in"
           - "pytorch-cpu.txt"
           - "dev.txt"

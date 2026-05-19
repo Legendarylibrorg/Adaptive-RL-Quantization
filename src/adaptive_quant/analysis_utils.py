@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 from pathlib import Path
 
+from adaptive_quant.configuration.validation import validate_cli_path_argument
 from adaptive_quant.logging_utils import write_text_file
 from adaptive_quant.math_utils import mean
 
@@ -13,6 +14,7 @@ def _svg_text(value: object) -> str:
 
 
 def ensure_directory(path: str) -> Path:
+    validate_cli_path_argument("output_dir", path)
     target = Path(path)
     target.mkdir(parents=True, exist_ok=True)
     return target

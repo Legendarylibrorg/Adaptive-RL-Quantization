@@ -452,16 +452,26 @@ def _stable_digest(obj: object) -> str:
     return hashlib.sha256(blob).hexdigest()
 
 
+_MAX_DIGEST_FILE_BYTES = 256 << 20
+
+
 def _sha256_file(path: object | None) -> str | None:
     if not isinstance(path, str) or not path:
         return None
     source = Path(path)
     if not source.is_file():
         return None
+    if source.stat().st_size > _MAX_DIGEST_FILE_BYTES:
+        return None
     digest = hashlib.sha256()
+    remaining = _MAX_DIGEST_FILE_BYTES
     with source.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+        while remaining > 0:
+            chunk = handle.read(min(1024 * 1024, remaining))
+            if not chunk:
+                break
             digest.update(chunk)
+            remaining -= len(chunk)
     return digest.hexdigest()
 
 

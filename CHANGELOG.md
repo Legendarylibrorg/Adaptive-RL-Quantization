@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-- Hash-pin CI dev tools, `pip-audit`, and PyTorch CPU smoke via `pip-compile` lockfiles (`requirements/dev.txt`, `audit.txt`, `pytorch-cpu.txt`); bootstrap `setup_from_clone.py` uses `--require-hashes` for setuptools.
+- Hash-pin CI dev tools (including `pip-audit`), and PyTorch CPU smoke via `pip-compile` lockfiles (`requirements/dev.txt`, `pytorch-cpu.txt`); `verify_lockfiles.py` enforces inline hashes; scheduled weekly `pip-audit` on main; bootstrap `setup_from_clone.py` uses `--require-hashes` for setuptools.
+- Cap router/online prompt text; validate analysis CLI paths; bound paper-bundle digest reads; skip binary extensions in `secret_scan.py`; Docker `INSTALL_EXTRAS=torch` uses hash-pinned `pytorch-cpu.txt`.
+- Drop redundant `safetensors` pin and `compat_tomllib` shim; stop re-exporting `subprocess` from `adaptive_quant.backend`.
 
 ### Added
 

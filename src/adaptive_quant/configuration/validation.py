@@ -39,6 +39,11 @@ MAX_RECOMMENDATION_CANDIDATE_LIMIT = 10_000
 MAX_LLAMA_CPP_GENERATE_TOKENS = MAX_LLAMA_CPP_CONTEXT
 MAX_JSONL_FLUSH_EVERY = MAX_LOG_EVERY_N_EPISODES
 MAX_LLAMA_CPP_CACHE_ENTRIES = 65_536
+# Router / online prompt text (UTF-8 code units) — limits tokenizer RAM blow-ups.
+MAX_ROUTER_TASK_TEXT_CHARS = 262_144
+MAX_ONLINE_PROMPT_TEXT_CHARS = MAX_ROUTER_TASK_TEXT_CHARS
+# CLI analysis scripts (log path + output dir).
+MAX_CLI_PATH_CHARS = 4096
 
 _LLAMA_CPP_BINARY_PREFIXES_ENV = "ADAPTIVE_RL_LLAMA_CPP_BINARY_PREFIXES"
 
@@ -191,6 +196,37 @@ def validate_optional_filesystem_path(field_name: str, path: str | None) -> None
 def validate_runtime_filesystem_path(field_name: str, path: str) -> None:
     """Validate a required on-disk path (llama.cpp binary/model, route GGUF, etc.)."""
     _validate_path_string(field_name, path)
+
+
+def validate_cli_path_argument(label: str, path: str) -> None:
+    """Validate filesystem paths passed on the CLI (analysis tools, etc.)."""
+    _validate_path_string(label, path)
+    if len(path) > MAX_CLI_PATH_CHARS:
+        raise ValueError(f"{label} exceeds {MAX_CLI_PATH_CHARS} characters")
+
+
+def validate_router_task_text(text: str) -> str:
+    if not isinstance(text, str):
+        raise TypeError("task_text must be a string")
+    if "\x00" in text:
+        raise ValueError("task_text must not contain NUL bytes")
+    if len(text) > MAX_ROUTER_TASK_TEXT_CHARS:
+        raise ValueError(
+            f"task_text exceeds {MAX_ROUTER_TASK_TEXT_CHARS} characters ({len(text)} given)"
+        )
+    return text
+
+
+def validate_online_prompt_text(text: str) -> str:
+    if not isinstance(text, str):
+        raise TypeError("prompt_text must be a string")
+    if "\x00" in text:
+        raise ValueError("prompt_text must not contain NUL bytes")
+    if len(text) > MAX_ONLINE_PROMPT_TEXT_CHARS:
+        raise ValueError(
+            f"prompt_text exceeds {MAX_ONLINE_PROMPT_TEXT_CHARS} characters ({len(text)} given)"
+        )
+    return text
 
 
 def validate_llama_cpp_binary_allowlist(resolved_binary: str) -> None:

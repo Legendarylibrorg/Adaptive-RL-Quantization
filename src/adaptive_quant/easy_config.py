@@ -145,7 +145,7 @@ def _parse_config_file(path: Path) -> dict[str, Any]:
             raise TypeError(f"Config root must be an object/dict, got {type(data).__name__}")
         return data
     if suffix in (".toml", ".tml"):
-        from adaptive_quant.compat_tomllib import loads as toml_loads
+        from tomllib import loads as toml_loads
 
         data = toml_loads(text)
         enforce_safe_parsed_json(data, label=cfg_label)
