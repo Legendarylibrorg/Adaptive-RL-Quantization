@@ -181,6 +181,17 @@ class FrameworkConfig:
         v.validate_positive_int("llama_cpp_generate_tokens", self.llama_cpp_generate_tokens)
         v.validate_positive_int("jsonl_flush_every", self.jsonl_flush_every)
         v.validate_positive_int("llama_cpp_cache_max_entries", self.llama_cpp_cache_max_entries)
+        v.validate_bounded_positive_int("training_episodes", self.training_episodes)
+        v.validate_bounded_positive_int("evaluation_episodes", self.evaluation_episodes)
+        v.validate_bounded_positive_int("max_training_episodes", self.max_training_episodes)
+        if self.benchmark_training_episodes is not None:
+            v.validate_bounded_positive_int("benchmark_training_episodes", self.benchmark_training_episodes)
+        if self.benchmark_evaluation_episodes is not None:
+            v.validate_bounded_positive_int("benchmark_evaluation_episodes", self.benchmark_evaluation_episodes)
+        v.validate_bounded_positive_int("online_requests", self.online_requests)
+        v.validate_bounded_nonneg_int("replay_buffer_capacity", self.replay_buffer_capacity)
+        v.validate_bounded_positive_int("online_replay_capacity", self.online_replay_capacity)
+        v.validate_router_routes(self.router_routes)
 
     def rl_train_deterministic(self) -> bool:
         return self.rl_train_policy_mode.strip().lower() == "deterministic"

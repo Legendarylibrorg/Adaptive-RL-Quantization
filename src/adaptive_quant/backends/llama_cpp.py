@@ -10,6 +10,7 @@ from adaptive_quant.backends.protocol import per_token_latency_fields
 from adaptive_quant.backends.quality import ExternalQualityScores, apply_external_quality
 from adaptive_quant.backends.simulator import SimulatorBackend
 from adaptive_quant.configuration import FrameworkConfig
+from adaptive_quant.configuration.validation import validate_runtime_filesystem_path
 from adaptive_quant.types import BackendMetricDict, EpisodeState, QuantizationDecision
 
 _NUMBER_RE = r"-?\d+(?:\.\d+)?"
@@ -165,11 +166,8 @@ def require_llama_cpp_paths(
     model = model_override or getattr(config, "llama_cpp_model", None)
     if not binary or not model:
         raise FileNotFoundError("llama.cpp backend requires both a binary path and a model path.")
-    for label, path in (("llama_cpp_binary", binary), ("llama_cpp_model", model)):
-        if not isinstance(path, str):
-            raise TypeError(f"{label} must be a string path, got {type(path).__name__}")
-        if "\n" in path or "\r" in path or "\x00" in path:
-            raise ValueError(f"{label} contains invalid control characters; refuse ambiguous paths.")
+    validate_runtime_filesystem_path("llama_cpp_binary", str(binary))
+    validate_runtime_filesystem_path("llama_cpp_model", str(model))
     binary = os.path.realpath(binary)
     model = os.path.realpath(model)
     if not os.path.isfile(binary) or not os.access(binary, os.X_OK):

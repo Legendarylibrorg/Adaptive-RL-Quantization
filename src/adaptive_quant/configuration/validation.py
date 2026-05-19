@@ -6,6 +6,9 @@ from pathlib import Path
 _RUN_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 _HF_REVISION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
 
+# Absolute ceiling for episode / buffer counters loaded from JSON/TOML (DoS guard).
+MAX_EPISODE_COUNT = 1_000_000
+
 _BACKENDS = frozenset({"simulator", "llama_cpp"})
 _TORCH_POLICY_ALGORITHMS = frozenset({"ppo", "vpg", "awr"})
 _ENV_SAMPLING_MODES = frozenset({"random", "sequential", "forced"})
@@ -62,10 +65,47 @@ def validate_torch_policy_algorithm(name: str) -> None:
 
 
 def validate_positive_int(name: str, value: int) -> None:
-    if not isinstance(value, int):
+    if not isinstance(value, int) or isinstance(value, bool):
         raise TypeError(f"{name} must be an int")
     if value <= 0:
         raise ValueError(f"{name} must be > 0, got {value!r}")
+
+
+def validate_bounded_positive_int(
+    name: str,
+    value: int,
+    *,
+    ceiling: int = MAX_EPISODE_COUNT,
+) -> None:
+    validate_positive_int(name, value)
+    if value > ceiling:
+        raise ValueError(f"{name} must be <= {ceiling}, got {value!r}")
+
+
+def validate_bounded_nonneg_int(
+    name: str,
+    value: int,
+    *,
+    ceiling: int = MAX_EPISODE_COUNT,
+) -> None:
+    """Like :func:`validate_bounded_positive_int` but allows zero (e.g. disabled replay buffer)."""
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise TypeError(f"{name} must be an int")
+    if value < 0:
+        raise ValueError(f"{name} must be >= 0, got {value!r}")
+    if value > ceiling:
+        raise ValueError(f"{name} must be <= {ceiling}, got {value!r}")
+
+
+def _validate_path_string(field_name: str, path: str) -> None:
+    if not isinstance(path, str):
+        raise TypeError(f"{field_name} must be a string")
+    if not path.strip():
+        raise ValueError(f"{field_name} must be non-empty")
+    if "\x00" in path or "\n" in path or "\r" in path:
+        raise ValueError(f"{field_name} contains invalid control characters")
+    if path_has_parent_reference(path):
+        raise ValueError(f"{field_name} must not contain '..' ({path!r})")
 
 
 def validate_discrete_bit_widths(values: tuple[int, ...]) -> None:
@@ -102,27 +142,33 @@ def path_has_parent_reference(path: str) -> bool:
 def validate_artifact_dir(field_name: str, path: str) -> None:
     if not isinstance(path, str):
         raise TypeError(f"{field_name} must be a string")
-    stripped = path.strip()
-    if not stripped:
-        raise ValueError(f"{field_name} must be non-empty")
-    if "\x00" in path or "\n" in path or "\r" in path:
-        raise ValueError(f"{field_name} contains invalid control characters")
-    if path_has_parent_reference(path):
-        raise ValueError(f"{field_name} must not contain '..' ({path!r})")
+    _validate_path_string(field_name, path)
 
 
 def validate_optional_filesystem_path(field_name: str, path: str | None) -> None:
     if path is None:
         return
-    if not isinstance(path, str):
-        raise TypeError(f"{field_name} must be a string or None")
-    stripped = path.strip()
-    if not stripped:
-        raise ValueError(f"{field_name} if set must be non-empty")
-    if "\x00" in path or "\n" in path or "\r" in path:
-        raise ValueError(f"{field_name} contains invalid control characters")
-    if path_has_parent_reference(path):
-        raise ValueError(f"{field_name} must not contain '..' ({path!r})")
+    _validate_path_string(field_name, path)
+
+
+def validate_runtime_filesystem_path(field_name: str, path: str) -> None:
+    """Validate a required on-disk path (llama.cpp binary/model, route GGUF, etc.)."""
+    _validate_path_string(field_name, path)
+
+
+def validate_router_routes(routes: tuple[str, ...]) -> None:
+    """Parse every configured router route so hostile paths fail at config load time."""
+    if not routes:
+        return
+    from adaptive_quant.routing import parse_route
+
+    for index, route in enumerate(routes):
+        if not isinstance(route, str) or not route.strip():
+            raise ValueError(f"router_routes[{index}] must be a non-empty string")
+        try:
+            parse_route(route)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"router_routes[{index}] is invalid ({route!r}): {exc}") from exc
 
 
 def validate_optional_hf_revision(field_name: str, revision: str | None) -> None:

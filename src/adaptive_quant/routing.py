@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from adaptive_quant.configuration import FrameworkConfig
+from adaptive_quant.configuration.validation import validate_runtime_filesystem_path
 from adaptive_quant.math_utils import argmax, dot, sample_categorical, softmax
 
 
@@ -69,7 +70,10 @@ def parse_route(route: str) -> RouteCandidate:
             model_part = rest.strip()
 
     if "@q" not in model_part:
-        return RouteCandidate(backend=backend, model_id=model_part, quant_bits=None)
+        candidate = RouteCandidate(backend=backend, model_id=model_part, quant_bits=None)
+        if backend == "llama_cpp":
+            validate_runtime_filesystem_path("llama_cpp_route_model", model_part)
+        return candidate
     model_id, suffix = model_part.rsplit("@q", 1)
     model_id = model_id.strip()
     suffix = suffix.strip()
@@ -81,7 +85,10 @@ def parse_route(route: str) -> RouteCandidate:
         raise ValueError(f"Invalid route {route!r}: expected '@q<int>' suffix") from exc
     if bits <= 0:
         raise ValueError(f"Invalid route {route!r}: quant bits must be > 0")
-    return RouteCandidate(backend=backend, model_id=model_id, quant_bits=bits)
+    candidate = RouteCandidate(backend=backend, model_id=model_id, quant_bits=bits)
+    if backend == "llama_cpp":
+        validate_runtime_filesystem_path("llama_cpp_route_model", model_id)
+    return candidate
 
 
 @dataclass

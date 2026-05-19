@@ -102,6 +102,10 @@ class RunnerScriptCliTests(unittest.TestCase):
         )
         self.assertIn("github.event.repository.private == false", workflow_text)
         self.assertIn("actions/dependency-review-action@", workflow_text)
+        self.assertIn(
+            "actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294",
+            workflow_text,
+        )
         self.assertIn("fail-on-severity: high", workflow_text)
 
     def test_pre_commit_config_uses_isolated_python_hook(self) -> None:
