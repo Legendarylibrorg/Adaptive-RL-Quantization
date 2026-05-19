@@ -168,11 +168,22 @@ def require_llama_cpp_paths(
     model_override: object | None = None,
 ) -> tuple[str, str]:
     binary = getattr(config, "llama_cpp_binary", None)
-    model = model_override or getattr(config, "llama_cpp_model", None)
+    if model_override is not None and not isinstance(model_override, str):
+        raise TypeError("llama_cpp_model_path override must be a string path")
+    model = (
+        model_override if model_override is not None else getattr(config, "llama_cpp_model", None)
+    )
     if not binary or not model:
         raise FileNotFoundError("llama.cpp backend requires both a binary path and a model path.")
     validate_runtime_filesystem_path("llama_cpp_binary", str(binary))
     validate_runtime_filesystem_path("llama_cpp_model", str(model))
+    model_str = str(model)
+    if not os.path.isabs(model_str) and model_str.count(":") == 1:
+        prefix = model_str.split(":", 1)[0].strip().lower()
+        if prefix in {"hf", "llama_cpp"}:
+            raise ValueError(
+                f"llama_cpp_model path looks like a router route id, not a file path: {model!r}"
+            )
     binary = os.path.realpath(binary)
     model = os.path.realpath(model)
     validate_llama_cpp_binary_allowlist(binary)

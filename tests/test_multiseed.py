@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from pathlib import Path
 
@@ -32,6 +33,11 @@ class MultiSeedRunnerTests(unittest.TestCase):
         self.assertTrue(bundle_dir.exists(), "Expected multiseed paper bundle to be written")
         self.assertTrue((bundle_dir / "manifest.json").exists(), "Expected multiseed manifest")
         self.assertTrue((bundle_dir / "aggregate_stats.json").exists(), "Expected aggregate stats")
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        self.assertIn("per_seed", summary)
+        self.assertEqual(len(summary["per_seed"]), 2)
+        seeds = {entry["seed"] for entry in summary["per_seed"]}
+        self.assertEqual(seeds, {1, 2})
 
 
 if __name__ == "__main__":
