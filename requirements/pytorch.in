@@ -1,4 +1,6 @@
 # Locked PyTorch CPU wheels for CI pytorch-smoke (Linux x86_64).
-# Regenerate: pip-compile --generate-hashes --output-file=requirements/pytorch-cpu.txt requirements/pytorch.in
+# Regenerate: python scripts/compile_locked_requirements.py
+# torch 2.12 requires setuptools<82; pin explicitly for --require-hashes installs.
 --extra-index-url https://download.pytorch.org/whl/cpu
+setuptools<82
 torch==2.12.0
