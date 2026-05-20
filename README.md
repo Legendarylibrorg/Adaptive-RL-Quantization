@@ -190,7 +190,7 @@ Paths are driven by `run_name` and directory fields in config.
 ## Security
 
 - **Report vulnerabilities** privately via [GitHub Security Advisories](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/security/advisories/new); details in [SECURITY.md](SECURITY.md) and [`.well-known/security.txt`](.well-known/security.txt).
-- **Stronger isolation:** disposable VM, Docker, trust boundaries for binaries and model files — see **[docs/SECURE_RUN.md](docs/SECURE_RUN.md)** (short OS-specific defaults).
+- **Stronger isolation (recommended for untrusted artifacts):** **disposable Linux VM → hardened Docker** (optional **NVIDIA GPU inside the VM** via passthrough + container runtime). Convenience host venv is lower assurance — see **[docs/SECURE_RUN.md](docs/SECURE_RUN.md)**; CI runs **`docker-hardening`** on Ubuntu; locally use `make docker-preflight`, `make docker-gpu-verify` (GPU VM).
 - **Secrets / checkpoints / CI hashes:** do not commit `.env` or keys; treat third-party **`.pt`** checkpoints as untrusted (loaders use **`weights_only=True`** where supported); CI installs bootstrap deps with **`pip --require-hashes`** after [scripts/verify_hashes.py](scripts/verify_hashes.py). Secret scan: **`scripts/secret_scan.py`** via **`pre_commit_check.py`**.
 
 ---
@@ -200,7 +200,7 @@ Paths are driven by `run_name` and directory fields in config.
 | Doc | Contents |
 | --- | --- |
 | [docs/INSTALL.md](docs/INSTALL.md) | Cross-platform venv setup, optional `[torch]`, llama.cpp |
-| [docs/SECURE_RUN.md](docs/SECURE_RUN.md) | Minimal secure boundary: VM/Docker, OS defaults, model trust |
+| [docs/SECURE_RUN.md](docs/SECURE_RUN.md) | VM + Docker isolation tiers, NVIDIA in VM, hardened Compose |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Repo layering, artifact contract, Linux-first / WSL2 guidance |
 | [docs/RUNNING.md](docs/RUNNING.md) | Every entrypoint, examples, OS notes |
 | [docs/CONFIG.md](docs/CONFIG.md) | All settings + **JSON/TOML** + reproducibility |

@@ -1,3 +1,5 @@
+# Merge with docker-compose.yml — base hardening (non-root, read-only root, cap drop) stays in effect.
+# Use only inside a disposable Linux VM when exposing NVIDIA devices; see docs/SECURE_RUN.md.
 services:
   adaptive-rl-quant:
     build:
@@ -6,12 +8,14 @@ services:
     environment:
       NVIDIA_VISIBLE_DEVICES: ${NVIDIA_VISIBLE_DEVICES:-0}
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities:
-                - gpu
-    command: ["adaptive-rl-quant-pytorch", "--preset", "gpu"]
+    # `gpus` is honored by `docker compose run` (unlike legacy-only `deploy` device blocks).
+    gpus:
+      - driver: nvidia
+        count: 1
+        capabilities: [gpu]
+    command:
+      [
+        "adaptive-rl-quant-pytorch",
+        "--config",
+        "config.docker.gpu_smoke.json",
+      ]

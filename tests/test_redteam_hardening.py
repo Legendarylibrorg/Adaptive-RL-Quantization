@@ -826,6 +826,7 @@ class DockerComposeHardeningTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn('user: "10001:10001"', compose)
+        self.assertIn("privileged: false", compose)
         self.assertIn("read_only: true", compose)
         self.assertIn("cap_drop:", compose)
         self.assertIn("- ALL", compose)
@@ -839,7 +840,101 @@ class DockerComposeHardeningTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn("NVIDIA_VISIBLE_DEVICES: ${NVIDIA_VISIBLE_DEVICES:-0}", compose)
-        self.assertIn("count: 1", compose)
+        self.assertIn("gpus:", compose)
+        self.assertIn("driver: nvidia", compose)
+        self.assertIn("config.docker.gpu_smoke.json", compose)
+
+    def test_gpu_compose_does_not_weaken_base_hardening(self) -> None:
+        gpu = (Path(__file__).resolve().parent.parent / "docker-compose.gpu.yml").read_text(
+            encoding="utf-8"
+        ).lower()
+        self.assertNotIn("privileged: true", gpu)
+        self.assertNotIn("docker.sock", gpu)
+        self.assertNotIn("read_only: false", gpu)
+        self.assertNotIn("cap_add:", gpu)
+
+    def test_merged_compose_preserves_hardening(self) -> None:
+        import shutil
+        import subprocess
+
+        root = Path(__file__).resolve().parent.parent
+        if shutil.which("docker") is None:
+            self.skipTest("docker not installed")
+        try:
+            proc = subprocess.run(
+                [
+                    "docker",
+                    "compose",
+                    "-f",
+                    "docker-compose.yml",
+                    "-f",
+                    "docker-compose.gpu.yml",
+                    "config",
+                ],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            self.skipTest(f"docker compose unavailable: {exc}")
+        if proc.returncode != 0:
+            self.skipTest(
+                f"docker compose config failed: {proc.stderr.strip() or proc.stdout.strip()}"
+            )
+        merged = proc.stdout
+        for key in (
+            "read_only: true",
+            "privileged: false",
+            "no-new-privileges:true",
+            'user: "10001:10001"',
+            "gpus:",
+            "driver: nvidia",
+        ):
+            with self.subTest(key=key):
+                self.assertIn(key, merged)
+
+    def test_docker_gpu_smoke_config_uses_cpu_torch(self) -> None:
+        from adaptive_quant.easy_config import load_config
+
+        path = Path(__file__).resolve().parent.parent / "config.docker.gpu_smoke.json"
+        cfg = load_config(path)
+        self.assertEqual(cfg.torch_device, "cpu")
+        self.assertFalse(cfg.torch_preflight)
+
+    def test_docker_gpu_device_probe_without_require_is_warning(self) -> None:
+        import subprocess
+
+        root = Path(__file__).resolve().parent.parent
+        env = {**os.environ}
+        env.pop("ADAPTIVE_RL_REQUIRE_CONTAINER_CUDA", None)
+        proc = subprocess.run(
+            [sys.executable, str(root / "scripts" / "docker_gpu_device_probe.py")],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            env=env,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("warning", proc.stdout.lower())
+
+    def test_docker_gpu_device_probe_require_fails_without_devices(self) -> None:
+        import subprocess
+
+        root = Path(__file__).resolve().parent.parent
+        env = {**os.environ, "ADAPTIVE_RL_REQUIRE_CONTAINER_CUDA": "1"}
+        proc = subprocess.run(
+            [sys.executable, str(root / "scripts" / "docker_gpu_device_probe.py")],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            env=env,
+        )
+        self.assertEqual(proc.returncode, 1, proc.stdout)
+        self.assertIn("nvidia", proc.stderr.lower())
 
 
 if __name__ == "__main__":

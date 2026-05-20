@@ -139,4 +139,4 @@ The following are deliberate, repo-level mitigations. They are not a substitute 
 - **Optional llama.cpp binary allowlist** — when `ADAPTIVE_RL_LLAMA_CPP_BINARY_PREFIXES` is set (``os.pathsep``-separated roots), `require_llama_cpp_paths` refuses binaries that resolve outside those directories.
 - **Bootstrap `pip-audit`** — CI audits hash-pinned packages in `requirements/ci.txt` and `requirements/dev.txt` in addition to PR dependency review.
 
-For VM/Docker layout and OS-preferred paths see [docs/SECURE_RUN.md](docs/SECURE_RUN.md); reporting and dependency notes remain in the **Security** section of [README.md](README.md).
+For untrusted artifacts, prefer **Tier 1** in [docs/SECURE_RUN.md](docs/SECURE_RUN.md): disposable Linux VM → hardened Docker Compose (`make docker-preflight` / `make docker-gpu-preflight` inside the VM). Real CUDA training belongs in a CUDA-matched venv in that same VM, not the CPU `torch` wheel baked into the optional GPU image smoke path.
