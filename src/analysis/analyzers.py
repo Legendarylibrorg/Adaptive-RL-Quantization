@@ -385,48 +385,50 @@ def analyze_online(
 
 _CLI: dict[str, tuple[str, object, str, bool]] = {
     "hardware_generalization": (
-        "python3 analysis/hardware_generalization.py <log_path> <output_dir> [--phase eval|train|all]",
+        "python -m analysis hardware_generalization <log_path> <output_dir> [--phase eval|train|all]",
         analyze_hardware,
         "Wrote hardware analysis to",
         True,
     ),
     "input_adaptation": (
-        "python3 analysis/input_adaptation.py <log_path> <output_dir> [--phase eval|train|all]",
+        "python -m analysis input_adaptation <log_path> <output_dir> [--phase eval|train|all]",
         analyze_inputs,
         "Wrote input adaptation analysis to",
         True,
     ),
     "moe_cache_behavior": (
-        "python3 analysis/moe_cache_behavior.py <log_path> <output_dir> [--phase eval|train|all]",
+        "python -m analysis moe_cache_behavior <log_path> <output_dir> [--phase eval|train|all]",
         analyze_moe_cache,
         "Wrote MoE cache analysis to",
         True,
     ),
     "moe_expert_behavior": (
-        "python3 analysis/moe_expert_behavior.py <log_path> <output_dir> [--phase eval|train|all]",
+        "python -m analysis moe_expert_behavior <log_path> <output_dir> [--phase eval|train|all]",
         analyze_moe_experts,
         "Wrote MoE expert analysis to",
         True,
     ),
     "quant_function_behavior": (
-        "python3 analysis/quant_function_behavior.py <log_path> <output_dir> [--phase eval|train|all]",
+        "python -m analysis quant_function_behavior <log_path> <output_dir> [--phase eval|train|all]",
         analyze_quant,
         "Wrote quant function analysis to",
         True,
     ),
     "training_dynamics": (
-        "python3 analysis/training_dynamics.py <history_path> <output_dir>",
+        "python -m analysis training_dynamics <history_path> <output_dir>",
         analyze_training_dynamics,
         "Wrote training dynamics analysis to",
         False,
     ),
     "online_learning": (
-        "python3 analysis/online_learning.py <log_path> <output_dir>",
+        "python -m analysis online_learning <log_path> <output_dir>",
         analyze_online,
         "Wrote online analysis to",
         False,
     ),
 }
+
+CLI_COMMANDS = frozenset(_CLI)
 
 
 def _parse_phase_argv(argv: list[str], usage: str) -> tuple[list[str], str | None]:
@@ -472,6 +474,7 @@ def run_cli(key: str) -> None:
 
 
 __all__ = [
+    "CLI_COMMANDS",
     "analyze_hardware",
     "analyze_inputs",
     "analyze_moe_cache",

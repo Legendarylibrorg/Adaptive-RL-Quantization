@@ -1,4 +1,4 @@
-"""Repo-root ``sys.path`` fix for ``python analysis/<script>.py``."""
+"""Shared bootstrap for analysis CLIs (legacy script paths and ``python -m analysis``)."""
 
 from __future__ import annotations
 
@@ -6,15 +6,15 @@ import sys
 from pathlib import Path
 
 
-def _prepare(caller_file: str) -> None:
-    root = str(Path(caller_file).resolve().parent.parent)
+def ensure_src_on_path() -> None:
+    root = str(Path(__file__).resolve().parent.parent)
     if root not in sys.path:
         sys.path.insert(0, root)
 
 
 def run_shim_main(caller_file: str) -> None:
     """Run the analysis CLI keyed by ``Path(caller_file).stem``."""
-    _prepare(caller_file)
+    ensure_src_on_path()
     from analysis.analyzers import run_cli
 
     run_cli(Path(caller_file).stem)
