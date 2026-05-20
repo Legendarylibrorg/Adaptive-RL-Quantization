@@ -62,7 +62,9 @@ def _ruff_check(root: Path, python_bin: str) -> None:
 
 
 def _mypy_check(root: Path, python_bin: str) -> None:
-    print("== mypy (configuration / logging / easy_config) ==")
+    print(
+        "== mypy (configuration, logging, easy_config, backends, route_pipeline, cli, torch_trainer) =="
+    )
     env = dict(os.environ)
     env["PYTHONPATH"] = str(root / "src") + os.pathsep + env.get("PYTHONPATH", "")
     subprocess.run(
@@ -75,6 +77,10 @@ def _mypy_check(root: Path, python_bin: str) -> None:
             "src/adaptive_quant/configuration",
             "src/adaptive_quant/logging_utils.py",
             "src/adaptive_quant/easy_config.py",
+            "src/adaptive_quant/backends",
+            "src/adaptive_quant/route_pipeline.py",
+            "src/adaptive_quant/cli",
+            "src/adaptive_quant/torch_trainer.py",
         ],
         cwd=str(root),
         env=env,

@@ -37,7 +37,7 @@ If `nvidia-smi` is missing or fails inside WSL2, fix the host-side WSL2/NVIDIA s
 
 ## No PyTorch on the simulator path
 
-Normal. [`config.py`](../config.py) uses `training_backend="python"`. Install PyTorch only for GPU configs / `adaptive-rl-quant-pytorch`.
+Normal. [`src/config.py`](../src/config.py) uses `training_backend="python"` (stdlib trainer, not PyTorch). Install PyTorch only for GPU configs / `adaptive-rl-quant-pytorch`.
 
 ## `adaptive-rl-quant-pytorch` says PyTorch is required
 

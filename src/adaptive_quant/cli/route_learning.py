@@ -265,7 +265,7 @@ def _cmd_list(catalog_path: Path, *, output_format: str) -> None:
         sys.stdout.write("\n")
         return
 
-    rows = [
+    rows: list[list[object]] = [
         [
             route.route_id,
             route.repo_id,

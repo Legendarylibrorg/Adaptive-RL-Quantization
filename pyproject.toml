@@ -124,3 +124,10 @@ no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 strict_equality = true
+
+[[tool.mypy.overrides]]
+module = [
+    "adaptive_quant.torch_trainer",
+    "adaptive_quant.torch_policy",
+]
+ignore_missing_imports = true

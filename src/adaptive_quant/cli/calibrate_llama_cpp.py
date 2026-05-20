@@ -120,7 +120,7 @@ def main(argv: Iterable[str] | None = None) -> None:
     output = {
         "run_name": args.run_name,
         "llama_cpp_binary": config.llama_cpp_binary,
-        "llama_cpp_model": str(Path(config.llama_cpp_model).name),
+        "llama_cpp_model": str(Path(llama_cpp_model).name),
         "llama_cpp_threads": config.llama_cpp_threads,
         "llama_cpp_context": config.llama_cpp_context,
         "prompt_samples_per_hardware": prompt_count,

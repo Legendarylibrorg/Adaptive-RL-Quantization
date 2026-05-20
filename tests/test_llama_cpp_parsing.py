@@ -2,17 +2,18 @@ from __future__ import annotations
 
 import unittest
 
-from adaptive_quant.backend import _extract_numeric, parse_llama_cpp_metrics
+from adaptive_quant.backend import parse_llama_cpp_metrics
+from adaptive_quant.backends.llama_cpp import extract_numeric
 
 
 class LlamaCppParsingTests(unittest.TestCase):
     def test_extract_numeric_regex_finds_last_match(self) -> None:
         text = "10.0 tok/s\nsomething 12.5 tok/s\n"
-        self.assertEqual(_extract_numeric(text, "tok/s", default=0.0), 12.5)
+        self.assertEqual(extract_numeric(text, "tok/s", default=0.0), 12.5)
 
     def test_extract_numeric_supports_marker_before_number(self) -> None:
         text = "tok/s 10.0\nsomething tok/s 12.5\n"
-        self.assertEqual(_extract_numeric(text, "tok/s", default=0.0), 12.5)
+        self.assertEqual(extract_numeric(text, "tok/s", default=0.0), 12.5)
 
     def test_parse_metrics_from_stdout_and_stderr_style_text(self) -> None:
         text = """

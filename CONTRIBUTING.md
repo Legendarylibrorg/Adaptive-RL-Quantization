@@ -38,6 +38,8 @@ python3 -m pip install -e .
 python3 -m unittest discover -s tests -q
 ```
 
+**Without** `pip install -e .`, set `PYTHONPATH=src` (or `src` on `sys.path`) so imports resolve to `src/adaptive_quant` and `src/analysis`. CI always uses the editable install above.
+
 Optional GPU work: `pip install -e ".[torch]"` or a CUDA-matched PyTorch wheel, then see [docs/INSTALL.md](docs/INSTALL.md).
 
 **Simulator-only changes** must pass **without** PyTorch. Do not add imports that force `torch` on the default test path unless guarded (existing patterns in the codebase).
@@ -50,7 +52,7 @@ For a tighter loop on your machine:
 2. **`make help`** on Linux/macOS — see [Makefile](Makefile): quality (`lint`, `format`, `check` = Ruff + `pre_commit_check.py`); experiments (`run`, `reproduce` / `smoke`, `multiseed`, `pytorch`, …). On Windows, use the Python scripts under `scripts/`.
 3. [.vscode/extensions.json](.vscode/extensions.json) recommends the Python and Ruff extensions; [.editorconfig](.editorconfig) keeps basic spacing consistent.
 
-CI installs hash-pinned dev tools from [`requirements/dev.txt`](requirements/dev.txt) (see [`requirements/README.md`](requirements/README.md)); locally, `pip install -e ".[dev]"` is still fine for Ruff and mypy.
+CI installs hash-pinned dev tools from [`requirements/dev.txt`](requirements/dev.txt) (see [`requirements/README.md`](requirements/README.md)); locally, `pip install -e ".[dev]"` is still fine for Ruff and mypy. Mypy covers configuration, logging, easy_config, backends, `route_pipeline`, CLI, and `torch_trainer` (see `scripts/pre_commit_check.py`).
 
 ---
 
