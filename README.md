@@ -2,6 +2,29 @@
 
 [![CI](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/actions/workflows/ci.yml/badge.svg)](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/actions/workflows/ci.yml) **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md) · **Support:** [SUPPORT.md](SUPPORT.md) · **Changelog:** [CHANGELOG.md](CHANGELOG.md) · **Code of Conduct:** [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) · **Security:** [SECURITY.md](SECURITY.md) · **Report a vulnerability:** [private advisory](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/security/advisories/new)
 
+## Quick start
+
+**Needs:** `git` and **Python ≥ 3.11**. No GPU or PyTorch required.
+
+```bash
+git clone https://github.com/Legendarylibrorg/Adaptive-RL-Quantization.git
+cd Adaptive-RL-Quantization
+./setup.sh && .venv/bin/adaptive-rl-quant
+```
+
+`./setup.sh` creates `.venv`, installs the package, runs tests, and runs a short end-to-end smoke (`config.e2e_smoke.json`). The last line runs a **full** simulator experiment. No need to `activate` the venv or rerun smoke.
+
+| Option | Command |
+| --- | --- |
+| Windows | `setup.bat` then `.venv\Scripts\adaptive-rl-quant` |
+| Install only (no tests/smoke) | `./setup.sh --quick` |
+| After setup, without venv paths | `source .venv/bin/activate` then `adaptive-rl-quant` |
+| Makefile (uses `.venv` when present) | `make run` |
+
+More: [docs/INSTALL.md](docs/INSTALL.md) · [docs/RUNNING.md](docs/RUNNING.md).
+
+---
+
 ### What this pushes
 
 Most deployments still treat quantization as a **one-time export**: pick a preset, ship it, hope it holds on every device and every prompt. This repo treats it as a **closed-loop control problem**: an agent observes **where the model runs** and **what it is asked to do**, then **acts**—bit widths, grouping, dynamic schedules, and (if you turn it on) **learned continuous controls** over scale, clip, and effective precision. The goal is not a single blessed `.gguf`; it is a **policy** you can train, evaluate, ablate, and (optionally) ground against a real **`llama.cpp`-class** binary.
@@ -45,56 +68,20 @@ The simulator path is supported on **Linux, macOS, and Windows**. GPU workflows 
 
 ---
 
-## Linux Quick Start
+## GPU and platform notes
 
-**Requirements on PATH:** `git` and **Python ≥ 3.11**. On Linux, `curl` is still useful for manual fallback bootstrapping on minimal systems.
-
-From the **repository root** after `git clone`:
+**CUDA (Linux + NVIDIA):** after `./setup.sh`, install PyTorch for your driver, then:
 
 ```bash
-git clone https://github.com/Legendarylibrorg/Adaptive-RL-Quantization.git
-cd Adaptive-RL-Quantization
-
-python3 scripts/setup_from_clone.py
+.venv/bin/python -m pip install -e ".[torch]"
+.venv/bin/adaptive-rl-quant-pytorch --preset gpu
 ```
 
-That creates **`.venv`**, installs the package in editable mode, runs tests, and completes a **short reproducible end-to-end RL pipeline** (train → eval → benchmarks → analysis) using **`config.e2e_smoke.json`** (edit that file to change `training_episodes`, `seed`, `run_name`, etc.). On Linux/macOS, `bash scripts/setup_from_clone.sh` remains a wrapper around the same Python flow.
+**RTX 4090 one-shot (Linux):** `bash scripts/run_4090_pipeline.sh`
 
-**Manual equivalent:**
+Distro packages, **WSL2**, SSH clone, llama.cpp, manual venv steps: **[docs/INSTALL.md](docs/INSTALL.md)**. Architecture: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python3 -m pip install -e .
-python3 -m unittest discover -s tests -q
-adaptive-rl-quant --config config.e2e_smoke.json   # fast smoke
-adaptive-rl-quant                                 # full run (default preset from installed config module / presets)
-```
-
-Installed console commands are the public interface shown throughout this README. Source-checkout equivalents remain `python3 run_research.py ...` if you prefer calling the repo files directly.
-
-Artifacts appear under `outputs/` (see below).
-
-**GPU (Linux, after installing PyTorch for your driver):**
-
-```bash
-python3 -m pip install -e ".[torch]"   # or install a CUDA wheel from https://pytorch.org/get-started/locally/
-adaptive-rl-quant-pytorch --preset gpu
-```
-
-**RTX 4090 validation + run (bash on Linux):**
-
-```bash
-bash scripts/run_4090_pipeline.sh
-```
-
-Uses **`.venv/bin/python`** when that venv exists and **`PYTHON_BIN`** is unset (same idea as **`setup_from_clone.sh`**).
-
-Detailed install (distro packages, **WSL2**, SSH clone, llama.cpp): **[docs/INSTALL.md](docs/INSTALL.md)**.
-
-**Windows:** use `py -3.11 scripts/setup_from_clone.py` or `python scripts/setup_from_clone.py`, and activate with `\.venv\Scripts\activate`. Then prefer the same installed commands (`adaptive-rl-quant`, `adaptive-rl-quant-online`, and so on). GPU support is still oriented to Linux + NVIDIA.
-
-**Architecture:** see **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for the repo layering, reproducibility contract, and Linux-first / WSL2 guidance.
+Artifacts land under **`outputs/`** (see [Outputs](#outputs) below).
 
 ---
 
@@ -109,7 +96,8 @@ Detailed install (distro packages, **WSL2**, SSH clone, llama.cpp): **[docs/INST
 | `config.e2e_smoke.json` | **Short reproducible RL run** (train+eval+benchmarks+analysis) for CI and quick tuning |
 | `config.example.pytorch.toml` | Example **TOML** for `run_pytorch.py --config` (needs CUDA PyTorch) |
 | `run_*.py` (repo root) | Thin shims (prepend `src/` to `sys.path`) matching the installed console commands |
-| `Makefile` | **Research** targets: `make help` — `run` / `reproduce` (`smoke`) / `multiseed` / `pytorch`; quality: `lint` / `format` / `check` (Ruff needs `pip install -e ".[dev]"`) |
+| `setup.sh`, `setup.bat` | **One-command bootstrap** from repo root (venv + install + tests + smoke) |
+| `Makefile` | **Research** targets: `make help` — `setup` / `run` / `reproduce` (`smoke`) / `multiseed` / `pytorch`; quality: `lint` / `format` / `check` (Ruff needs `pip install -e ".[dev]"`) |
 | `scripts/` | Cross-platform **`setup_from_clone.py`**, **`pre_commit_check.py`**, **`secret_scan.py`** plus Unix wrappers (`*.sh`), **`run_4090_pipeline.sh`**, **`_resolve_venv_python.sh`** |
 | `requirements/ci.txt` + `security/dependency_hashes.json` | Pinned CI bootstrap dependencies plus the separate sha256 manifest used to render a `--require-hashes` install file |
 | `src/analysis/` | Post-hoc analysis CLIs and analyzers |

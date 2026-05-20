@@ -17,6 +17,35 @@ def venv_python_path(venv_dir: Path) -> Path:
     return venv_dir / "bin" / "python"
 
 
+def venv_console_command(venv_dir: Path, name: str) -> Path | None:
+    """Return the installed console script in a venv, if present."""
+    if os.name == "nt":
+        scripts = venv_dir / "Scripts"
+        for candidate in (scripts / f"{name}.exe", scripts / name):
+            if candidate.is_file():
+                return candidate
+        return None
+    candidate = venv_dir / "bin" / name
+    return candidate if candidate.is_file() else None
+
+
+def venv_cli_hint(
+    venv_dir: Path,
+    *,
+    root: Path | None = None,
+    name: str = "adaptive-rl-quant",
+) -> str:
+    """Display path for a venv console script (relative to repo root when possible)."""
+    cli = venv_console_command(venv_dir, name)
+    if cli is None:
+        return name
+    base = root if root is not None else repo_root()
+    try:
+        return str(cli.relative_to(base))
+    except ValueError:
+        return str(cli)
+
+
 def resolve_python_bin(root: Path) -> str:
     requested = os.environ.get("PYTHON_BIN")
     if requested:

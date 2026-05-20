@@ -132,9 +132,16 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertIn("language: python", config_text)
         self.assertNotIn("language: system", config_text)
 
-    def test_setup_from_clone_activation_hint_keeps_nested_path(self) -> None:
-        module = self._load_setup_from_clone_module()
-        hint = module._activation_hint(Path(".venvs") / "project-a")
+    def test_venv_cli_hint_keeps_nested_path(self) -> None:
+        from _common import venv_cli_hint
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            venv = root / ".venvs" / "project-a"
+            (venv / "bin").mkdir(parents=True)
+            cli = venv / "bin" / "adaptive-rl-quant"
+            cli.write_text("#!/bin/sh\n", encoding="utf-8")
+            hint = venv_cli_hint(venv, root=root)
         self.assertIn(".venvs", hint)
         self.assertIn("project-a", hint)
 
@@ -160,7 +167,28 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertEqual(commands[0][0][4:6], ["--require-hashes", "-r"])
         self.assertTrue(commands[0][0][6].endswith("-requirements-ci.txt"))
 
-    def test_setup_from_clone_editable_install_uses_no_build_isolation(self) -> None:
+    def test_setup_from_clone_editable_install_prefers_standard_pip(self) -> None:
+        module = self._load_setup_from_clone_module()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            venv_python = root / ".venv" / "bin" / "python"
+            venv_python.parent.mkdir(parents=True, exist_ok=True)
+            venv_python.write_text("", encoding="utf-8")
+            with mock.patch.object(
+                module.subprocess,
+                "run",
+                return_value=subprocess.CompletedProcess([], 0),
+            ) as pip_mock:
+                with mock.patch.object(module, "_ensure_build_backend") as backend_mock:
+                    module._install_editable(str(venv_python), root)
+            pip_mock.assert_called_once_with(
+                [str(venv_python), "-m", "pip", "install", "-e", "."],
+                cwd=root,
+                check=False,
+            )
+            backend_mock.assert_not_called()
+
+    def test_setup_from_clone_editable_install_falls_back_to_hash_pin(self) -> None:
         module = self._load_setup_from_clone_module()
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -173,14 +201,26 @@ class RunnerScriptCliTests(unittest.TestCase):
                     with mock.patch.object(module, "_ensure_pip"):
                         with mock.patch.object(module, "_ensure_build_backend"):
                             with mock.patch.object(
-                                module,
+                                module.subprocess,
                                 "run",
-                                side_effect=lambda cmd, cwd=None: commands.append((cmd, cwd)),
+                                side_effect=lambda cmd, **kwargs: subprocess.CompletedProcess(
+                                    cmd, 1 if kwargs.get("check") is False else 0
+                                ),
                             ):
-                                with contextlib.redirect_stdout(io.StringIO()):
-                                    code = module.main(
-                                        ["--venv-dir", ".venv", "--skip-tests", "--skip-smoke"]
-                                    )
+                                with mock.patch.object(
+                                    module,
+                                    "run",
+                                    side_effect=lambda cmd, cwd=None: commands.append((cmd, cwd)),
+                                ):
+                                    with contextlib.redirect_stdout(io.StringIO()):
+                                        code = module.main(
+                                            [
+                                                "--venv-dir",
+                                                ".venv",
+                                                "--skip-tests",
+                                                "--skip-smoke",
+                                            ]
+                                        )
             self.assertEqual(code, 0)
             self.assertIn(
                 (
@@ -200,6 +240,29 @@ class RunnerScriptCliTests(unittest.TestCase):
         )
         self.assertEqual(proc.returncode, 0, msg=proc.stderr)
         self.assertIn("--skip-smoke", proc.stdout)
+        self.assertIn("--quick", proc.stdout)
+
+    def test_root_setup_sh_delegates_to_python_script(self) -> None:
+        script = _REPO_ROOT / "setup.sh"
+        self.assertTrue(script.is_file())
+        text = script.read_text(encoding="utf-8")
+        self.assertIn("setup_from_clone.py", text)
+
+    def test_setup_from_clone_smoke_prefers_installed_cli(self) -> None:
+        module = self._load_setup_from_clone_module()
+        with tempfile.TemporaryDirectory() as tmp:
+            venv_dir = Path(tmp) / ".venv"
+            venv_dir.mkdir()
+            (venv_dir / "bin").mkdir()
+            cli = venv_dir / "bin" / "adaptive-rl-quant"
+            cli.write_text("#!/bin/sh\necho cli\n", encoding="utf-8")
+            venv_python = venv_dir / "bin" / "python"
+            venv_python.write_text("", encoding="utf-8")
+            config = Path(tmp) / "smoke.json"
+            config.write_text("{}", encoding="utf-8")
+            cmd = module._smoke_command(venv_dir, venv_python, config)
+        self.assertEqual(cmd[0], str(cli))
+        self.assertIn("--config", cmd)
 
     def test_pre_commit_check_python_wrapper_has_help(self) -> None:
         proc = subprocess.run(

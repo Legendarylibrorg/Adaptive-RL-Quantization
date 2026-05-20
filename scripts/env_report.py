@@ -14,6 +14,10 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
+def _scripts_dir() -> Path:
+    return Path(__file__).resolve().parent
+
+
 def _ensure_src_on_path() -> None:
     src = _repo_root() / "src"
     for path in (src, _repo_root()):
@@ -148,14 +152,25 @@ def main() -> int:
     print("== Run artifacts ==")
     _output_stats(repo)
 
+    scripts = _scripts_dir()
+    if str(scripts) not in sys.path:
+        sys.path.insert(0, str(scripts))
+    from _common import venv_cli_hint
+
     print("== Next steps ==")
     if not import_ok:
-        print("  Fix import: pip install -e .")
+        print("  ./setup.sh")
+    elif not (repo / ".venv").is_dir():
+        print("  ./setup.sh")
+    else:
+        cli = venv_cli_hint(repo / ".venv", root=repo)
+        print(f"  Full run:   {cli}")
+        print(f"  Smoke:      {cli} -c config.e2e_smoke.json")
     if is_wsl2 and on_windows_mount:
-        print("  WSL2:       move the repo under ~/... for better I/O and venv performance")
-    print("  Simulator:  make reproduce   (or make run)")
-    print("  CUDA:       make install-torch && make pytorch")
-    print("  Quality:    make test && make check")
+        print("  WSL2:       keep the repo under ~/... not /mnt/...")
+    if import_ok and (repo / ".venv").is_dir():
+        print("  Makefile:   make run   (uses .venv when present)")
+    print('  CUDA:       .venv/bin/python -m pip install -e ".[torch]" && make pytorch')
     return 0 if import_ok else 1
 
 

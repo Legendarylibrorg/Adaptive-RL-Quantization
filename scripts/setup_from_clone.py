@@ -12,7 +12,7 @@ import tempfile
 import urllib.request
 from pathlib import Path
 
-from _common import repo_root, run, venv_python_path
+from _common import repo_root, run, venv_cli_hint, venv_console_command, venv_python_path
 from verify_hashes import render_hashed_requirements
 
 _NETWORK_PIP_BOOTSTRAP_ENV = "ADAPTIVE_RL_ALLOW_NETWORK_PIP_BOOTSTRAP"
@@ -123,19 +123,43 @@ def _ensure_build_backend(python_bin: str, root: Path) -> None:
 
 
 def _install_editable(python_bin: str, root: Path) -> None:
+    """Prefer a normal editable install; fall back to hash-pinned setuptools for minimal envs."""
+    probe = subprocess.run(
+        [python_bin, "-m", "pip", "install", "-e", "."],
+        cwd=root,
+        check=False,
+    )
+    if probe.returncode == 0:
+        return
     _ensure_build_backend(python_bin, root)
     run([python_bin, "-m", "pip", "install", "--no-build-isolation", "-e", "."], cwd=root)
 
 
-def _activation_hint(venv_dir: Path) -> str:
+def _require_python_311_plus() -> None:
+    major, minor = sys.version_info[:2]
+    if major < 3 or (major == 3 and minor < 11):
+        raise SystemExit(
+            f"Python 3.11+ is required; this interpreter is {sys.version.split()[0]} "
+            f"({sys.executable})."
+        )
+
+
+def _smoke_command(venv_dir: Path, venv_python: Path, config_path: Path) -> list[str]:
+    cli = venv_console_command(venv_dir, "adaptive-rl-quant")
+    if cli is not None:
+        return [str(cli), "--config", str(config_path)]
+    return [str(venv_python), "run_research.py", "--config", str(config_path)]
+
+
+def _print_success(*, venv_dir: Path, ran_smoke: bool) -> None:
     root = repo_root()
-    try:
-        display_dir = venv_dir.relative_to(root)
-    except ValueError:
-        display_dir = venv_dir
-    if sys.platform.startswith("win"):
-        return str(display_dir / "Scripts" / "activate")
-    return f"source {(display_dir / 'bin' / 'activate').as_posix()}"
+    cli = venv_cli_hint(venv_dir, root=root)
+    print("")
+    if ran_smoke:
+        print(f"OK. Smoke finished. Full run: {cli}")
+    else:
+        print(f"OK. Run smoke: {cli} -c config.e2e_smoke.json")
+        print(f"   Full run:   {cli}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -150,11 +174,22 @@ def main(argv: list[str] | None = None) -> int:
         default="config.e2e_smoke.json",
         help="Config path for the smoke pipeline, relative to repo root.",
     )
+    parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="Install only: skip tests and E2E smoke (fastest path).",
+    )
     parser.add_argument("--skip-tests", action="store_true", help="Skip unittest.")
     parser.add_argument(
-        "--skip-smoke", action="store_true", help="Skip run_research smoke execution."
+        "--skip-smoke", action="store_true", help="Skip adaptive-rl-quant smoke execution."
     )
     args = parser.parse_args(argv)
+
+    if args.quick:
+        args.skip_tests = True
+        args.skip_smoke = True
+
+    _require_python_311_plus()
 
     root = repo_root()
     venv_dir = (root / args.venv_dir).resolve()
@@ -170,15 +205,17 @@ def main(argv: list[str] | None = None) -> int:
     _ensure_pip(str(venv_python))
     _install_editable(str(venv_python), root)
 
-    if not args.skip_tests:
-        run([str(venv_python), "-m", "unittest", "discover", "-s", "tests", "-q"], cwd=root)
-    if not args.skip_smoke:
-        run([str(venv_python), "run_research.py", "--config", str(config_path)], cwd=root)
+    ran_tests = not args.skip_tests
+    ran_smoke = not args.skip_smoke
 
-    print("")
-    print("OK: venv, editable install, tests, and reproducible E2E RL smoke finished.")
-    print(f"   Activate: {_activation_hint(venv_dir)}")
-    print("   Then run: python run_research.py --config my.json")
+    if ran_tests:
+        run([str(venv_python), "-m", "unittest", "discover", "-s", "tests", "-q"], cwd=root)
+    if ran_smoke:
+        if not config_path.is_file():
+            raise SystemExit(f"Smoke config not found: {config_path}")
+        run(_smoke_command(venv_dir, venv_python, config_path), cwd=root)
+
+    _print_success(venv_dir=venv_dir, ran_smoke=ran_smoke)
     return 0
 
 

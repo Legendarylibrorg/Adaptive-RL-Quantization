@@ -21,16 +21,17 @@ Follow the sections below in order on a fresh machine: **get the code** → **pl
 
 ## Recommended path (Linux / WSL2 first)
 
-After cloning the repo, the shortest supported setup is:
+After cloning the repo:
 
 ```bash
-python3 scripts/setup_from_clone.py
-source .venv/bin/activate
-adaptive-rl-quant --config config.e2e_smoke.json
-adaptive-rl-quant
+./setup.sh && .venv/bin/adaptive-rl-quant
 ```
 
-That path is the primary workflow in this guide. macOS and Windows notes follow after the Linux-first sections.
+`./setup.sh` already runs tests and a short smoke (`config.e2e_smoke.json`). The second command starts a **full** simulator run. You do not need to activate the venv first.
+
+**Install only (no tests, no smoke):** `./setup.sh --quick`
+
+Alternatives: `python3 scripts/setup_from_clone.py`, `make setup`. macOS and Windows notes follow below.
 
 ## 0. Prerequisites (before `git clone`)
 
@@ -47,10 +48,12 @@ python3 --version   # expect 3.11 or newer
 **One-command bootstrap:** after cloning the repo, from the repo root run:
 
 ```bash
-python3 scripts/setup_from_clone.py
+./setup.sh
 ```
 
-On Windows, use `py -3.11 scripts/setup_from_clone.py` or `python scripts/setup_from_clone.py`.
+On Windows: `setup.bat`, or `py -3.11 scripts/setup_from_clone.py`, or `python scripts/setup_from_clone.py`.
+
+**Fast path:** `./setup.sh --quick` — venv + editable install only.
 
 This creates **`.venv`**, upgrades **`pip`** (using `ensurepip` first and falling back to `get-pip.py` only if needed), runs **`pip install -e .`**, **`unittest`**, and a **short reproducible end-to-end RL run** (train → eval → benchmarks → analysis) via **`config.e2e_smoke.json`**. Install, tests, and smoke use the venv interpreter directly (no reliance on activating the venv first). Edit that JSON to tune episode counts, `seed`, and `run_name` without touching Python.
 
