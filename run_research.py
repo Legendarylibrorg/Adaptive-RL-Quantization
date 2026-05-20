@@ -1,13 +1,8 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+from _repo_entrypoint import load_main
 
-_SRC = Path(__file__).resolve().parent / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from adaptive_quant.cli.research import main
+main = load_main("adaptive_quant.cli.research")
 
 if __name__ == "__main__":
     main()
