@@ -131,6 +131,14 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertNotIn("pytorch-smoke:", workflow_text)
         self.assertNotIn('pip install -e ".[torch,dev]"', workflow_text)
 
+    def test_ci_runs_docker_hardening_job(self) -> None:
+        workflow_text = (_REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("docker-hardening:", workflow_text)
+        self.assertIn("docker_secure_preflight.sh", workflow_text)
+        self.assertIn("docker_gpu_device_probe.py", workflow_text)
+
     def test_dependabot_covers_root_and_requirements(self) -> None:
         config_text = (_REPO_ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
         self.assertIn("package-ecosystem: pip", config_text)
