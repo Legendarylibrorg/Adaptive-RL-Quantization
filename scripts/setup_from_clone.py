@@ -136,7 +136,8 @@ def _install_editable(python_bin: str, root: Path) -> None:
 
 
 def _require_python_311_plus() -> None:
-    if sys.version_info < (3, 11):
+    major, minor = sys.version_info[:2]
+    if major < 3 or (major == 3 and minor < 11):
         raise SystemExit(
             f"Python 3.11+ is required; this interpreter is {sys.version.split()[0]} "
             f"({sys.executable})."
