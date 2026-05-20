@@ -190,7 +190,7 @@ Paths are driven by `run_name` and directory fields in config.
 ## Security
 
 - **Report vulnerabilities** privately via [GitHub Security Advisories](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/security/advisories/new); details in [SECURITY.md](SECURITY.md) and [`.well-known/security.txt`](.well-known/security.txt).
-- **Stronger isolation (recommended for untrusted artifacts):** **disposable Linux VM → hardened Docker** (optional **NVIDIA GPU inside the VM** via passthrough + container runtime). Convenience host venv is lower assurance — see **[docs/SECURE_RUN.md](docs/SECURE_RUN.md)**; CI runs **`docker-hardening`** on Ubuntu; locally use `make docker-preflight`, `make docker-gpu-verify` (GPU VM).
+- **Stronger isolation (recommended for untrusted artifacts):** **disposable Linux VM → hardened Docker** (optional **NVIDIA GPU inside the VM** via passthrough + container runtime). Convenience host venv is lower assurance — see **[docs/SECURE_RUN.md](docs/SECURE_RUN.md)**; locally use `make docker-preflight`, `make docker-gpu-verify` (GPU VM).
 - **Secrets / checkpoints / CI hashes:** do not commit `.env` or keys; treat third-party **`.pt`** checkpoints as untrusted (loaders use **`weights_only=True`** where supported); CI installs bootstrap deps with **`pip --require-hashes`** after [scripts/verify_hashes.py](scripts/verify_hashes.py). Secret scan: **`scripts/secret_scan.py`** via **`pre_commit_check.py`**.
 
 ---

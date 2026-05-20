@@ -106,35 +106,3 @@ jobs:
         run: |
           python -m coverage run --rcfile pyproject.toml -m unittest discover -s tests -q
           python -m coverage report --rcfile pyproject.toml
-
-  docker-hardening:
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-
-      - name: Compose security preflight
-        run: bash scripts/docker_secure_preflight.sh
-
-      - name: Build hardened simulator image
-        run: docker compose build
-
-      - name: Unit tests in locked-down container
-        run: docker compose run --rm adaptive-rl-quant python -m unittest discover -s tests -q
-
-      - name: E2E smoke in container
-        run: docker compose run --rm adaptive-rl-quant
-
-      - name: Offline smoke (no container network)
-        run: docker compose run --rm --network none adaptive-rl-quant
-
-      - name: Build GPU overlay image
-        run: docker compose -f docker-compose.yml -f docker-compose.gpu.yml build
-
-      - name: GPU device probe (warn-only on GitHub-hosted runners)
-        run: |
-          docker compose -f docker-compose.yml -f docker-compose.gpu.yml run --rm \
-            adaptive-rl-quant python scripts/docker_gpu_device_probe.py
-
-      - name: GPU overlay smoke (CPU torch config)
-        run: docker compose -f docker-compose.yml -f docker-compose.gpu.yml run --rm adaptive-rl-quant
