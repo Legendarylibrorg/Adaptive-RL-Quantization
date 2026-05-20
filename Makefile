@@ -2,6 +2,7 @@
 # Override interpreter:  PY=python3.12 make test
 
 .PHONY: help
+.PHONY: setup setup-quick
 .PHONY: install install-dev install-torch
 .PHONY: run reproduce smoke run-config moe multiseed multiseed-smoke
 .PHONY: pytorch 3090 4090 4090-universal
@@ -10,7 +11,13 @@
 .PHONY: docker-build docker-test docker-smoke docker-no-network-smoke
 .PHONY: outputs-clean clean-venv
 
+# After ./setup.sh, prefer the repo venv so `make run` works without activating it.
+_VENV_PY := $(firstword $(wildcard .venv/bin/python) $(wildcard .venv/Scripts/python.exe))
+ifneq ($(_VENV_PY),)
+PY ?= $(_VENV_PY)
+else
 PY ?= python3
+endif
 PKG := src/adaptive_quant src/analysis tests
 SCRIPTS_PY := $(wildcard scripts/*.py)
 RUN := $(wildcard run_*.py)
@@ -28,7 +35,9 @@ help:
 	@echo "Override PY=... for a non-default interpreter."
 	@echo ""
 	@echo "[Bootstrap]"
-	@echo "  make install          pip install -e . (simulator path)"
+	@echo "  make setup            venv + editable install + tests + E2E smoke (./setup.sh)"
+	@echo "  make setup-quick      venv + editable install only (no tests/smoke)"
+	@echo "  make install          pip install -e . (simulator path; assumes venv active)"
 	@echo "  make install-dev      + Ruff (lint/format)"
 	@echo "  make install-torch    + PyTorch extra (CUDA wheel still your job)"
 	@echo ""
@@ -64,6 +73,12 @@ help:
 	@echo "[Maintenance]"
 	@echo "  make outputs-clean CONFIRM=yes   wipe outputs/{benchmarks,logs,...}"
 	@echo "  make clean-venv                  remove .ruff-venv scratch dir"
+
+setup:
+	$(PY) scripts/setup_from_clone.py
+
+setup-quick:
+	$(PY) scripts/setup_from_clone.py --quick
 
 install:
 	$(PY) -m pip install -e .
