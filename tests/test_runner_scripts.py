@@ -210,9 +210,7 @@ class RunnerScriptCliTests(unittest.TestCase):
                                 with mock.patch.object(
                                     module,
                                     "run",
-                                    side_effect=lambda cmd, cwd=None: commands.append(
-                                        (cmd, cwd)
-                                    ),
+                                    side_effect=lambda cmd, cwd=None: commands.append((cmd, cwd)),
                                 ):
                                     with contextlib.redirect_stdout(io.StringIO()):
                                         code = module.main(

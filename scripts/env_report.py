@@ -170,7 +170,7 @@ def main() -> int:
         print("  WSL2:       keep the repo under ~/... not /mnt/...")
     if import_ok and (repo / ".venv").is_dir():
         print("  Makefile:   make run   (uses .venv when present)")
-    print("  CUDA:       .venv/bin/python -m pip install -e \".[torch]\" && make pytorch")
+    print('  CUDA:       .venv/bin/python -m pip install -e ".[torch]" && make pytorch')
     return 0 if import_ok else 1
 
 
