@@ -24,6 +24,29 @@ def _repo_pythonpath_env() -> dict[str, str]:
     return env
 
 
+def _write_fake_console_script(venv: Path, name: str) -> Path:
+    if os.name == "nt":
+        scripts = venv / "Scripts"
+        scripts.mkdir(parents=True, exist_ok=True)
+        cli = scripts / f"{name}.exe"
+    else:
+        bindir = venv / "bin"
+        bindir.mkdir(parents=True, exist_ok=True)
+        cli = bindir / name
+    cli.write_text("#!/bin/sh\n", encoding="utf-8")
+    return cli
+
+
+def _write_fake_venv_python(venv: Path) -> Path:
+    if os.name == "nt":
+        python_bin = venv / "Scripts" / "python.exe"
+    else:
+        python_bin = venv / "bin" / "python"
+    python_bin.parent.mkdir(parents=True, exist_ok=True)
+    python_bin.write_text("", encoding="utf-8")
+    return python_bin
+
+
 class RunnerScriptCliTests(unittest.TestCase):
     @staticmethod
     def _pyproject_scripts() -> dict[str, str]:
@@ -133,17 +156,24 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertNotIn("language: system", config_text)
 
     def test_venv_cli_hint_keeps_nested_path(self) -> None:
-        from _common import venv_cli_hint
+        scripts_dir = str(_REPO_ROOT / "scripts")
+        sys.path.insert(0, scripts_dir)
+        try:
+            from _common import venv_cli_hint
+        finally:
+            sys.path.pop(0)
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             venv = root / ".venvs" / "project-a"
-            (venv / "bin").mkdir(parents=True)
-            cli = venv / "bin" / "adaptive-rl-quant"
-            cli.write_text("#!/bin/sh\n", encoding="utf-8")
+            _write_fake_console_script(venv, "adaptive-rl-quant")
             hint = venv_cli_hint(venv, root=root)
         self.assertIn(".venvs", hint)
         self.assertIn("project-a", hint)
+        if os.name == "nt":
+            self.assertIn("Scripts", hint)
+        else:
+            self.assertIn("bin", hint)
 
     def test_setup_from_clone_bootstraps_setuptools_when_missing(self) -> None:
         module = self._load_setup_from_clone_module()
@@ -253,11 +283,8 @@ class RunnerScriptCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             venv_dir = Path(tmp) / ".venv"
             venv_dir.mkdir()
-            (venv_dir / "bin").mkdir()
-            cli = venv_dir / "bin" / "adaptive-rl-quant"
-            cli.write_text("#!/bin/sh\necho cli\n", encoding="utf-8")
-            venv_python = venv_dir / "bin" / "python"
-            venv_python.write_text("", encoding="utf-8")
+            cli = _write_fake_console_script(venv_dir, "adaptive-rl-quant")
+            venv_python = _write_fake_venv_python(venv_dir)
             config = Path(tmp) / "smoke.json"
             config.write_text("{}", encoding="utf-8")
             cmd = module._smoke_command(venv_dir, venv_python, config)

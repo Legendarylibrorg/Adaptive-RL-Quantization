@@ -1,22 +1,77 @@
-# Secure run (minimal)
+# Secure run (VM + Docker + optional NVIDIA GPU)
 
-**Threat model:** Trust this repository, your config files, and any model or binary you point the tools at. Treat untrusted code, weights, and downloads as hazardous: use a **disposable Linux VM** when in doubt. Docker **reduces** process privilege; it is **not** a full kernel boundary.
+**Threat model:** Trust this repository, your config files, and any model or binary you point the tools at. Treat **untrusted code, weights, downloads, and native binaries** (GGUF, `llama.cpp`, PyTorch checkpoints) as hazardous. The goal is to keep a compromise inside a **disposable boundary** so your daily OS, SSH keys, and corporate network are not exposed.
+
+## Recommended isolation (pick one tier)
+
+| Tier | Stack | Malware / escape resistance | When to use |
+| --- | --- | --- | --- |
+| **1 — Best** | **Disposable Linux VM** (KVM/QEMU, VMware, or ephemeral cloud GPU) → **hardened Docker Compose** inside the VM → optional **NVIDIA GPU** only inside that VM | Strongest: revert VM snapshot after bad runs; kernel escape still trapped in guest; GPU driver attack surface kept off your host login session | Untrusted models, third-party GGUF, unknown `llama.cpp` builds, red-team experiments |
+| **2 — Good** | Dedicated **Linux host** (not your laptop) → same **Docker Compose** | Docker is not a full kernel boundary, but non-root + read-only root + dropped caps limit blast radius | Trusted repo, suspicious artifacts |
+| **3 — Dev parity** | **WSL2 (Ubuntu)** → Docker **inside** WSL2 → optional GPU via Windows **GPU-PV / passthrough** | Better than native Windows venv; **weaker than Tier 1** (shared kernel with Windows) | Windows developers needing Linux tooling |
+| **4 — Convenience only** | Host `.venv` (`./setup.sh`) | No extra boundary — rely on code review and artifact trust | CI, trusted local iteration |
+
+**Default recommendation:** use **Tier 1** whenever artifacts or binaries are not fully vetted. Use **Tier 2** on a lab machine when you trust the git checkout but not every download. Use Tier 3–4 only when you accept host-level risk.
+
+```mermaid
+flowchart TB
+  subgraph host["Host you care about"]
+    keys["SSH keys / credentials"]
+  end
+  subgraph vm["Disposable Linux VM (Tier 1)"]
+    docker["Hardened Docker container"]
+    gpu["NVIDIA GPU via passthrough or container runtime"]
+    docker --> gpu
+  end
+  untrusted["Untrusted GGUF / llama.cpp / HF snapshot"]
+  untrusted --> docker
+  vm -.->|snapshot revert| host
+  keys -.x vm
+```
+
+### Why VM **and** Docker (not Docker alone)
+
+- **Docker** shrinks privilege: non-root user, read-only root filesystem, all capabilities dropped, `no-new-privileges`, PID/memory/CPU limits, tmpfs `/tmp` with `noexec`, no bind-mount of `$HOME` or `docker.sock`.
+- **Docker does not** replace a separate kernel. A container breakout or malicious **kernel module / driver** path still threatens the **host kernel** unless the workload runs in a **VM** you can revert.
+- **NVIDIA GPU access** widens the attack surface (driver ioctls, shared device memory). Keep GPU experiments **inside the disposable VM** (VFIO passthrough or GPU assigned only to the guest), then use the Compose GPU override **inside** that guest—not on a machine that holds production secrets.
+
+### NVIDIA GPU: passthrough vs container runtime
+
+| Approach | Where GPU lives | Notes |
+| --- | --- | --- |
+| **VM PCI passthrough (VFIO)** | GPU owned by guest kernel | Strongest separation from host OS; snapshot/revert the whole guest |
+| **Cloud ephemeral GPU instance** | GPU on throwaway VM | Same idea as Tier 1; terminate instance after run |
+| **WSL2 GPU passthrough** | GPU visible in WSL2 Linux | Convenient; host Windows kernel still in play (Tier 3) |
+| **`nvidia-container-toolkit` in VM** | `docker compose` GPU override ([`docker-compose.gpu.yml`](../docker-compose.gpu.yml)) | Use **only inside** Tier 1–2 guests; set `NVIDIA_VISIBLE_DEVICES` to a single index |
+
+The GPU Compose file **merges** with the base service: hardening from [`docker-compose.yml`](../docker-compose.yml) (read-only root, cap drop, etc.) is preserved. It adds `INSTALL_EXTRAS=torch`, a service-level `gpus` reservation (for `docker compose run`), and runs [`config.docker.gpu_smoke.json`](../config.docker.gpu_smoke.json) by default.
 
 ## Preferred path by OS
 
 | OS | Strongest default | Notes |
 | --- | --- | --- |
-| **Linux** | Dedicated VM → Docker Compose (hardened service in [docker-compose.yml](../docker-compose.yml)) | Add `--network none` only after the image is built and caches are baked. |
-| **macOS** | Same workflow inside a **Linux VM** | Docker Desktop alone gives weaker isolation than Linux KVM/QEMU. |
-| **Windows** | **WSL2 (Ubuntu)** → Docker **inside** WSL2 | Prefer over native Windows for parity with Linux tooling. Local venv-only runs are convenient but lower assurance—see [INSTALL.md](INSTALL.md). |
+| **Linux** | Tier 1 VM → Docker Compose | Add `--network none` only **after** the image is built and caches are baked |
+| **macOS** | Tier 1 **Linux VM** → Docker inside VM | Docker Desktop alone is weaker than Linux KVM/QEMU |
+| **Windows** | Tier 3: **WSL2** → Docker inside WSL2 | Prefer over native Windows venv; Tier 1 VM still stronger |
 
-## Build and run
+## Preflight
+
+From the repo root:
+
+```bash
+bash scripts/docker_secure_preflight.sh          # simulator / CPU container path
+bash scripts/docker_secure_preflight.sh --gpu    # also checks NVIDIA container runtime
+```
+
+## Build and run (simulator)
 
 ```bash
 docker compose build
 docker compose run --rm adaptive-rl-quant
 docker compose run --rm adaptive-rl-quant python -m unittest discover -s tests -q
 ```
+
+Or via Makefile: `make docker-build`, `make docker-test`, `make docker-smoke`.
 
 Smoke / alternate config:
 
@@ -30,16 +85,50 @@ Offline simulator (after trusted artifacts are in the image or mounted volumes):
 docker compose run --rm --network none adaptive-rl-quant
 ```
 
-GPU (trusted workloads only; exposes driver/device interfaces):
+(`make docker-no-network-smoke`)
+
+## Build and run (GPU inside VM)
+
+Prerequisites **inside the Linux VM**: NVIDIA driver, [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html), Docker Engine.
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.gpu.yml build
 docker compose -f docker-compose.yml -f docker-compose.gpu.yml run --rm adaptive-rl-quant
 ```
 
-The GPU override requests NVIDIA device access and installs the `torch` extra, but the base image is still `python:*-slim` rather than a CUDA image. Use it only on hosts where the NVIDIA container runtime and the selected PyTorch wheel expose CUDA correctly; otherwise prefer a host venv with a CUDA-matched PyTorch install.
+Makefile:
 
-The default Compose service uses a non-root user, read-only root filesystem, dropped capabilities, `no-new-privileges`, limits, tmpfs `/tmp`, and an outputs volume at `/app/outputs`. Do not mount `$HOME`, `~/.ssh`, credential dirs, or `/var/run/docker.sock`.
+| Target | Purpose |
+| --- | --- |
+| `make docker-gpu-build` | Build GPU image (no GPU required on build host) |
+| `make docker-gpu-preflight` | Validate NVIDIA runtime inside the VM |
+| `make docker-gpu-smoke` | [`scripts/docker_gpu_device_probe.py`](../scripts/docker_gpu_device_probe.py) (warns if no `/dev/nvidia*`) + CPU torch smoke |
+| `make docker-gpu-verify` | Same as smoke but **fails** without GPU device nodes (`ADAPTIVE_RL_REQUIRE_CONTAINER_CUDA=1`) — use inside a GPU VM |
+| `make docker-gpu-pytorch` | Full `--preset gpu` (needs **CUDA-enabled PyTorch**; usually fails with the container’s CPU `torch` wheel) |
+| `make docker-gpu-test` | Unit tests in the GPU image |
+
+Restrict visible devices:
+
+```bash
+NVIDIA_VISIBLE_DEVICES=0 docker compose -f docker-compose.yml -f docker-compose.gpu.yml run --rm adaptive-rl-quant
+```
+
+The GPU image installs a **hash-pinned CPU PyTorch** wheel for supply-chain consistency. **Real CUDA training** should use a CUDA-matched **venv inside the same disposable VM**, not the CPU wheel in this image. Use `docker-gpu-verify` in a GPU VM to confirm `/dev/nvidia*` inside the container; use `docker-gpu-smoke` on hosts without a GPU (probe warns, smoke still runs). Use `docker-gpu-pytorch` only after you replace the image with a CUDA-matched stack you trust.
+
+## Container hardening contract
+
+The default Compose service enforces:
+
+- `user: "10001:10001"` (non-root)
+- `read_only: true` root filesystem
+- `cap_drop: [ALL]`, `security_opt: no-new-privileges:true`
+- `pids_limit`, `mem_limit`, `cpus`
+- `tmpfs` on `/tmp` with `noexec,nosuid,nodev`
+- Named volume only at `/app/outputs`
+
+**Do not mount:** `$HOME`, `~/.ssh`, credential dirs, `~/.aws`, `~/.docker`, or `/var/run/docker.sock`. Mount GGUF and `llama.cpp` **read-only** when required; prefer baking trusted artifacts into the image for untrusted runs.
+
+Digest-pinned base image and hash-verified pip installs: see [`Dockerfile`](../Dockerfile) and [`tests/test_redteam_hardening.py`](../tests/test_redteam_hardening.py) (`DockerComposeHardeningTests`).
 
 ## Model artifacts
 
@@ -53,4 +142,4 @@ The default Compose service uses a non-root user, read-only root filesystem, dro
 docker compose down --volumes --remove-orphans
 ```
 
-Revert a disposable VM snapshot after untrusted experiments.
+Revert a **disposable VM snapshot** (or terminate a cloud instance) after untrusted experiments. Treat `adaptive_outputs` volume contents as potentially hostile before copying them to a trusted machine.

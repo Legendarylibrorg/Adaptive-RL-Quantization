@@ -1,0 +1,16 @@
+{
+  "preset": "pytorch",
+  "run_name": "docker_gpu_smoke",
+  "seed": 13,
+  "training_episodes": 4,
+  "evaluation_episodes": 2,
+  "benchmark_training_episodes": 2,
+  "benchmark_evaluation_episodes": 1,
+  "stability_probe_count": 1,
+  "write_research_report": false,
+  "torch_device": "cpu",
+  "torch_preflight": false,
+  "torch_compile": false,
+  "torch_amp": false,
+  "torch_gpu_profile": "auto"
+}

@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Analysis unit tests (`tests/test_analysis_analyzers.py`) and optional real llama.cpp integration test (`ADAPTIVE_RL_RUN_LLAMA_CPP=1`).
 - CI coverage gate (68% floor on `adaptive_quant`).
+- Secure-run tooling: `docs/SECURE_RUN.md` tiers (VM → Docker → NVIDIA), `scripts/docker_secure_preflight.sh`, `scripts/docker_gpu_device_probe.py`, `config.docker.gpu_smoke.json`, Makefile `docker-gpu-verify` (local/VM use; not run in CI).
 
 ### Security
 

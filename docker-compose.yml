@@ -4,6 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: adaptive-rl-quant:secure
+    privileged: false
     user: "10001:10001"
     read_only: true
     cap_drop:

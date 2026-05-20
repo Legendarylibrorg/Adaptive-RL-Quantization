@@ -8,7 +8,8 @@
 .PHONY: pytorch 3090 4090 4090-universal
 .PHONY: online calibrate route-help
 .PHONY: test test-quiet lint format check secret-scan doctor
-.PHONY: docker-build docker-test docker-smoke docker-no-network-smoke
+.PHONY: docker-preflight docker-build docker-test docker-smoke docker-no-network-smoke
+.PHONY: docker-gpu-preflight docker-gpu-build docker-gpu-smoke docker-gpu-verify docker-gpu-test docker-gpu-pytorch
 .PHONY: outputs-clean clean-venv
 
 # After ./setup.sh, prefer the repo venv so `make run` works without activating it.
@@ -64,11 +65,18 @@ help:
 	@echo "  make test | test-quiet | secret-scan | lint | format | check"
 	@echo "  make doctor           env summary: Python path, torch/ruff, git, outputs/* counts"
 	@echo ""
-	@echo "[Secure Docker]"
+	@echo "[Secure Docker — prefer disposable Linux VM, then these targets]"
+	@echo "  make docker-preflight         verify Docker + Compose hardening contract"
 	@echo "  make docker-build             build hardened simulator image"
 	@echo "  make docker-test              run unit tests in locked-down container"
 	@echo "  make docker-smoke             run E2E smoke in locked-down container"
 	@echo "  make docker-no-network-smoke  run smoke with Docker networking disabled"
+	@echo "  make docker-gpu-preflight     preflight + NVIDIA container runtime (inside VM)"
+	@echo "  make docker-gpu-build         build GPU override image (merge compose files)"
+	@echo "  make docker-gpu-smoke         device probe (warn) + CPU torch smoke"
+	@echo "  make docker-gpu-verify        requires GPU VM: preflight + strict device probe + smoke"
+	@echo "  make docker-gpu-pytorch       full --preset gpu (needs CUDA torch; use VM venv)"
+	@echo "  make docker-gpu-test          unit tests in GPU image (CPU torch wheel)"
 	@echo ""
 	@echo "[Maintenance]"
 	@echo "  make outputs-clean CONFIRM=yes   wipe outputs/{benchmarks,logs,...}"
@@ -165,19 +173,44 @@ check: lint
 doctor:
 	@cd "$(CURDIR)" && PYTHONPATH="$(CURDIR)/src:$(CURDIR):$$PYTHONPATH" $(PY) scripts/env_report.py
 
-# --- Secure Docker ---
+# --- Secure Docker (run inside a disposable Linux VM when artifacts are untrusted) ---
 
-docker-build:
+COMPOSE_GPU := docker compose -f docker-compose.yml -f docker-compose.gpu.yml
+
+docker-preflight:
+	bash scripts/docker_secure_preflight.sh
+
+docker-build: docker-preflight
 	docker compose build
 
-docker-test:
+docker-test: docker-build
 	docker compose run --rm adaptive-rl-quant python -m unittest discover -s tests -q
 
-docker-smoke:
+docker-smoke: docker-build
 	docker compose run --rm adaptive-rl-quant
 
-docker-no-network-smoke:
+docker-no-network-smoke: docker-build
 	docker compose run --rm --network none adaptive-rl-quant
+
+docker-gpu-preflight:
+	bash scripts/docker_secure_preflight.sh --gpu
+
+docker-gpu-build: docker-preflight
+	$(COMPOSE_GPU) build
+
+docker-gpu-smoke: docker-gpu-build
+	$(COMPOSE_GPU) run --rm adaptive-rl-quant python scripts/docker_gpu_device_probe.py
+	$(COMPOSE_GPU) run --rm adaptive-rl-quant
+
+docker-gpu-verify: docker-gpu-preflight docker-gpu-build
+	ADAPTIVE_RL_REQUIRE_CONTAINER_CUDA=1 $(COMPOSE_GPU) run --rm adaptive-rl-quant python scripts/docker_gpu_device_probe.py
+	$(COMPOSE_GPU) run --rm adaptive-rl-quant
+
+docker-gpu-pytorch: docker-gpu-preflight docker-gpu-build
+	$(COMPOSE_GPU) run --rm adaptive-rl-quant adaptive-rl-quant-pytorch --preset gpu
+
+docker-gpu-test: docker-gpu-build
+	$(COMPOSE_GPU) run --rm adaptive-rl-quant python -m unittest discover -s tests -q
 
 # --- Maintenance ---
 
