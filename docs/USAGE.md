@@ -60,4 +60,4 @@ python -m analysis input_adaptation path/to/*_dynamic.jsonl out/
 python -m analysis quant_function_behavior path/to/*_learned.jsonl out/
 ```
 
-Legacy per-script paths (`python3 src/analysis/<name>.py ...`) still work. Logic lives in [`analysis/analyzers.py`](../src/analysis/analyzers.py); other files under `src/analysis/` are thin CLIs.
+All analysis logic lives in [`analysis/analyzers.py`](../src/analysis/analyzers.py); invoke commands via `python -m analysis` (see command list with `--help`).

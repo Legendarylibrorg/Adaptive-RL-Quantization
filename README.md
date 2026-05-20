@@ -116,7 +116,7 @@ Artifacts land under **`outputs/`** (see [Outputs](#outputs) below).
 | `Makefile` | **Research** targets: `make help` — `setup` / `run` / `reproduce` (`smoke`) / `multiseed` / `pytorch`; quality: `lint` / `format` / `check` (Ruff needs `pip install -e ".[dev]"`) |
 | `scripts/` | Cross-platform **`setup_from_clone.py`**, **`pre_commit_check.py`**, **`secret_scan.py`** plus Unix wrappers (`*.sh`), **`run_4090_pipeline.sh`**, **`_resolve_venv_python.sh`** |
 | `requirements/ci.txt` + `security/dependency_hashes.json` | Pinned CI bootstrap dependencies plus the separate sha256 manifest used to render a `--require-hashes` install file |
-| `src/analysis/` | Post-hoc analysis CLIs and analyzers |
+| `src/analysis/` | Post-hoc analyzers (`python -m analysis`) |
 | `docs/` | Install, running, config reference, troubleshooting |
 | `CONTRIBUTING.md` | Contributing policy, PR expectations, local quality gate |
 | `CHANGELOG.md`, `RELEASING.md` | Version history and release process |

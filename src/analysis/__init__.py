@@ -1,1 +1,1 @@
-"""Analysis package — ``python -m analysis <command>`` or per-topic shims under ``src/analysis/``."""
+"""Post-hoc log analysis — run via ``python -m analysis <command>`` (see ``analysis.analyzers``)."""
