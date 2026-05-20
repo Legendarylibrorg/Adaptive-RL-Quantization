@@ -4,7 +4,11 @@
 
 ## Quick start
 
-**Needs:** `git` and **Python ≥ 3.11**. No GPU or PyTorch required.
+**Linux-first:** CUDA, `llama.cpp`, and the Makefile targets are designed for **Linux**. Use the path below on a fresh **Linux** machine (or **WSL2 Ubuntu** on Windows — same commands inside the Linux shell). **macOS** can run the simulator path the same way; **native Windows** is supported for the simulator via `setup.bat` (GPU work should use WSL2).
+
+**Needs:** `git` and **Python ≥ 3.11**. No GPU or PyTorch required for the default simulator run.
+
+### Linux (recommended)
 
 ```bash
 git clone https://github.com/Legendarylibrorg/Adaptive-RL-Quantization.git
@@ -14,14 +18,26 @@ cd Adaptive-RL-Quantization
 
 `./setup.sh` creates `.venv`, installs the package, runs tests, and runs a short end-to-end smoke (`config.e2e_smoke.json`). The last line runs a **full** simulator experiment. No need to `activate` the venv or rerun smoke.
 
-| Option | Command |
+| Linux option | Command |
 | --- | --- |
-| Windows | `setup.bat` then `.venv\Scripts\adaptive-rl-quant` |
 | Install only (no tests/smoke) | `./setup.sh --quick` |
 | After setup, without venv paths | `source .venv/bin/activate` then `adaptive-rl-quant` |
 | Makefile (uses `.venv` when present) | `make run` |
+| CI-equivalent smoke | `make reproduce` or `adaptive-rl-quant --config config.e2e_smoke.json` |
+| CUDA / PyTorch (after setup) | see [GPU and platform notes](#gpu-and-platform-notes) below |
 
-More: [docs/INSTALL.md](docs/INSTALL.md) · [docs/RUNNING.md](docs/RUNNING.md).
+### macOS (simulator)
+
+Same as Linux: `./setup.sh` then `.venv/bin/adaptive-rl-quant`. GPU/CUDA training is not the primary target on macOS.
+
+### Windows
+
+| Path | Command |
+| --- | --- |
+| **WSL2 (Ubuntu)** — recommended for Linux parity, CUDA, Makefile | Same as [Linux](#linux-recommended) inside WSL |
+| Native Windows (simulator) | `setup.bat` then `.venv\Scripts\adaptive-rl-quant` |
+
+More: [docs/INSTALL.md](docs/INSTALL.md) · [docs/RUNNING.md](docs/RUNNING.md) · [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (Linux-first / WSL2 guidance).
 
 ---
 
@@ -60,7 +76,7 @@ Headline quantitative stories in **[docs/PAPER.md](docs/PAPER.md)** are written 
 **Install (after activating a venv):** **`python3 -m pip install -e .`**. GPU training: **`python3 -m pip install -e ".[torch]"`** or install a matching [torch](https://pytorch.org/get-started/locally/) wheel first, then **`python3 -m pip install -e .`**. On Windows, substitute `py -3.11 -m pip` or `python -m pip`.
 Editable installs expose console commands: `adaptive-rl-quant`, `adaptive-rl-quant-moe`, `adaptive-rl-quant-pytorch`, `adaptive-rl-quant-online`, `adaptive-rl-quant-multiseed`, `adaptive-rl-quant-calibrate`, and `adaptive-rl-quant-route`.
 
-The simulator path is supported on **Linux, macOS, and Windows**. GPU workflows still target **Linux + NVIDIA** unless noted, and **WSL2 is the recommended Windows path** when you want Linux-parity tooling and layout.
+**Platform summary:** treat **Linux** (or **WSL2**) as the default for development, CUDA, and `llama.cpp`. The simulator also runs on **macOS** and **native Windows**; GPU workflows target **Linux + NVIDIA** unless noted.
 
 **Daily dev (optional):** `python3 -m pip install -e ".[dev]"` then **`make help`** on Linux/macOS, or run **`python3 scripts/pre_commit_check.py`** directly on Unix-like hosts (`py -3.11` / `python` on Windows). See [CONTRIBUTING.md](CONTRIBUTING.md).
 
