@@ -52,12 +52,12 @@ For `adaptive-rl-quant-online` (or `run_online_learning.py` from a source checko
 
 ## Re-run analysis (no training)
 
-From repo root, pass **log or history path** then **output dir**:
+From repo root (after `pip install -e .`, or with `PYTHONPATH=src`), pass **command**, **log or history path**, then **output dir**:
 
 ```bash
-python3 src/analysis/hardware_generalization.py path/to/*_multi_hw.jsonl out/
-python3 src/analysis/input_adaptation.py path/to/*_dynamic.jsonl out/
-python3 src/analysis/quant_function_behavior.py path/to/*_learned.jsonl out/
+python -m analysis hardware_generalization path/to/*_multi_hw.jsonl out/
+python -m analysis input_adaptation path/to/*_dynamic.jsonl out/
+python -m analysis quant_function_behavior path/to/*_learned.jsonl out/
 ```
 
-Logic is in [`analysis/analyzers.py`](../src/analysis/analyzers.py); other files under `src/analysis/` are thin CLIs.
+Legacy per-script paths (`python3 src/analysis/<name>.py ...`) still work. Logic lives in [`analysis/analyzers.py`](../src/analysis/analyzers.py); other files under `src/analysis/` are thin CLIs.

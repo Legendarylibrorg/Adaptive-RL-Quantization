@@ -19,7 +19,3 @@ def ensure_src_on_path() -> None:
 def load_main(module: str, *, attr: str = "main") -> Callable[..., Any]:
     ensure_src_on_path()
     return getattr(import_module(module), attr)
-
-
-def run_cli(module: str, *, attr: str = "main") -> None:
-    load_main(module, attr=attr)()

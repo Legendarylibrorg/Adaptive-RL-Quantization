@@ -1,1 +1,1 @@
-"""Analysis package — implementations in `analysis.analyzers`; per-topic shims for CLI."""
+"""Analysis package — ``python -m analysis <command>`` or per-topic shims under ``src/analysis/``."""
