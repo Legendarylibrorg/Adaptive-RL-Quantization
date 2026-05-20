@@ -4,7 +4,7 @@ import inspect
 import random
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from adaptive_quant.base_trainer import TrainerBase, coerce_previous_action
 from adaptive_quant.configuration import FrameworkConfig
@@ -46,7 +46,7 @@ def _torch_load_v2_tensor_file(path: str) -> dict[str, Any]:
             load_kw["weights_only"] = True
     except (TypeError, ValueError):
         pass
-    return torch.load(path, **load_kw)
+    return cast(dict[str, Any], torch.load(path, **load_kw))
 
 
 if torch is not None:
@@ -136,12 +136,17 @@ if torch is not None:
                 )
             else:
                 indices = torch.randint(0, self.size, (n,), device=self.device)
+            sampled_records: list[dict[str, Any]] = []
+            for idx in indices.cpu().tolist():
+                record = self.records[int(idx)]
+                if record is not None:
+                    sampled_records.append(record)
             return (
                 self.states[indices],
                 self.rewards[indices],
                 self.log_probs[indices],
                 self.values[indices],
-                [self.records[int(i)] for i in indices.cpu().tolist()],
+                sampled_records,
             )
 
         def vram_bytes(self) -> int:
@@ -488,7 +493,7 @@ if torch is not None:
 
 else:
 
-    class TorchTrainer(TrainerBase):
+    class TorchTrainer(TrainerBase):  # type: ignore[no-redef]
         def __init__(self, config: FrameworkConfig, log_path: str | None = None) -> None:
             del config, log_path
             raise ImportError(TORCH_BACKEND_REQUIRED_MESSAGE) from TORCH_IMPORT_ERROR

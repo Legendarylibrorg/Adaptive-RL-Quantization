@@ -5,6 +5,7 @@ import os
 import re
 import subprocess
 from collections import OrderedDict
+from typing import cast
 
 from adaptive_quant.backends.protocol import per_token_latency_fields
 from adaptive_quant.backends.quality import ExternalQualityScores, apply_external_quality
@@ -224,7 +225,9 @@ class LlamaCppBackend:
             )
         if parsed.get("memory_mb", 0.0) > 0.0:
             metrics["memory_mb"] = float(parsed["memory_mb"])
-        metrics.update(per_token_latency_fields(state, metrics["latency_ms"]))
+        metrics.update(
+            cast(BackendMetricDict, per_token_latency_fields(state, metrics["latency_ms"]))
+        )
         metrics.update(
             {
                 "latency_source": "llama_cpp",

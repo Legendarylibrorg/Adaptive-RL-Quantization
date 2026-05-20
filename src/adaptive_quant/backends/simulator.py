@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import cast
+
 from adaptive_quant.backends.protocol import per_token_latency_fields
 from adaptive_quant.backends.quality import ExternalQualityScores, apply_external_quality
 from adaptive_quant.configuration import FrameworkConfig
@@ -162,7 +164,9 @@ class SimulatorBackend:
                 )
             if memory_mul > 0:
                 metrics["memory_mb"] = clamp(metrics["memory_mb"] * memory_mul, 50.0, 512_000.0)
-        metrics.update(per_token_latency_fields(state, metrics["latency_ms"]))
+        metrics.update(
+            cast(BackendMetricDict, per_token_latency_fields(state, metrics["latency_ms"]))
+        )
         metrics.update(
             {
                 "latency_source": "simulator",
@@ -191,8 +195,10 @@ class SimulatorBackend:
         sensitivity_penalty = 0.0
         latency_multiplier = 1.0
 
+        moe_context = state.moe_context
+        assert moe_context is not None
         for expert, variant_index in zip(
-            state.moe_context.experts, decision.moe_variant_indices, strict=True
+            moe_context.experts, decision.moe_variant_indices, strict=True
         ):
             variant = self.expert_bank.variant_by_index(variant_index)
             routing_weight = 0.60 + expert.router_probability

@@ -61,7 +61,18 @@ class AggregateNumericMapsTests(unittest.TestCase):
             effect_size_vs_zero=3.0,
         )
         payload = stat.to_dict()
-        self.assertEqual(set(payload.keys()), {"mean", "std", "n", "stderr", "ci95_low", "ci95_high", "effect_size_vs_zero"})
+        self.assertEqual(
+            set(payload.keys()),
+            {
+                "mean",
+                "std",
+                "n",
+                "stderr",
+                "ci95_low",
+                "ci95_high",
+                "effect_size_vs_zero",
+            },
+        )
         self.assertEqual(payload["n"], 4)
 
 
@@ -70,7 +81,9 @@ class DefaultKeyFilterTests(unittest.TestCase):
         self.assertFalse(_default_key_filter("config.training_episodes"))
 
     def test_keeps_gap_and_mean_reward_keys(self) -> None:
-        self.assertTrue(_default_key_filter("benchmarks.single_vs_multi.generalization_gap_improvement"))
+        self.assertTrue(
+            _default_key_filter("benchmarks.single_vs_multi.generalization_gap_improvement")
+        )
         self.assertTrue(_default_key_filter("evaluation.mean_reward"))
 
     def test_delta_suffix_allowed(self) -> None:
