@@ -181,4 +181,4 @@ def run_pipeline_entrypoint(
     return summary
 
 
-__all__ = ["ResearchPipeline", "git_commit_hash", "run_pipeline_entrypoint"]
+__all__ = ["ResearchPipeline", "run_pipeline_entrypoint"]

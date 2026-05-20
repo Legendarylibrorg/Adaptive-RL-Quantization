@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Analysis unit tests (`tests/test_analysis_analyzers.py`) and optional real llama.cpp integration test (`ADAPTIVE_RL_RUN_LLAMA_CPP=1`).
+- Unit tests for multiseed aggregation (`tests/test_multiseed_aggregation.py`), online guardrails (`tests/test_guardrails.py`), and torch trainer helpers (`tests/test_torch_trainer.py`).
+- CI job `torch-cpu-smoke` (Ubuntu 3.12, hash-pinned `requirements/pytorch-cpu.txt`) runs torch trainer unit smoke without the full matrix.
 - CI coverage gate (68% floor on `adaptive_quant`).
 - Secure-run tooling: `docs/SECURE_RUN.md` tiers (VM → Docker → NVIDIA), `scripts/docker_secure_preflight.sh`, `scripts/docker_gpu_device_probe.py`, `config.docker.gpu_smoke.json`, Makefile `docker-gpu-verify` (local/VM use; not run in CI).
 
@@ -31,7 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Enforce **ruff** (lint + format) and **mypy** (configuration, logging, easy_config) in `pre_commit_check.py` and CI (`pip install -e ".[dev]"`).
+- Enforce **ruff** (lint + format) and **mypy** (configuration, logging, easy_config, backends, `route_pipeline`, CLI, `torch_trainer`) in `pre_commit_check.py` and CI (`pip install -e ".[dev]"`).
+- **API:** `extract_numeric` is the public llama.cpp metric parser helper (`adaptive_quant.backends.llama_cpp`); removed `_extract_numeric` from `adaptive_quant.backend.__all__`. `git_commit_hash` is imported from `adaptive_quant.pipeline.vcs` (no longer listed in `research_pipeline.__all__`).
 - `compat_tomllib` always uses stdlib `tomllib` (Python 3.11+ only; minimal fallback removed from the public path).
 - CONFIG guide: prefer JSON/TOML for shared/CI runs; Python presets for local iteration.
 - Bumped optional runtime pins (`torch`, `transformers`, `safetensors`) and dev `ruff` floor in `pyproject.toml`.

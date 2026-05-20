@@ -40,7 +40,7 @@ from adaptive_quant.policy import (
     _gaussian_head_from_payload,
     _value_head_from_payload,
 )
-from adaptive_quant.research_pipeline import git_commit_hash
+from adaptive_quant.pipeline.vcs import git_commit_hash
 from adaptive_quant.routing import parse_route
 from adaptive_quant.trainer import Trainer
 

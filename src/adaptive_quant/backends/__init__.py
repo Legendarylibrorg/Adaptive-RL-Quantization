@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from adaptive_quant.backends.llama_cpp import (
     LlamaCppBackend,
+    extract_numeric,
     parse_llama_cpp_metrics,
     require_llama_cpp_paths,
     run_llama_cpp_measurement,
@@ -20,6 +21,7 @@ __all__ = [
     "SimulatorBackend",
     "apply_external_quality",
     "build_backend",
+    "extract_numeric",
     "parse_llama_cpp_metrics",
     "per_token_latency_fields",
     "register_backend",

@@ -19,7 +19,7 @@ from adaptive_quant.types import BackendMetricDict, EpisodeState, QuantizationDe
 _NUMBER_RE = r"-?\d+(?:\.\d+)?"
 
 
-def _extract_numeric(text: str, marker: str, default: float) -> float:
+def extract_numeric(text: str, marker: str, default: float) -> float:
     if not text or not marker:
         return default
     escaped = re.escape(marker)
@@ -67,8 +67,8 @@ def _extract_memory_mb(text: str, default: float = 0.0) -> float:
 
 
 def parse_llama_cpp_metrics(text: str) -> dict[str, float]:
-    throughput_tps = _extract_numeric(text, "tok/s", default=0.0)
-    latency_ms_per_token = _extract_numeric(text, "ms per token", default=0.0)
+    throughput_tps = extract_numeric(text, "tok/s", default=0.0)
+    latency_ms_per_token = extract_numeric(text, "ms per token", default=0.0)
     memory_mb = _extract_memory_mb(text, default=0.0)
     result: dict[str, float] = {}
     if throughput_tps > 0.0:
