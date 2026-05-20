@@ -419,9 +419,4 @@ python3 -m unittest discover -s tests -v
 - `src/adaptive_quant/torch_trainer.py`
 - `src/adaptive_quant/moe.py`
 - `src/adaptive_quant/benchmark.py`
-- `src/analysis/analyzers.py`
-- `src/analysis/hardware_generalization.py`
-- `src/analysis/input_adaptation.py`
-- `src/analysis/quant_function_behavior.py`
-- `src/analysis/moe_expert_behavior.py`
-- `src/analysis/moe_cache_behavior.py`
+- `src/analysis/analyzers.py` (all post-hoc analyzers; CLI: `python -m analysis <command>`)

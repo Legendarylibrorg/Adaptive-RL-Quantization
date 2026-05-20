@@ -66,8 +66,7 @@ The key architecture rule here is: **different backends share the same `Framewor
 
 ## 4. Analysis and reporting
 
-- `src/analysis/`: CLI wrappers for post-hoc analysis
-- `src/analysis/analyzers.py`: shared analysis logic
+- `src/analysis/`: post-hoc analysis (`analyzers.py` + `python -m analysis` CLI)
 - `src/adaptive_quant/research_pipeline.py`: full offline pipeline orchestration
 - `src/adaptive_quant/pipeline/`: VCS stamp, benchmark warnings, analysis runner, Markdown report
 - `src/adaptive_quant/run_footer.py`: consistent CLI summaries

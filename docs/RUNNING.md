@@ -12,7 +12,7 @@ Artifacts and API: [USAGE.md](USAGE.md).
 
 - Prefer the installed console commands in user-facing workflows: `adaptive-rl-quant`, `adaptive-rl-quant-pytorch`, `adaptive-rl-quant-online`, and friends.
 - Source-checkout equivalents (`python3 run_research.py`, `python3 run_pytorch.py`, and so on) remain available when you want to run directly from the repo tree.
-- Post-hoc analysis: **`python -m analysis <command> ...`** after `pip install -e .` (or `PYTHONPATH=src`). Legacy: `python3 src/analysis/<name>.py ...` — see [USAGE.md](USAGE.md).
+- Post-hoc analysis: **`python -m analysis <command> ...`** after `pip install -e .` (or `PYTHONPATH=src`) — see [USAGE.md](USAGE.md).
 
 ## Choose an entrypoint
 
@@ -96,7 +96,7 @@ Set `backend="llama_cpp"`, `llama_cpp_binary`, and `llama_cpp_model` in the pres
 
 ## Post-hoc analysis
 
-Regenerate plots from existing logs without retraining: [USAGE.md](USAGE.md) (`python -m analysis` or legacy `src/analysis/` scripts).
+Regenerate plots from existing logs without retraining: [USAGE.md](USAGE.md) (`python -m analysis`).
 
 ## Notes
 
