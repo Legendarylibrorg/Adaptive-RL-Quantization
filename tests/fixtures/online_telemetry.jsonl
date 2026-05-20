@@ -1,0 +1,2 @@
+{"hardware_mode": "gpu", "accepted_candidate": true, "online_update_applied": false, "served_metrics": {"reward": 1.1}, "input_features": {"complexity_score": 0.4}}
+{"hardware_mode": "cpu", "accepted_candidate": false, "online_update_applied": true, "drift_event": "rollback", "served_metrics": {"reward": 0.6}, "input_features": {"complexity_score": 0.8}}

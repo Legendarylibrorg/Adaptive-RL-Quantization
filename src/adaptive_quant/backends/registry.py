@@ -27,6 +27,8 @@ def build_backend(config: FrameworkConfig) -> Backend:
         return SimulatorBackend(config)
     if backend == "llama_cpp":
         return LlamaCppBackend(config)
+    registered = ", ".join(sorted(_EXTRA_BUILDERS)) if _EXTRA_BUILDERS else "(none)"
     raise ValueError(
-        f"Unsupported backend {config.backend!r}; expected 'simulator' or 'llama_cpp'."
+        f"Unsupported backend {config.backend!r}; expected 'simulator', 'llama_cpp', "
+        f"or a name registered via register_backend. Registered custom backends: {registered}."
     )

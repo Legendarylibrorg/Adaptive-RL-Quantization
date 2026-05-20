@@ -1,13 +1,19 @@
+"""Post-hoc **online telemetry** analysis CLI — not ``adaptive_quant.online_learning``.
+
+Prefer ``python -m analysis online_learning``. The runtime loop lives in
+``adaptive_quant.online_learning.OnlineLearningLoop``.
+"""
+
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-_SRC = Path(__file__).resolve().parent.parent
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from analysis.shim_support import run_shim_main
-
 if __name__ == "__main__":
-    run_shim_main(__file__)
+    import importlib.util
+    from pathlib import Path
+
+    _legacy = Path(__file__).resolve().parent / "_legacy_shim.py"
+    _spec = importlib.util.spec_from_file_location("_analysis_legacy_shim", _legacy)
+    if _spec is None or _spec.loader is None:
+        raise RuntimeError(f"Cannot load {_legacy}")
+    _mod = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(_mod)
+    _mod.run_as_main(__file__)

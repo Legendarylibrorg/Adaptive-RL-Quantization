@@ -30,7 +30,7 @@ python3 run_online_learning.py --config ./online.toml
 - [`run_online_learning.py`](../run_online_learning.py) (repo-root shim)
 - [`config_online.py`](../src/config_online.py)
 - [`adaptive_quant/online_learning.py`](../src/adaptive_quant/online_learning.py)
-- [`analysis/online_learning.py`](../src/analysis/online_learning.py)
+- [`src/analysis/online_learning.py`](../src/analysis/online_learning.py) — post-hoc telemetry plots (`python -m analysis online_learning`; not the runtime loop module)
 
 ## How the loop works
 

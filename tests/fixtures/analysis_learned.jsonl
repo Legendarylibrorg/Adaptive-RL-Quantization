@@ -1,0 +1,2 @@
+{"phase": "eval", "hardware_mode": "gpu", "metrics": {"reward": 1.0, "latency_ms": 10.0}, "decision": {"mode": "learned", "scale_factor": 0.5, "clipping_range": 0.1, "precision_level": 0.8, "effective_layer_bits": [4.0, 4.0]}}
+{"phase": "eval", "hardware_mode": "cpu", "metrics": {"reward": 0.7, "latency_ms": 20.0}, "decision": {"mode": "static", "scale_factor": 0.3, "clipping_range": 0.2, "precision_level": 0.5, "effective_layer_bits": [2.0]}}
