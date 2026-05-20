@@ -85,7 +85,6 @@ merged="$(
 
 for key in \
   'read_only: true' \
-  'privileged: false' \
   'cap_drop:' \
   'no-new-privileges:true' \
   'user: "10001:10001"'; do
@@ -93,6 +92,9 @@ for key in \
     fail "merged compose config missing ${key} (GPU overlay must not weaken base hardening)"
   fi
 done
+if grep -Eiq 'privileged:\s*true' <<<"${merged}"; then
+  fail "merged compose config must not set privileged: true"
+fi
 
 if [[ "${CHECK_GPU}" -eq 1 ]]; then
   if ! command -v nvidia-smi >/dev/null 2>&1; then

@@ -846,9 +846,11 @@ class DockerComposeHardeningTests(unittest.TestCase):
         self.assertIn("config.docker.gpu_smoke.json", compose)
 
     def test_gpu_compose_does_not_weaken_base_hardening(self) -> None:
-        gpu = (Path(__file__).resolve().parent.parent / "docker-compose.gpu.yml").read_text(
-            encoding="utf-8"
-        ).lower()
+        gpu = (
+            (Path(__file__).resolve().parent.parent / "docker-compose.gpu.yml")
+            .read_text(encoding="utf-8")
+            .lower()
+        )
         self.assertNotIn("privileged: true", gpu)
         self.assertNotIn("docker.sock", gpu)
         self.assertNotIn("read_only: false", gpu)
@@ -884,7 +886,6 @@ class DockerComposeHardeningTests(unittest.TestCase):
         merged = proc.stdout
         for key in (
             "read_only: true",
-            "privileged: false",
             "no-new-privileges:true",
             'user: "10001:10001"',
             "gpus:",
@@ -892,10 +893,9 @@ class DockerComposeHardeningTests(unittest.TestCase):
         ):
             with self.subTest(key=key):
                 self.assertIn(key, merged)
+        self.assertNotIn("privileged: true", merged.lower())
 
     def test_docker_gpu_smoke_config_uses_cpu_torch(self) -> None:
-        from adaptive_quant.easy_config import load_config
-
         path = Path(__file__).resolve().parent.parent / "config.docker.gpu_smoke.json"
         cfg = load_config(path)
         self.assertEqual(cfg.torch_device, "cpu")
