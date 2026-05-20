@@ -419,9 +419,9 @@ python3 -m unittest discover -s tests -v
 - `src/adaptive_quant/torch_trainer.py`
 - `src/adaptive_quant/moe.py`
 - `src/adaptive_quant/benchmark.py`
-- `analysis/analyzers.py`
-- `analysis/hardware_generalization.py`
-- `analysis/input_adaptation.py`
-- `analysis/quant_function_behavior.py`
-- `analysis/moe_expert_behavior.py`
-- `analysis/moe_cache_behavior.py`
+- `src/analysis/analyzers.py`
+- `src/analysis/hardware_generalization.py`
+- `src/analysis/input_adaptation.py`
+- `src/analysis/quant_function_behavior.py`
+- `src/analysis/moe_expert_behavior.py`
+- `src/analysis/moe_cache_behavior.py`

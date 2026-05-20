@@ -58,8 +58,16 @@ def validate_backend(name: str) -> None:
     if not isinstance(name, str):
         raise TypeError("backend must be a string")
     key = name.strip().lower()
-    if key not in _BACKENDS:
-        raise ValueError(f"backend must be one of {sorted(_BACKENDS)}, got {name!r}")
+    if key in _BACKENDS:
+        return
+    from adaptive_quant.backends.registry import _EXTRA_BUILDERS
+
+    if key in _EXTRA_BUILDERS:
+        return
+    allowed = sorted(_BACKENDS | set(_EXTRA_BUILDERS))
+    raise ValueError(
+        f"backend must be one of {allowed} (built-in or register_backend), got {name!r}"
+    )
 
 
 def validate_env_sampling_mode(name: str) -> None:

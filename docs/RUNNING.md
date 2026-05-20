@@ -1,6 +1,6 @@
 # Running Guide
 
-**Platform:** The simulator entrypoints work on **Linux, macOS, and Windows**. Linux and WSL2 are the primary command paths in this guide. On Windows, substitute `py -3.11` or `python` where a `python3` helper command still appears. Run from the **repository root** (where `pyproject.toml` and `config.py` live).
+**Platform:** The simulator entrypoints work on **Linux, macOS, and Windows**. Linux and WSL2 are the primary command paths in this guide. On Windows, substitute `py -3.11` or `python` where a `python3` helper command still appears. Run from the **repository root** (where `pyproject.toml` lives; Python presets are under [`src/config.py`](../src/config.py)).
 
 1. Install: `python3 -m pip install -e .`, or run **`python3 scripts/setup_from_clone.py`** once (see [INSTALL.md](INSTALL.md)) — creates a venv, bootstraps `pip` when needed, then runs tests + RL smoke. Editable installs expose console commands such as `adaptive-rl-quant` and `adaptive-rl-quant-pytorch`.
 2. Short reproducible E2E (no Python edits): [**`config.e2e_smoke.json`**](../config.e2e_smoke.json) — `adaptive-rl-quant --config config.e2e_smoke.json`
@@ -12,7 +12,7 @@ Artifacts and API: [USAGE.md](USAGE.md).
 
 - Prefer the installed console commands in user-facing workflows: `adaptive-rl-quant`, `adaptive-rl-quant-pytorch`, `adaptive-rl-quant-online`, and friends.
 - Source-checkout equivalents (`python3 run_research.py`, `python3 run_pytorch.py`, and so on) remain available when you want to run directly from the repo tree.
-- Analysis helpers under `analysis/` are still Python scripts and are intentionally invoked as `python3 analysis/...`.
+- Post-hoc analysis: **`python -m analysis <command> ...`** after `pip install -e .` (or `PYTHONPATH=src`). Legacy: `python3 src/analysis/<name>.py ...` — see [USAGE.md](USAGE.md).
 
 ## Choose an entrypoint
 
@@ -92,11 +92,11 @@ Fixed horizons and episode counts live in each `config*.py`. For long PyTorch ru
 
 ## llama.cpp
 
-Set `backend="llama_cpp"`, `llama_cpp_binary`, and `llama_cpp_model` in the preset you use ([`config.py`](../config.py), [`config_gpu.py`](../config_gpu.py), etc.), then run the same entrypoint.
+Set `backend="llama_cpp"`, `llama_cpp_binary`, and `llama_cpp_model` in the preset you use ([`src/config.py`](../src/config.py), [`src/config_gpu.py`](../src/config_gpu.py), etc.), then run the same entrypoint.
 
 ## Post-hoc analysis
 
-Regenerate plots from existing logs without retraining: [USAGE.md](USAGE.md) (scripts under `analysis/`).
+Regenerate plots from existing logs without retraining: [USAGE.md](USAGE.md) (`python -m analysis` or legacy `src/analysis/` scripts).
 
 ## Notes
 

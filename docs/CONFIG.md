@@ -73,7 +73,7 @@ Factory: **`FrameworkConfig.reproducible_research(seed=..., run_name=..., **kwar
 General:
 
 - `training_backend`: `"python"` (stdlib trainer; PyTorch not required) or `"pytorch"` (install PyTorch on the host). PyTorch is only loaded when you run PyTorch-backed code paths (this setting, GPU entrypoints, or imports from `adaptive_quant.torch_*`).
-- `backend`: `"simulator"` or `"llama_cpp"`
+- `backend`: `"simulator"` or `"llama_cpp"` (or a custom name registered with `register_backend` in `adaptive_quant.backends.registry`)
 - `training_host_label`: optional label for the machine used to train the policy
 - `run_name`: controls output filenames
 - `run_name` must be a filename-safe slug (letters/digits plus `._-`, no spaces, no path separators).
@@ -202,7 +202,7 @@ MoE-specific:
 Local laptop or quick CI-style validation:
 
 - `training_backend="python"`
-- `backend="simulator"` (valid measurement backends are `simulator` and `llama_cpp`)
+- `backend="simulator"` (built-in measurement backends: `simulator` and `llama_cpp`; extensions via `register_backend`)
 - small `training_episodes`
 - start from [`config.py`](../src/config.py)
 
@@ -253,6 +253,21 @@ Real llama.cpp experiments:
 - set `llama_cpp_model`
 
 Online routing is controlled separately by `router_enabled` and `router_routes`. It is not a separate `backend` value; routes are evaluated through the configured measurement backend.
+
+### Custom measurement backends (advanced)
+
+Plugins can register an extra backend name before building the environment:
+
+```python
+from adaptive_quant.backends.registry import register_backend, build_backend
+from adaptive_quant.configuration import FrameworkConfig
+
+register_backend("my_backend", lambda config: MyBackend(config))
+config = FrameworkConfig(backend="my_backend", run_name="plugin_smoke")
+backend = build_backend(config)
+```
+
+Built-in names remain `simulator` and `llama_cpp`. Unknown names produce an error that lists any registered custom backends.
 
 If you set `router_feature_backend="hf"`, install the optional dependencies first:
 

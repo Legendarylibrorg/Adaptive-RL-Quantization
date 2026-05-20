@@ -25,6 +25,7 @@ __all__ = [
     "FrameworkConfig",
     "OnlineLearningLoop",
     "OnlineRequest",
+    "ResearchPipeline",
     "Trainer",
     "UniversalQuantizationPolicy",
     "apply_gpu_profile",
@@ -36,6 +37,7 @@ __all__ = [
     "quick_config",
     "recommend_quantization",
     "run_online_pipeline",
+    "run_pipeline_entrypoint",
 ]
 
 _LAZY: dict[str, tuple[str, str]] = {
@@ -51,6 +53,8 @@ _LAZY: dict[str, tuple[str, str]] = {
     "quick_config": ("adaptive_quant.easy_config", "quick_config"),
     "recommend_quantization": ("adaptive_quant.recommendation", "recommend_quantization"),
     "run_online_pipeline": ("adaptive_quant.online_pipeline", "run_online_pipeline"),
+    "ResearchPipeline": ("adaptive_quant.research_pipeline", "ResearchPipeline"),
+    "run_pipeline_entrypoint": ("adaptive_quant.research_pipeline", "run_pipeline_entrypoint"),
 }
 
 

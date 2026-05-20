@@ -108,7 +108,7 @@ known-first-party = ["adaptive_quant", "analysis"]
 "src/analysis/*.py" = ["E402"]
 
 [tool.coverage.run]
-source = ["adaptive_quant"]
+source = ["adaptive_quant", "analysis"]
 omit = ["*/tests/*"]
 
 [tool.coverage.report]

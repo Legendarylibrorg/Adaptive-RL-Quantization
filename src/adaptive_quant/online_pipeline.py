@@ -21,7 +21,7 @@ def run_online_pipeline(
     trainer = build_trainer(config)
     git_commit = git_commit_hash()
     loop: OnlineLearningLoop | None = None
-    pipeline_error: BaseException | None = None
+    pipeline_error: Exception | None = None
     bootstrap_summary: dict[str, object] = {}
     online_summary: dict[str, object] = {}
     eval_summary: dict[str, object] = {}
@@ -53,7 +53,9 @@ def run_online_pipeline(
             history_path=history_path,
             checkpoint_path=checkpoint_path,
         )
-    except BaseException as exc:
+    except KeyboardInterrupt:
+        raise
+    except Exception as exc:
         pipeline_error = exc
     finally:
         if loop is not None:
