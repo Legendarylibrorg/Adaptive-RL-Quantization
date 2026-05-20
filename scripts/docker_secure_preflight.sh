@@ -27,7 +27,7 @@ fail() {
 }
 
 ok() {
-  echo "docker_secure_preflight: ok — $*"
+  echo "docker_secure_preflight: ok - $*"
 }
 
 require_cmd() {
@@ -37,7 +37,7 @@ require_cmd() {
 require_compose_key() {
   local file="$1"
   local needle="$2"
-  if ! grep -Fq "${needle}" "${file}"; then
+  if ! grep -F -- "${needle}" "${file}" >/dev/null 2>&1; then
     fail "${file} missing required setting: ${needle}"
   fi
 }
@@ -89,7 +89,7 @@ for key in \
   'cap_drop:' \
   'no-new-privileges:true' \
   'user: "10001:10001"'; do
-  if ! grep -Fq "${key}" <<<"${merged}"; then
+  if ! grep -F -- "${key}" <<<"${merged}" >/dev/null 2>&1; then
     fail "merged compose config missing ${key} (GPU overlay must not weaken base hardening)"
   fi
 done

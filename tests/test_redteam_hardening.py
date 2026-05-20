@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -854,9 +855,6 @@ class DockerComposeHardeningTests(unittest.TestCase):
         self.assertNotIn("cap_add:", gpu)
 
     def test_merged_compose_preserves_hardening(self) -> None:
-        import shutil
-        import subprocess
-
         root = Path(__file__).resolve().parent.parent
         if shutil.which("docker") is None:
             self.skipTest("docker not installed")
@@ -904,8 +902,6 @@ class DockerComposeHardeningTests(unittest.TestCase):
         self.assertFalse(cfg.torch_preflight)
 
     def test_docker_gpu_device_probe_without_require_is_warning(self) -> None:
-        import subprocess
-
         root = Path(__file__).resolve().parent.parent
         env = {**os.environ}
         env.pop("ADAPTIVE_RL_REQUIRE_CONTAINER_CUDA", None)
@@ -921,8 +917,6 @@ class DockerComposeHardeningTests(unittest.TestCase):
         self.assertIn("warning", proc.stdout.lower())
 
     def test_docker_gpu_device_probe_require_fails_without_devices(self) -> None:
-        import subprocess
-
         root = Path(__file__).resolve().parent.parent
         env = {**os.environ, "ADAPTIVE_RL_REQUIRE_CONTAINER_CUDA": "1"}
         proc = subprocess.run(
