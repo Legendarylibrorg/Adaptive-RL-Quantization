@@ -1,4 +1,4 @@
-"""Repo-root `sys.path` fix for `python analysis/<script>.py`."""
+"""Repo-root ``sys.path`` fix for ``python analysis/<script>.py``."""
 
 from __future__ import annotations
 
@@ -12,12 +12,9 @@ def _prepare(caller_file: str) -> None:
         sys.path.insert(0, root)
 
 
-def dispatch_cli(caller_file: str, key: str) -> None:
+def run_shim_main(caller_file: str) -> None:
+    """Run the analysis CLI keyed by ``Path(caller_file).stem``."""
     _prepare(caller_file)
     from analysis.analyzers import run_cli
 
-    run_cli(key)
-
-
-def dispatch_named_cli(key: str) -> None:
-    dispatch_cli(__file__, key)
+    run_cli(Path(caller_file).stem)

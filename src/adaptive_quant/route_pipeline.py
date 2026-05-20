@@ -32,8 +32,8 @@ from adaptive_quant.logging_utils import JsonlLogger, read_json, write_json
 from adaptive_quant.math_utils import mean
 from adaptive_quant.model_routes import ModelRoute, RouteCatalog
 from adaptive_quant.paper_bundle import create_pipeline_paper_bundle
+from adaptive_quant.pipeline.vcs import git_commit_hash
 from adaptive_quant.prompts import PromptLibrary
-from adaptive_quant.research_pipeline import git_commit_hash
 from adaptive_quant.reward import compute_weighted_reward
 from adaptive_quant.route_policy import RouteBandit, RouteContext, RouteSelection
 from adaptive_quant.types import (
