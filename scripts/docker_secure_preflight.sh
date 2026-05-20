@@ -83,15 +83,17 @@ merged="$(
   "${COMPOSE[@]}" -f "${BASE_COMPOSE}" -f "${GPU_COMPOSE}" config 2>/dev/null
 )" || fail "docker compose config failed (is the Docker daemon running?)"
 
-for key in \
-  'read_only: true' \
-  'cap_drop:' \
-  'no-new-privileges:true' \
-  'user: "10001:10001"'; do
+for key in 'read_only: true' 'cap_drop:' 'no-new-privileges:true'; do
   if ! grep -F -- "${key}" <<<"${merged}" >/dev/null 2>&1; then
     fail "merged compose config missing ${key} (GPU overlay must not weaken base hardening)"
   fi
 done
+if ! grep -E 'user:\s*"?10001:10001"?' <<<"${merged}" >/dev/null 2>&1; then
+  fail "merged compose config missing non-root user 10001:10001"
+fi
+if ! grep -Fq 'gpus:' <<<"${merged}" || ! grep -Fq 'driver: nvidia' <<<"${merged}"; then
+  fail "merged compose config missing GPU reservation"
+fi
 if grep -Eiq 'privileged:\s*true' <<<"${merged}"; then
   fail "merged compose config must not set privileged: true"
 fi

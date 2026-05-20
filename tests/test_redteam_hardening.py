@@ -887,12 +887,12 @@ class DockerComposeHardeningTests(unittest.TestCase):
         for key in (
             "read_only: true",
             "no-new-privileges:true",
-            'user: "10001:10001"',
             "gpus:",
             "driver: nvidia",
         ):
             with self.subTest(key=key):
                 self.assertIn(key, merged)
+        self.assertRegex(merged, r"user:\s*\"?10001:10001\"?")
         self.assertNotIn("privileged: true", merged.lower())
 
     def test_docker_gpu_smoke_config_uses_cpu_torch(self) -> None:
