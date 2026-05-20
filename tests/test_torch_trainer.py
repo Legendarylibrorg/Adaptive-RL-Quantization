@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import unittest
+from pathlib import Path
 
 from adaptive_quant.torch_trainer import (
     _checkpoint_meta_path,
@@ -20,14 +21,9 @@ class TorchTrainerHelperTests(unittest.TestCase):
         self.assertFalse(_crossed_episode_milestone(0, 1, -5))
 
     def test_checkpoint_meta_path_sidecar(self) -> None:
-        self.assertEqual(
-            _checkpoint_meta_path("/tmp/run/checkpoint.pt"),
-            "/tmp/run/checkpoint.checkpoint.json",
-        )
-        self.assertEqual(
-            _checkpoint_meta_path("outputs/checkpoints/foo.pt"),
-            "outputs/checkpoints/foo.checkpoint.json",
-        )
+        for pt in (Path("/tmp/run/checkpoint.pt"), Path("outputs/checkpoints/foo.pt")):
+            expected = pt.with_name(f"{pt.stem}.checkpoint.json")
+            self.assertEqual(Path(_checkpoint_meta_path(str(pt))), expected)
 
 
 @unittest.skipUnless(importlib.util.find_spec("torch") is not None, "PyTorch not installed")
