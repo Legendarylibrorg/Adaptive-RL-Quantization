@@ -8,8 +8,8 @@ from typing import Any
 
 from adaptive_quant.logging_utils import md_table, write_json, write_text_file
 from adaptive_quant.math_utils import fmt_float
-from adaptive_quant.pipeline.vcs import git_commit_hash
 from adaptive_quant.paper_bundle import aggregate_values, create_multiseed_paper_bundle
+from adaptive_quant.pipeline.vcs import git_commit_hash
 from adaptive_quant.presets.baseline import CONFIG as CONFIG_DENSE
 from adaptive_quant.presets.moe import CONFIG_MOE
 from adaptive_quant.research_pipeline import run_pipeline_entrypoint
