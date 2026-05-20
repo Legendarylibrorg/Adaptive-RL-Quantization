@@ -35,12 +35,12 @@ from adaptive_quant.logging_utils import (
     safe_json_loads,
 )
 from adaptive_quant.model_routes import ModelRoute, RouteCatalog
+from adaptive_quant.pipeline.vcs import git_commit_hash
 from adaptive_quant.policy import (
     _categorical_head_from_payload,
     _gaussian_head_from_payload,
     _value_head_from_payload,
 )
-from adaptive_quant.pipeline.vcs import git_commit_hash
 from adaptive_quant.routing import parse_route
 from adaptive_quant.trainer import Trainer
 

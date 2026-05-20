@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import unittest
+
 from adaptive_quant.torch_trainer import (
     _checkpoint_meta_path,
     _crossed_episode_milestone,
