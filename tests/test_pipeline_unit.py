@@ -142,8 +142,20 @@ class ReportMarkdownTests(unittest.TestCase):
                 path = write_research_report_markdown(
                     cfg,
                     git_commit="abc123",
-                    train_summary={"episodes": 4, "mean_reward": 1.0, "best_reward": 2.0, "final_reward": 1.5},
-                    eval_summary={"mean_reward": 1.2, "mean_latency_ms": 8.0, "mean_throughput_tps": 100.0, "mean_memory_mb": 500.0, "mean_perplexity": 4.0, "mean_stability_penalty": 0.1},
+                    train_summary={
+                        "episodes": 4,
+                        "mean_reward": 1.0,
+                        "best_reward": 2.0,
+                        "final_reward": 1.5,
+                    },
+                    eval_summary={
+                        "mean_reward": 1.2,
+                        "mean_latency_ms": 8.0,
+                        "mean_throughput_tps": 100.0,
+                        "mean_memory_mb": 500.0,
+                        "mean_perplexity": 4.0,
+                        "mean_stability_penalty": 0.1,
+                    },
                     benchmark_summary=benchmark_summary,
                     gpu_profile_report={"profile": "test"},
                     preflight_report=None,

@@ -33,9 +33,7 @@ class ResearchCliTests(unittest.TestCase):
     def test_research_main_invokes_pipeline_with_fallback(self) -> None:
         from adaptive_quant.cli import research
 
-        with mock.patch(
-            "adaptive_quant.research_pipeline.run_pipeline_entrypoint"
-        ) as run_pipeline:
+        with mock.patch("adaptive_quant.research_pipeline.run_pipeline_entrypoint") as run_pipeline:
             with mock.patch.object(sys, "argv", ["adaptive-rl-quant"]):
                 research.main()
             run_pipeline.assert_called_once()
@@ -47,9 +45,7 @@ class MoeResearchCliTests(unittest.TestCase):
     def test_moe_research_main_uses_moe_fallback(self) -> None:
         from adaptive_quant.cli import moe_research
 
-        with mock.patch(
-            "adaptive_quant.research_pipeline.run_pipeline_entrypoint"
-        ) as run_pipeline:
+        with mock.patch("adaptive_quant.research_pipeline.run_pipeline_entrypoint") as run_pipeline:
             with mock.patch.object(sys, "argv", ["adaptive-rl-quant-moe"]):
                 moe_research.main()
             passed = run_pipeline.call_args[0][0]
@@ -62,7 +58,7 @@ class OnlineLearningCliTests(unittest.TestCase):
         from adaptive_quant.cli import online_learning
 
         with mock.patch(
-            "adaptive_quant.cli.online_learning.run_online_pipeline_entrypoint"
+            "adaptive_quant.cli.online_learning.run_online_pipeline_entrypoint",
         ) as run_online:
             with mock.patch.object(sys, "argv", ["adaptive-rl-quant-online"]):
                 online_learning.main()
