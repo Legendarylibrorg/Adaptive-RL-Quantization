@@ -34,10 +34,41 @@ def grouped_mean(
     return {group: mean(values) for group, values in buckets.items()}
 
 
+def _svg_canvas(
+    *,
+    title: str,
+    bg_color: str,
+    x_label: str | None = None,
+    y_label: str | None = None,
+    width: int = 780,
+    height: int = 420,
+    margin: int = 60,
+) -> tuple[list[str], int, int, int]:
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">',
+        f'<rect width="{width}" height="{height}" fill="{bg_color}" />',
+        f'<text x="{width / 2}" y="30" text-anchor="middle" font-size="22" font-family="Georgia">{_svg_text(title)}</text>',
+        f'<line x1="{margin}" y1="{height - margin}" x2="{width - margin}" y2="{height - margin}" stroke="#333" stroke-width="2" />',
+        f'<line x1="{margin}" y1="{margin}" x2="{margin}" y2="{height - margin}" stroke="#333" stroke-width="2" />',
+    ]
+    if y_label:
+        parts.insert(
+            3,
+            f'<text x="20" y="{margin - 20}" font-size="14" font-family="Georgia">{_svg_text(y_label)}</text>',
+        )
+    if x_label:
+        parts.append(
+            f'<text x="{width / 2}" y="{height - 18}" text-anchor="middle" font-size="14" font-family="Georgia">{_svg_text(x_label)}</text>'
+        )
+        if y_label:
+            parts.append(
+                f'<text x="16" y="{height / 2}" text-anchor="middle" font-size="14" font-family="Georgia" transform="rotate(-90 16 {height / 2})">{_svg_text(y_label)}</text>'
+            )
+    return parts, width, height, margin
+
+
 def write_bar_chart(path: str, title: str, values: dict[str, float], y_label: str) -> None:
-    width = 780
-    height = 420
-    margin = 60
+    parts, width, height, margin = _svg_canvas(title=title, bg_color="#fbf7ef", y_label=y_label)
     chart_height = height - 2 * margin
     chart_width = width - 2 * margin
     labels = list(values.keys())
@@ -45,15 +76,6 @@ def write_bar_chart(path: str, title: str, values: dict[str, float], y_label: st
     scale = chart_height / maximum if maximum else 1.0
     bar_width = chart_width / max(1, len(labels) * 1.4)
     gap = bar_width * 0.4
-
-    parts = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">',
-        f'<rect width="{width}" height="{height}" fill="#fbf7ef" />',
-        f'<text x="{width / 2}" y="30" text-anchor="middle" font-size="22" font-family="Georgia">{_svg_text(title)}</text>',
-        f'<text x="20" y="{margin - 20}" font-size="14" font-family="Georgia">{_svg_text(y_label)}</text>',
-        f'<line x1="{margin}" y1="{height - margin}" x2="{width - margin}" y2="{height - margin}" stroke="#333" stroke-width="2" />',
-        f'<line x1="{margin}" y1="{margin}" x2="{margin}" y2="{height - margin}" stroke="#333" stroke-width="2" />',
-    ]
 
     for index, label in enumerate(labels):
         value = values[label]
@@ -78,9 +100,9 @@ def write_bar_chart(path: str, title: str, values: dict[str, float], y_label: st
 def write_scatter_plot(
     path: str, title: str, points: list[tuple[float, float]], x_label: str, y_label: str
 ) -> None:
-    width = 780
-    height = 420
-    margin = 60
+    parts, width, height, margin = _svg_canvas(
+        title=title, bg_color="#f6fbff", x_label=x_label, y_label=y_label
+    )
     x_values = [point[0] for point in points] or [0.0]
     y_values = [point[1] for point in points] or [0.0]
     min_x, max_x = min(x_values), max(x_values)
@@ -93,16 +115,6 @@ def write_scatter_plot(
 
     def scale_y(value: float) -> float:
         return height - margin - ((value - min_y) / y_span) * (height - 2 * margin)
-
-    parts = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">',
-        f'<rect width="{width}" height="{height}" fill="#f6fbff" />',
-        f'<text x="{width / 2}" y="30" text-anchor="middle" font-size="22" font-family="Georgia">{_svg_text(title)}</text>',
-        f'<line x1="{margin}" y1="{height - margin}" x2="{width - margin}" y2="{height - margin}" stroke="#333" stroke-width="2" />',
-        f'<line x1="{margin}" y1="{margin}" x2="{margin}" y2="{height - margin}" stroke="#333" stroke-width="2" />',
-        f'<text x="{width / 2}" y="{height - 18}" text-anchor="middle" font-size="14" font-family="Georgia">{_svg_text(x_label)}</text>',
-        f'<text x="16" y="{height / 2}" text-anchor="middle" font-size="14" font-family="Georgia" transform="rotate(-90 16 {height / 2})">{_svg_text(y_label)}</text>',
-    ]
 
     for point in points:
         x = scale_x(point[0])

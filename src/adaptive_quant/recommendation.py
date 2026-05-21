@@ -11,6 +11,7 @@ from adaptive_quant.hardware import resolve_target_hardware
 from adaptive_quant.math_utils import mean
 from adaptive_quant.trainer_utils import (
     feedback_vector,
+    run_env_episode_rollout,
     summarize_episode_results,
     zero_previous_action,
 )
@@ -121,6 +122,22 @@ def _evaluate_fixed_candidate(
     }
 
 
+def _feedback_for_config(config: FrameworkConfig):
+    max_bits = max(config.discrete_bit_widths)
+    scale_upper = config.scale_bounds[1]
+    clip_upper = config.clip_bounds[1]
+
+    def _feedback(decision: QuantizationDecision) -> list[float]:
+        return feedback_vector(
+            decision,
+            max_bits=max_bits,
+            scale_upper=scale_upper,
+            clip_upper=clip_upper,
+        )
+
+    return _feedback
+
+
 def _run_recommendation_rollout(
     config: FrameworkConfig,
     *,
@@ -130,40 +147,17 @@ def _run_recommendation_rollout(
     act_fn,
     on_result=None,
 ) -> list[EpisodeResult]:
-    env = AdaptiveQuantizationEnv(
-        config,
-        enable_logging=False,
+    return run_env_episode_rollout(
+        AdaptiveQuantizationEnv(config, enable_logging=False),
+        episodes,
+        act=act_fn,
+        feedback=_feedback_for_config(config),
+        episode_offset=episode_offset,
+        hardware=hardware,
+        phase="eval",
+        on_episode=on_result,
+        log_episode=False,
     )
-    previous_action = zero_previous_action()
-    max_bits = max(config.discrete_bit_widths)
-    scale_upper = config.scale_bounds[1]
-    clip_upper = config.clip_bounds[1]
-    results: list[EpisodeResult] = []
-    try:
-        for episode_index in range(episodes):
-            state = env.reset(
-                previous_action=previous_action,
-                forced_hardware=hardware,
-                phase="eval",
-                episode_index=episode_offset + episode_index,
-            )
-            result = env.evaluate_current(
-                act_fn(state),
-                episode_index=episode_offset + episode_index,
-                log_episode=False,
-            )
-            previous_action = feedback_vector(
-                result.decision,
-                max_bits=max_bits,
-                scale_upper=scale_upper,
-                clip_upper=clip_upper,
-            )
-            if on_result is not None:
-                on_result(state, result)
-            results.append(result)
-    finally:
-        env.logger.close()
-    return results
 
 
 def _summarize_results(results: list[EpisodeResult]) -> dict[str, object]:

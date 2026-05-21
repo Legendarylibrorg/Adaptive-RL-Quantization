@@ -6,16 +6,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from adaptive_quant.configuration import FrameworkConfig
-
-
-def _fmt_scalar(v: object) -> str:
-    if isinstance(v, bool):
-        return str(v)
-    if isinstance(v, int) and not isinstance(v, bool):
-        return str(v)
-    if isinstance(v, float):
-        return f"{v:.4g}"
-    return str(v)
+from adaptive_quant.math_utils import format_display
 
 
 def _metric_rows(
@@ -25,7 +16,7 @@ def _metric_rows(
     for k in keys:
         if k not in data:
             continue
-        rows.append((f"{prefix}_{k}", _fmt_scalar(data[k])))
+        rows.append((f"{prefix}_{k}", format_display(data[k], style="footer")))
     return rows
 
 
@@ -84,13 +75,20 @@ def print_pipeline_footer(
         )
     recommendation = summary.get("recommendation")
     if isinstance(recommendation, dict):
-        rows.append(("target_hardware", _fmt_scalar(recommendation.get("target_hardware"))))
+        rows.append(
+            ("target_hardware", format_display(recommendation.get("target_hardware"), style="footer"))
+        )
         fixed = recommendation.get("recommended_quant")
         if isinstance(fixed, dict):
-            rows.append(("recommended_quant", _fmt_scalar(fixed.get("signature"))))
+            rows.append(("recommended_quant", format_display(fixed.get("signature"), style="footer")))
             evaluation = fixed.get("evaluation")
             if isinstance(evaluation, dict):
-                rows.append(("recommended_reward", _fmt_scalar(evaluation.get("mean_reward"))))
+                rows.append(
+                    (
+                        "recommended_reward",
+                        format_display(evaluation.get("mean_reward"), style="footer"),
+                    )
+                )
 
     print_cli_block("Run complete", rows)
 
@@ -138,11 +136,14 @@ def print_online_footer(
     rows: list[tuple[str, str]] = [
         ("run_name", config.run_name),
         ("training_backend", str(config.training_backend)),
-        ("bootstrap_mean_reward", _fmt_scalar(bootstrap_map.get("mean_reward", 0.0))),
+        ("bootstrap_mean_reward", format_display(bootstrap_map.get("mean_reward", 0.0), style="footer")),
         ("online_requests", str(online_map.get("requests", ""))),
-        ("online_mean_served_reward", _fmt_scalar(online_map.get("mean_served_reward", 0.0))),
+        (
+            "online_mean_served_reward",
+            format_display(online_map.get("mean_served_reward", 0.0), style="footer"),
+        ),
         ("online_total_updates", str(online_map.get("total_updates", 0))),
-        ("eval_mean_reward", _fmt_scalar(evaluation_map.get("mean_reward", 0.0))),
+        ("eval_mean_reward", format_display(evaluation_map.get("mean_reward", 0.0), style="footer")),
         ("summary_json", summary_path),
         ("online_detail_json", str(artifact_map.get("online_detail", ""))),
         ("telemetry_jsonl", str(artifact_map.get("online_telemetry", ""))),
@@ -176,7 +177,9 @@ def print_calibration_footer(
         mem = fits.get("memory_multiplier")
         if lat is not None and thr is not None and mem is not None:
             bits.append(
-                f"{hw}: latency×{_fmt_scalar(lat)} throughput×{_fmt_scalar(thr)} mem×{_fmt_scalar(mem)}"
+                f"{hw}: latency×{format_display(lat, style='footer')} "
+                f"throughput×{format_display(thr, style='footer')} "
+                f"mem×{format_display(mem, style='footer')}"
             )
     rows: list[tuple[str, str]] = [
         ("run_name", run_name),

@@ -5,14 +5,11 @@ from pathlib import Path
 
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import md_table, write_text_file
+from adaptive_quant.math_utils import format_display
 
 
 def fmt_report_num(value: object, *, digits: int = 2) -> str:
-    if isinstance(value, bool) or value is None:
-        return str(value)
-    if isinstance(value, (int, float)):
-        return f"{value:.{digits}f}"
-    return str(value)
+    return format_display(value, style="report", digits=digits)
 
 
 def maybe_report_link(report_dir: Path, rel_path: Path) -> str:

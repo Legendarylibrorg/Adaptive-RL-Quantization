@@ -8,8 +8,11 @@ from pathlib import Path
 from unittest import mock
 
 from adaptive_quant.configuration import FrameworkConfig
-from adaptive_quant.pipeline.analysis_runner import run_research_analysis
-from adaptive_quant.pipeline.artifacts import maybe_save_final_checkpoint, write_training_history
+from adaptive_quant.research_pipeline import (
+    maybe_save_final_checkpoint,
+    run_research_analysis,
+    write_training_history,
+)
 from adaptive_quant.pipeline.report_markdown import write_research_report_markdown
 
 _FIXTURES = Path(__file__).resolve().parent / "fixtures"

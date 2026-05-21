@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from adaptive_quant.analysis_utils import ensure_directory, grouped_mean
+from adaptive_quant.analysis_utils import ensure_directory, grouped_mean, write_bar_chart, write_scatter_plot
 from adaptive_quant.features import complexity_bucket
-from adaptive_quant.logging_utils import load_jsonl
+from adaptive_quant.logging_utils import load_jsonl, write_json
 from adaptive_quant.math_utils import mean
 
 DEFAULT_ANALYSIS_PHASE = "eval"
@@ -68,6 +68,21 @@ def bucket_records_by_complexity(records: list[dict]) -> dict[str, list[dict]]:
     return buckets
 
 
+def write_analysis_artifacts(
+    output_root: Path,
+    summary: dict[str, object],
+    *,
+    json_name: str,
+    bar_charts: list[tuple[str, str, dict[str, float], str]] | None = None,
+    scatter_charts: list[tuple[str, str, list[tuple[float, float]], str, str]] | None = None,
+) -> None:
+    write_json(str(output_root / json_name), summary)
+    for filename, title, values, y_label in bar_charts or ():
+        write_bar_chart(str(output_root / filename), title, values, y_label)
+    for filename, title, points, x_label, y_label in scatter_charts or ():
+        write_scatter_plot(str(output_root / filename), title, points, x_label, y_label)
+
+
 def complexity_bucket_metrics(bucket_records: list[dict]) -> dict[str, float | int]:
     avg_bits, avg_perplexity, avg_reward = [], [], []
     for record in bucket_records:
@@ -100,4 +115,5 @@ __all__ = [
     "served_reward",
     "summary_stats",
     "training_step_reward",
+    "write_analysis_artifacts",
 ]

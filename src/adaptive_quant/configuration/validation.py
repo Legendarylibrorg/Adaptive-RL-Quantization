@@ -291,6 +291,35 @@ def validate_moe_topology(
         )
 
 
+_STRUCTURAL_POSITIVE_LIMITS: tuple[tuple[str, int], ...] = (
+    ("num_groups", MAX_NUM_GROUPS),
+    ("num_layers", MAX_NUM_LAYERS),
+    ("stability_probe_count", MAX_STABILITY_PROBE_COUNT),
+    ("log_every_n_episodes", MAX_LOG_EVERY_N_EPISODES),
+    ("llama_cpp_threads", MAX_LLAMA_CPP_THREADS),
+    ("llama_cpp_context", MAX_LLAMA_CPP_CONTEXT),
+    ("llama_cpp_max_prompt_chars", MAX_LLAMA_CPP_MAX_PROMPT_CHARS),
+    ("torch_hidden_dim", MAX_TORCH_HIDDEN_DIM),
+    ("torch_mlp_depth", MAX_TORCH_MLP_DEPTH),
+    ("torch_batch_episodes", MAX_TORCH_BATCH_EPISODES),
+    ("torch_minibatch_size", MAX_TORCH_MINIBATCH_SIZE),
+    ("torch_update_epochs", MAX_TORCH_UPDATE_EPOCHS),
+    ("torch_preflight_batch_size", MAX_TORCH_PREFLIGHT_BATCH_SIZE),
+    ("torch_preflight_warmup_steps", MAX_TORCH_PREFLIGHT_STEPS),
+    ("torch_preflight_steps", MAX_TORCH_PREFLIGHT_STEPS),
+    ("online_min_replay_size", MAX_EPISODE_COUNT),
+    ("online_update_interval", MAX_EPISODE_COUNT),
+    ("online_batch_size", MAX_ONLINE_BATCH_SIZE),
+    ("online_drift_window", MAX_EPISODE_COUNT),
+    ("online_safe_mode_cooldown", MAX_EPISODE_COUNT),
+)
+
+_STRUCTURAL_NONNEG_LIMITS: tuple[tuple[str, int], ...] = (
+    ("eval_interval", MAX_EPISODE_COUNT),
+    ("checkpoint_interval", MAX_EPISODE_COUNT),
+)
+
+
 def validate_structural_limits(
     *,
     num_groups: int,
@@ -317,70 +346,11 @@ def validate_structural_limits(
     online_safe_mode_cooldown: int,
 ) -> None:
     """Reject pathological architecture / workload integers from untrusted config files."""
-    validate_bounded_positive_int("num_groups", num_groups, ceiling=MAX_NUM_GROUPS)
-    validate_bounded_positive_int("num_layers", num_layers, ceiling=MAX_NUM_LAYERS)
-    validate_bounded_nonneg_int("eval_interval", eval_interval, ceiling=MAX_EPISODE_COUNT)
-    validate_bounded_nonneg_int(
-        "checkpoint_interval", checkpoint_interval, ceiling=MAX_EPISODE_COUNT
-    )
-    validate_bounded_positive_int(
-        "stability_probe_count", stability_probe_count, ceiling=MAX_STABILITY_PROBE_COUNT
-    )
-    validate_bounded_positive_int(
-        "log_every_n_episodes", log_every_n_episodes, ceiling=MAX_LOG_EVERY_N_EPISODES
-    )
-    validate_bounded_positive_int(
-        "llama_cpp_threads", llama_cpp_threads, ceiling=MAX_LLAMA_CPP_THREADS
-    )
-    validate_bounded_positive_int(
-        "llama_cpp_context", llama_cpp_context, ceiling=MAX_LLAMA_CPP_CONTEXT
-    )
-    validate_bounded_positive_int(
-        "llama_cpp_max_prompt_chars",
-        llama_cpp_max_prompt_chars,
-        ceiling=MAX_LLAMA_CPP_MAX_PROMPT_CHARS,
-    )
-    validate_bounded_positive_int(
-        "torch_hidden_dim", torch_hidden_dim, ceiling=MAX_TORCH_HIDDEN_DIM
-    )
-    validate_bounded_positive_int("torch_mlp_depth", torch_mlp_depth, ceiling=MAX_TORCH_MLP_DEPTH)
-    validate_bounded_positive_int(
-        "torch_batch_episodes", torch_batch_episodes, ceiling=MAX_TORCH_BATCH_EPISODES
-    )
-    validate_bounded_positive_int(
-        "torch_minibatch_size", torch_minibatch_size, ceiling=MAX_TORCH_MINIBATCH_SIZE
-    )
-    validate_bounded_positive_int(
-        "torch_update_epochs", torch_update_epochs, ceiling=MAX_TORCH_UPDATE_EPOCHS
-    )
-    validate_bounded_positive_int(
-        "torch_preflight_batch_size",
-        torch_preflight_batch_size,
-        ceiling=MAX_TORCH_PREFLIGHT_BATCH_SIZE,
-    )
-    validate_bounded_positive_int(
-        "torch_preflight_warmup_steps",
-        torch_preflight_warmup_steps,
-        ceiling=MAX_TORCH_PREFLIGHT_STEPS,
-    )
-    validate_bounded_positive_int(
-        "torch_preflight_steps", torch_preflight_steps, ceiling=MAX_TORCH_PREFLIGHT_STEPS
-    )
-    validate_bounded_positive_int(
-        "online_min_replay_size", online_min_replay_size, ceiling=MAX_EPISODE_COUNT
-    )
-    validate_bounded_positive_int(
-        "online_update_interval", online_update_interval, ceiling=MAX_EPISODE_COUNT
-    )
-    validate_bounded_positive_int(
-        "online_batch_size", online_batch_size, ceiling=MAX_ONLINE_BATCH_SIZE
-    )
-    validate_bounded_positive_int(
-        "online_drift_window", online_drift_window, ceiling=MAX_EPISODE_COUNT
-    )
-    validate_bounded_positive_int(
-        "online_safe_mode_cooldown", online_safe_mode_cooldown, ceiling=MAX_EPISODE_COUNT
-    )
+    values = locals()
+    for name, ceiling in _STRUCTURAL_POSITIVE_LIMITS:
+        validate_bounded_positive_int(name, values[name], ceiling=ceiling)
+    for name, ceiling in _STRUCTURAL_NONNEG_LIMITS:
+        validate_bounded_nonneg_int(name, values[name], ceiling=ceiling)
 
 
 def validate_router_routes(routes: tuple[str, ...]) -> None:
