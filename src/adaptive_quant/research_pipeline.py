@@ -5,8 +5,8 @@ from dataclasses import asdict
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import write_json
 from adaptive_quant.paper_bundle import create_pipeline_paper_bundle
-from adaptive_quant.pipeline.artifacts import maybe_save_final_checkpoint, write_training_history
 from adaptive_quant.pipeline.analysis_runner import run_research_analysis
+from adaptive_quant.pipeline.artifacts import maybe_save_final_checkpoint, write_training_history
 from adaptive_quant.pipeline.benchmark_warn import warn_if_benchmarks_are_large
 from adaptive_quant.pipeline.report_markdown import write_research_report_markdown
 from adaptive_quant.pipeline.vcs import git_commit_hash
