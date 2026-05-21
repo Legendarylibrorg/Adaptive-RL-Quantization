@@ -62,9 +62,7 @@ def _ruff_check(root: Path, python_bin: str) -> None:
 
 
 def _mypy_check(root: Path, python_bin: str) -> None:
-    print(
-        "== mypy (configuration, policy, environment, reward, analysis, backends, cli, torch) =="
-    )
+    print("== mypy (configuration, policy, environment, reward, analysis, backends, cli, torch) ==")
     env = dict(os.environ)
     env["PYTHONPATH"] = str(root / "src") + os.pathsep + env.get("PYTHONPATH", "")
     subprocess.run(

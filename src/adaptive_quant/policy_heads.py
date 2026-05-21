@@ -17,7 +17,10 @@ from adaptive_quant.math_utils import (
 
 
 def _random_matrix(
-    rows: int, cols: int, rng: random.Random, scale: float = 0.08
+    rows: int,
+    cols: int,
+    rng: random.Random,
+    scale: float = 0.08,
 ) -> list[list[float]]:
     return [[rng.uniform(-scale, scale) for _ in range(cols)] for _ in range(rows)]
 
@@ -120,6 +123,8 @@ class ValueHead:
         for index, value in enumerate(state_vector):
             self.weights[index] += learning_rate * error * value
         self.bias += learning_rate * error
+
+
 def _map_to_bounds(value: float, lower: float, upper: float) -> float:
     return lower + (upper - lower) * clamp(value, 0.0, 1.0)
 

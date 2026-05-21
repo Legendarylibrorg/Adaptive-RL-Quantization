@@ -70,7 +70,9 @@ def config_from_dict(
     base_obj = base.clone() if base is not None else FrameworkConfig()
     d = dict(data)
     rw_raw = d.pop("reward_weights", None)
-    nested_raw = {k: d.pop(k) for k in list(d) if k in NESTED_SECTION_KEYS and k != "reward_weights"}
+    nested_raw = {
+        k: d.pop(k) for k in list(d) if k in NESTED_SECTION_KEYS and k != "reward_weights"
+    }
 
     if strict:
         bad_fw = set(d) - _FRAMEWORK_FIELD_NAMES

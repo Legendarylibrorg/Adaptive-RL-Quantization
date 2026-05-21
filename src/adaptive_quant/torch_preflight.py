@@ -56,11 +56,7 @@ def collect_torch_system_report(
     index = device.index if device.index is not None else torch.cuda.current_device()
     free_bytes, total_bytes = _mem_get_info(index)
     free_gb = round(free_bytes / (1024**3), 2)
-    total_gb = (
-        cuda.total_memory_gb
-        if cuda is not None
-        else round(total_bytes / (1024**3), 2)
-    )
+    total_gb = cuda.total_memory_gb if cuda is not None else round(total_bytes / (1024**3), 2)
     bf16_supported = bool(getattr(torch.cuda, "is_bf16_supported", lambda: False)())
 
     device_name = cuda.name if cuda is not None else str(torch.cuda.get_device_name(index))
