@@ -92,7 +92,7 @@ Fixed horizons and episode counts live in each `config*.py`. For long PyTorch ru
 
 ## llama.cpp
 
-Set `backend="llama_cpp"`, `llama_cpp_binary`, and `llama_cpp_model` in the preset you use ([`src/config.py`](../src/config.py), [`src/config_gpu.py`](../src/config_gpu.py), etc.), then run the same entrypoint.
+Set `backend="llama_cpp"`, `llama_cpp_binary`, and `llama_cpp_model` in the preset you use ([`src/config.py`](../src/config.py) or a JSON/TOML `--config` file), then run the same entrypoint.
 
 ## Post-hoc analysis
 

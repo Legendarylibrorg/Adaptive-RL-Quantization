@@ -54,21 +54,21 @@ class PresetModuleTests(unittest.TestCase):
         self.assertEqual(cfg.torch_gpu_profile, "rtx4090")
 
 
-class ConfigShimTests(unittest.TestCase):
-    _SHIM_EXPORTS = (
-        ("config", "CONFIG"),
-        ("config_3090", "CONFIG_3090"),
-        ("config_4090", "CONFIG_4090"),
-        ("config_4090_universal", "CONFIG_4090_UNIVERSAL"),
-        ("config_gpu", "CONFIG_GPU"),
-        ("config_moe", "CONFIG_MOE"),
-        ("config_online", "CONFIG_ONLINE"),
+class ConfigModuleTests(unittest.TestCase):
+    _EXPORTS = (
+        "CONFIG",
+        "CONFIG_3090",
+        "CONFIG_4090",
+        "CONFIG_4090_UNIVERSAL",
+        "CONFIG_GPU",
+        "CONFIG_MOE",
+        "CONFIG_ONLINE",
     )
 
-    def test_root_config_shims_export_framework_config(self) -> None:
-        for module_name, export_name in self._SHIM_EXPORTS:
-            with self.subTest(module=module_name, export=export_name):
-                mod = importlib.import_module(module_name)
+    def test_config_module_exports_framework_configs(self) -> None:
+        mod = importlib.import_module("config")
+        for export_name in self._EXPORTS:
+            with self.subTest(export=export_name):
                 config = getattr(mod, export_name)
                 self.assertIsInstance(config, FrameworkConfig)
 

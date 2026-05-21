@@ -2,7 +2,7 @@
 
 These tests verify that:
   - ``AdaptiveQuantizationEnv._log_episode`` records the phase set by ``reset(...)``.
-  - ``analysis.analyzers._filter_phase`` keeps only the requested phase, while remaining
+  - ``analysis.log_records.filter_phase`` keeps only the requested phase, while remaining
     backward compatible with legacy logs that have no ``phase`` field.
   - High-level analyzers (``analyze_hardware``) drop training rows by default, so reports
     no longer mix train and eval reward distributions.
@@ -19,11 +19,8 @@ from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.logging_utils import load_jsonl
 from adaptive_quant.quantization import finalize_decision
 from adaptive_quant.types import HardwareType, QuantizationDecision, QuantMode
-from analysis.analyzers import (
-    DEFAULT_ANALYSIS_PHASE,
-    _filter_phase,
-    analyze_hardware,
-)
+from analysis.analyzers import analyze_hardware
+from analysis.log_records import DEFAULT_ANALYSIS_PHASE, filter_phase
 
 
 class PhaseFilterUnitTests(unittest.TestCase):
@@ -33,7 +30,7 @@ class PhaseFilterUnitTests(unittest.TestCase):
             {"phase": "eval", "metrics": {"reward": 1.0}},
             {"phase": "eval", "metrics": {"reward": 2.0}},
         ]
-        kept = _filter_phase(records, "eval")
+        kept = filter_phase(records, "eval")
         self.assertEqual(len(kept), 2)
         self.assertTrue(all(record.get("phase") == "eval" for record in kept))
 
@@ -42,14 +39,14 @@ class PhaseFilterUnitTests(unittest.TestCase):
             {"phase": "train", "metrics": {"reward": -1.0}},
             {"phase": "eval", "metrics": {"reward": 1.0}},
         ]
-        self.assertEqual(_filter_phase(records, None), records)
+        self.assertEqual(filter_phase(records, None), records)
 
     def test_legacy_logs_without_phase_pass_through(self) -> None:
         records = [
             {"metrics": {"reward": 0.0}},
             {"metrics": {"reward": 1.0}},
         ]
-        kept = _filter_phase(records, "eval")
+        kept = filter_phase(records, "eval")
         self.assertEqual(kept, records)
 
 
