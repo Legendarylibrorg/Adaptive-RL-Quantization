@@ -17,7 +17,7 @@ ranking, so small absolute errors do not bias the learned ordering.
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable, Mapping
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field, fields, replace
 from pathlib import Path
 from typing import Any
@@ -404,15 +404,10 @@ def default_route_catalog() -> RouteCatalog:
     )
 
 
-def routes_to_dict(routes: Iterable[ModelRoute]) -> list[dict[str, Any]]:
-    return [route.to_dict() for route in routes]
-
-
 __all__ = [
     "ModelRoute",
     "QUANT_BITS",
     "QuantSpec",
     "RouteCatalog",
     "default_route_catalog",
-    "routes_to_dict",
 ]

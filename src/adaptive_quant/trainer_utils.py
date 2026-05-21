@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from adaptive_quant.math_utils import mean
-from adaptive_quant.types import EpisodeResult, HardwareType, QuantizationDecision
+from adaptive_quant.types import EpisodeResult, EpisodeState, HardwareType, QuantizationDecision
 
 StateT = TypeVar("StateT")
 
@@ -49,6 +49,8 @@ def collect_episode_results(
     episode_offset: int = 0,
     hardware: HardwareType | None = None,
     phase: str = "train",
+    prepare_decision: Callable[[QuantizationDecision, StateT], QuantizationDecision] | None = None,
+    on_episode: Callable[[StateT, EpisodeResult], None] | None = None,
 ) -> list[EpisodeResult]:
     results: list[EpisodeResult] = []
     previous_action = list(initial_previous_action)
@@ -60,10 +62,49 @@ def collect_episode_results(
             episode_index=episode_offset + episode_index,
         )
         decision = act(state)
+        if prepare_decision is not None:
+            decision = prepare_decision(decision, state)
         result = evaluate_current(decision, episode_offset + episode_index)
+        if on_episode is not None:
+            on_episode(state, result)
         previous_action = feedback(result.decision)
         results.append(result)
     return results
+
+
+def run_env_episode_rollout(
+    env: Any,
+    episodes: int,
+    *,
+    act: Callable[[EpisodeState], QuantizationDecision],
+    feedback: Callable[[QuantizationDecision], list[float]],
+    episode_offset: int = 0,
+    hardware: HardwareType | None = None,
+    phase: str = "eval",
+    initial_previous_action: list[float] | None = None,
+    prepare_decision: Callable[[QuantizationDecision, EpisodeState], QuantizationDecision]
+    | None = None,
+    on_episode: Callable[[EpisodeState, EpisodeResult], None] | None = None,
+    log_episode: bool = True,
+) -> list[EpisodeResult]:
+    try:
+        return collect_episode_results(
+            episodes,
+            initial_previous_action=initial_previous_action or zero_previous_action(),
+            reset=env.reset,
+            act=act,
+            evaluate_current=lambda decision, episode_index: env.evaluate_current(
+                decision, episode_index=episode_index, log_episode=log_episode
+            ),
+            feedback=feedback,
+            episode_offset=episode_offset,
+            hardware=hardware,
+            phase=phase,
+            prepare_decision=prepare_decision,
+            on_episode=on_episode,
+        )
+    finally:
+        env.logger.close()
 
 
 def _mean_metric(results: list[EpisodeResult], attr: str) -> float:

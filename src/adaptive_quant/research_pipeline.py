@@ -5,11 +5,61 @@ from dataclasses import asdict
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import write_json
 from adaptive_quant.paper_bundle import create_pipeline_paper_bundle
-from adaptive_quant.pipeline.analysis_runner import run_research_analysis
-from adaptive_quant.pipeline.artifacts import maybe_save_final_checkpoint, write_training_history
 from adaptive_quant.pipeline.benchmark_warn import warn_if_benchmarks_are_large
 from adaptive_quant.pipeline.report_markdown import write_research_report_markdown
 from adaptive_quant.pipeline.vcs import git_commit_hash
+
+
+def write_training_history(config: FrameworkConfig, trainer) -> str | None:
+    history = getattr(trainer, "training_history", None)
+    if not config.write_training_history or history is None:
+        return None
+    path = config.training_history_path()
+    write_json(path, history)
+    return path
+
+
+def maybe_save_final_checkpoint(config: FrameworkConfig, trainer) -> str | None:
+    save_checkpoint = getattr(trainer, "save_checkpoint", None)
+    if not callable(save_checkpoint):
+        return None
+    return save_checkpoint(config.final_checkpoint_path())
+
+
+def run_research_analysis(config: FrameworkConfig, history_path: str | None) -> dict[str, object]:
+    from analysis.analyzers import (
+        analyze_hardware,
+        analyze_inputs,
+        analyze_moe_cache,
+        analyze_moe_experts,
+        analyze_quant,
+        analyze_training_dynamics,
+    )
+
+    analysis_root = f"{config.analysis_dir}/{config.run_name}"
+    analysis: dict[str, object] = {
+        "hardware": analyze_hardware(
+            f"{config.log_dir}/{config.run_name}_multi_hw.jsonl", f"{analysis_root}/hardware"
+        ),
+        "input": analyze_inputs(
+            f"{config.log_dir}/{config.run_name}_dynamic.jsonl", f"{analysis_root}/inputs"
+        ),
+        "quant_function": analyze_quant(
+            f"{config.log_dir}/{config.run_name}_learned.jsonl", f"{analysis_root}/quant"
+        ),
+    }
+    if config.moe_enabled:
+        analysis["moe_experts"] = analyze_moe_experts(
+            f"{config.log_dir}/{config.run_name}.jsonl", f"{analysis_root}/moe_experts"
+        )
+        analysis["moe_cache"] = analyze_moe_cache(
+            f"{config.log_dir}/{config.run_name}.jsonl", f"{analysis_root}/moe_cache"
+        )
+    if history_path is not None:
+        analysis["training_dynamics"] = analyze_training_dynamics(
+            history_path, f"{analysis_root}/training"
+        )
+    return analysis
 
 
 class ResearchPipeline:
@@ -181,4 +231,10 @@ def run_pipeline_entrypoint(
     return summary
 
 
-__all__ = ["ResearchPipeline", "run_pipeline_entrypoint"]
+__all__ = [
+    "ResearchPipeline",
+    "maybe_save_final_checkpoint",
+    "run_pipeline_entrypoint",
+    "run_research_analysis",
+    "write_training_history",
+]

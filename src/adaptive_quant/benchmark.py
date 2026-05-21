@@ -11,8 +11,8 @@ from adaptive_quant.quantization import finalize_decision, nearest_allowed_discr
 from adaptive_quant.trainer import build_trainer
 from adaptive_quant.trainer_utils import (
     feedback_vector,
+    run_env_episode_rollout,
     summarize_episode_results,
-    zero_previous_action,
 )
 from adaptive_quant.types import HardwareType, QuantizationDecision, QuantMode
 
@@ -83,32 +83,27 @@ class BenchmarkSuite:
         return per_baseline
 
     def _evaluate_heuristic(self, config: FrameworkConfig, act_fn) -> dict[str, float]:
+        max_bits = max(config.discrete_bit_widths)
+        scale_upper = config.scale_bounds[1]
+        clip_upper = config.clip_bounds[1]
         env = AdaptiveQuantizationEnv(
             config, log_path=f"{config.log_dir}/{config.run_name}_heuristic.jsonl"
         )
-        try:
-            results = []
-            previous_action = zero_previous_action()
-            max_bits = max(config.discrete_bit_widths)
-            scale_upper = config.scale_bounds[1]
-            clip_upper = config.clip_bounds[1]
-            for episode_index in range(config.evaluation_episodes):
-                state = env.reset(
-                    previous_action=previous_action, phase="eval", episode_index=episode_index
-                )
-                decision = act_fn(state)
-                finalized = finalize_decision(decision, state, config)
-                result = env.evaluate_current(finalized, episode_index=3_000_000 + episode_index)
-                previous_action = feedback_vector(
-                    result.decision,
-                    max_bits=max_bits,
-                    scale_upper=scale_upper,
-                    clip_upper=clip_upper,
-                )
-                results.append(result)
-            return summarize_episode_results(results)
-        finally:
-            env.logger.close()
+        results = run_env_episode_rollout(
+            env,
+            config.evaluation_episodes,
+            act=act_fn,
+            feedback=lambda decision: feedback_vector(
+                decision,
+                max_bits=max_bits,
+                scale_upper=scale_upper,
+                clip_upper=clip_upper,
+            ),
+            episode_offset=3_000_000,
+            phase="eval",
+            prepare_decision=lambda decision, state: finalize_decision(decision, state, config),
+        )
+        return summarize_episode_results(results)
 
     def _single_vs_multi_hardware(self) -> dict[str, object]:
         train, per_hardware = self._run_variants(

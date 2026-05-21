@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from adaptive_quant.configuration.reward import RewardWeights
+from adaptive_quant.configuration import RewardWeights
 from adaptive_quant.reward import compute_weighted_reward
 from adaptive_quant.types import BackendMetricDict
 

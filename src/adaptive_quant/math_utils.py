@@ -123,3 +123,22 @@ def sample_std(values: list[float]) -> float:
 
 def fmt_float(x: float, *, digits: int = 2) -> str:
     return "nan" if not math.isfinite(x) else f"{x:.{digits}f}"
+
+
+def format_display(value: object, *, style: str = "report", digits: int = 2) -> str:
+    """Format numbers for CLI footers, Markdown reports, or finite-only tables."""
+    if style == "footer":
+        if isinstance(value, bool):
+            return str(value)
+        if isinstance(value, int) and not isinstance(value, bool):
+            return str(value)
+        if isinstance(value, float):
+            return f"{value:.4g}"
+        return str(value)
+    if isinstance(value, bool) or value is None:
+        return str(value)
+    if isinstance(value, (int, float)):
+        if style == "float" and isinstance(value, float) and not math.isfinite(value):
+            return "nan"
+        return f"{value:.{digits}f}"
+    return str(value)

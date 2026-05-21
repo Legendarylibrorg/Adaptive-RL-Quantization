@@ -8,7 +8,17 @@ from typing import Any
 from adaptive_quant.types import HardwareType, QuantMode
 
 from . import validation as v
-from .reward import RewardWeights
+
+
+@dataclass
+class RewardWeights:
+    alpha_latency: float = 0.020
+    beta_throughput: float = 0.060
+    gamma_perplexity: float = 0.850
+    delta_memory: float = 0.002
+    epsilon_instability: float = 1.000
+    eta_token_latency: float = 0.0
+    zeta_perplexity_over_ref: float = 0.0
 
 
 @dataclass

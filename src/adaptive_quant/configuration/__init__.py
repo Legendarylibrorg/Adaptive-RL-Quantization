@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from adaptive_quant.configuration.framework import FrameworkConfig
-from adaptive_quant.configuration.reward import RewardWeights
+from adaptive_quant.configuration.framework import FrameworkConfig, RewardWeights
 from adaptive_quant.configuration.validation import (
     MAX_EPISODE_COUNT,
     MAX_NUM_LAYERS,
