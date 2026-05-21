@@ -1,10 +1,26 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
+from adaptive_quant.configuration.flat_access import (
+    apply_flat_kwargs,
+    config_to_flat_dict,
+    get_flat_field,
+    set_flat_field,
+)
+from adaptive_quant.configuration.sections import (
+    FLAT_FIELD_MAP,
+    ArtifactPaths,
+    LlamaCppSettings,
+    MoESettings,
+    OnlineSettings,
+    RouterSettings,
+    TorchSettings,
+    TrainingSettings,
+)
 from adaptive_quant.types import HardwareType, QuantMode
 
 from . import validation as v
@@ -21,152 +37,112 @@ class RewardWeights:
     zeta_perplexity_over_ref: float = 0.0
 
 
-@dataclass
+@dataclass(init=False)
 class FrameworkConfig:
-    """Experiment contract: env sampling, rewards, backends, artifact dirs, and trainer knobs in one place.
+    """Experiment contract: env sampling, rewards, backends, artifact dirs, and trainer knobs.
 
-    ``training_backend="python"`` keeps the core **simulator + stdlib trainer** path import-light.
-    ``training_backend="pytorch"`` selects the CUDA-capable trainer; ``backend="llama_cpp"`` swaps the
-    measurement backend for a configured **llama.cpp** CLI. Use ``from_file`` / ``easy_config.load_config``
-    for reproducible JSON/TOML; ``clone()`` / ``replace`` preserve validated path semantics.
+    Settings are grouped in nested sections (``moe``, ``torch``, ``llama_cpp``, …). Flat names such
+    as ``training_episodes`` and ``llama_cpp_threads`` remain valid via attribute delegation.
     """
 
-    training_backend: str = "python"
-    multi_hardware: bool = True
-    dynamic_quant: bool = True
-    learned_quant: bool = True
-    moe_enabled: bool = False
-    quant_mode: str = QuantMode.HYBRID.value
-    detect_host_hardware: bool = True
-    hardware_modes: tuple[str, ...] = ("gpu", "cpu", "low_resource")
-    discrete_bit_widths: tuple[int, ...] = (2, 4, 8)
-    num_groups: int = 4
-    num_layers: int = 8
-    moe_num_experts: int = 16
-    moe_top_k: int = 2
-    moe_variant_names: tuple[str, ...] = ("safe", "balanced", "aggressive")
-    moe_fixed_variant: str | None = None
-    moe_gpu_resident_experts: int = 8
-    moe_swap_penalty: float = 0.015
-    moe_cache_miss_penalty: float = 0.120
-    moe_variant_churn_penalty: float = 0.050
-    moe_max_aggressive_experts: int = 1
-    moe_max_swap_cost_ms: float = 7.5
-    training_episodes: int = 3_000
-    evaluation_episodes: int = 400
-    benchmark_training_episodes: int | None = None
-    benchmark_evaluation_episodes: int | None = None
-    recommendation_eval_episodes: int = 96
-    recommendation_candidate_limit: int = 12
-    continuous_training: bool = False
-    eval_interval: int = 1_000
-    checkpoint_interval: int = 5_000
-    max_training_episodes: int = 50_000
-    learning_rate: float = 0.035
-    value_learning_rate: float = 0.020
-    continuous_stddev: float = 0.18
-    stability_probe_count: int = 3
-    instability_threshold: float = 2.5
-    safe_default_bits: int = 4
-    scale_bounds: tuple[float, float] = (0.45, 1.85)
-    clip_bounds: tuple[float, float] = (0.55, 2.40)
-    precision_bounds: tuple[float, float] = (0.0, 1.0)
-    outputs_dir: str = "outputs"
-    log_dir: str = "outputs/logs"
-    benchmark_dir: str = "outputs/benchmarks"
-    analysis_dir: str = "outputs/analysis"
-    checkpoint_dir: str = "outputs/checkpoints"
-    report_dir: str = "outputs/reports"
-    run_name: str = "adaptive_universal_policy"
-    cache_prompt_features: bool = True
-    log_every_n_episodes: int = 1
-    jsonl_buffered: bool = False
-    jsonl_flush_every: int = 1
-    write_training_history: bool = True
-    write_research_report: bool = True
-    resume_from_checkpoint: str | None = None
-    backend: str = "simulator"
-    training_host_label: str | None = None
-    prompt_split_enabled: bool = False
-    prompt_split_seed: int = 2027
-    prompt_train_fraction: float = 0.8
-    env_sampling_mode: str = "random"
-    env_forced_prompt_id: str | None = None
-    env_forced_hardware: str | None = None
-    rl_train_policy_mode: str = "stochastic"
-    stability_probe_sampling: str = "random"
-    llama_cpp_binary: str | None = None
-    llama_cpp_model: str | None = None
-    llama_cpp_threads: int = 8
-    llama_cpp_context: int = 2048
-    llama_cpp_timeout_s: float = 30.0
-    llama_cpp_max_prompt_chars: int = 4096
-    llama_cpp_generate_tokens: int = 64
-    llama_cpp_cache_enabled: bool = False
-    llama_cpp_cache_max_entries: int = 256
-    external_quality_path: str | None = None
-    external_quality_metric: str = "perplexity"
-    sim_calibration: dict[str, dict[str, float]] = field(default_factory=dict)
-    torch_device: str = "cuda"
-    torch_gpu_profile: str = "auto"
-    torch_dtype: str = "bfloat16"
-    torch_compile: bool = True
-    torch_amp: bool = True
-    torch_tf32: bool = True
-    torch_deterministic: bool = False
-    torch_hidden_dim: int = 768
-    torch_mlp_depth: int = 4
-    torch_learning_rate: float = 3e-4
-    torch_weight_decay: float = 1e-4
-    torch_batch_episodes: int = 256
-    torch_minibatch_size: int = 128
-    torch_update_epochs: int = 6
-    torch_ppo_clip: float = 0.2
-    torch_policy_algorithm: str = "ppo"
-    torch_awr_beta: float = 1.0
-    torch_value_coef: float = 0.5
-    torch_entropy_coef: float = 0.01
-    torch_max_grad_norm: float = 1.0
-    torch_fused_optimizer: bool = True
-    torch_preflight: bool = True
-    torch_preflight_batch_size: int = 4096
-    torch_preflight_warmup_steps: int = 10
-    torch_preflight_steps: int = 40
-    torch_preflight_min_free_memory_gb: float = 8.0
-    online_learning: bool = False
-    online_requests: int = 256
-    online_exploration_rate: float = 0.12
-    online_canary_ratio: float = 0.50
-    replay_buffer_capacity: int = 50_000
-    replay_buffer_on_gpu: bool = True
-    online_replay_capacity: int = 2048
-    online_min_replay_size: int = 64
-    online_update_interval: int = 32
-    online_batch_size: int = 128
-    online_reward_guard: float = 0.75
-    online_max_latency_ratio: float = 1.20
-    online_max_memory_ratio: float = 1.15
-    online_max_perplexity_delta: float = 1.25
-    online_drift_window: int = 48
-    online_drift_reward_delta: float = 1.50
-    online_safe_mode_cooldown: int = 16
-    router_enabled: bool = False
-    router_routes: tuple[str, ...] = ()
-    router_feature_backend: str = "hash"
-    router_hf_embedding_model: str | None = None
-    router_hf_embedding_revision: str | None = None
-    router_hf_local_files_only: bool = False
-    router_hf_allowed_models: tuple[str, ...] = ()
-    route_hf_allowed_repos: tuple[str, ...] = ()
-    router_learning_rate: float = 0.050
-    router_value_learning_rate: float = 0.025
-    router_exploration: float = 0.10
-    router_max_perplexity_ratio: float = 1.05
-    router_max_perplexity_delta: float = 0.50
-    router_regression_penalty: float = 5_000.0
-    reward_weights: RewardWeights = field(default_factory=RewardWeights)
-    reward_perplexity_reference: float | None = None
-    seed: int = 13
+    artifacts: ArtifactPaths
+    moe: MoESettings
+    llama_cpp: LlamaCppSettings
+    torch: TorchSettings
+    online: OnlineSettings
+    router: RouterSettings
+    training: TrainingSettings
+    reward_weights: RewardWeights
+    training_backend: str
+    multi_hardware: bool
+    dynamic_quant: bool
+    learned_quant: bool
+    moe_enabled: bool
+    quant_mode: str
+    detect_host_hardware: bool
+    hardware_modes: tuple[str, ...]
+    discrete_bit_widths: tuple[int, ...]
+    num_groups: int
+    num_layers: int
+    backend: str
+    training_host_label: str | None
+    external_quality_path: str | None
+    external_quality_metric: str
+    sim_calibration: dict[str, dict[str, float]]
+    reward_perplexity_reference: float | None
+    seed: int
+
+    def __init__(self, /, **kwargs: Any) -> None:
+        object.__setattr__(self, "artifacts", ArtifactPaths())
+        object.__setattr__(self, "moe", MoESettings())
+        object.__setattr__(self, "llama_cpp", LlamaCppSettings())
+        object.__setattr__(self, "torch", TorchSettings())
+        object.__setattr__(self, "online", OnlineSettings())
+        object.__setattr__(self, "router", RouterSettings())
+        object.__setattr__(self, "training", TrainingSettings())
+        object.__setattr__(self, "reward_weights", RewardWeights())
+        object.__setattr__(self, "training_backend", "python")
+        object.__setattr__(self, "multi_hardware", True)
+        object.__setattr__(self, "dynamic_quant", True)
+        object.__setattr__(self, "learned_quant", True)
+        object.__setattr__(self, "moe_enabled", False)
+        object.__setattr__(self, "quant_mode", QuantMode.HYBRID.value)
+        object.__setattr__(self, "detect_host_hardware", True)
+        object.__setattr__(self, "hardware_modes", ("gpu", "cpu", "low_resource"))
+        object.__setattr__(self, "discrete_bit_widths", (2, 4, 8))
+        object.__setattr__(self, "num_groups", 4)
+        object.__setattr__(self, "num_layers", 8)
+        object.__setattr__(self, "backend", "simulator")
+        object.__setattr__(self, "training_host_label", None)
+        object.__setattr__(self, "external_quality_path", None)
+        object.__setattr__(self, "external_quality_metric", "perplexity")
+        object.__setattr__(self, "sim_calibration", {})
+        object.__setattr__(self, "reward_perplexity_reference", None)
+        object.__setattr__(self, "seed", 13)
+        if kwargs:
+            apply_flat_kwargs(self, kwargs)
+        self.__post_init__()
+
+    def __getattr__(self, name: str) -> Any:
+        if name in FLAT_FIELD_MAP:
+            return get_flat_field(self, name)
+        raise AttributeError(f"{type(self).__name__!r} has no attribute {name!r}")
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name in FLAT_FIELD_MAP or name in {
+            "training_backend",
+            "multi_hardware",
+            "dynamic_quant",
+            "learned_quant",
+            "moe_enabled",
+            "quant_mode",
+            "detect_host_hardware",
+            "hardware_modes",
+            "discrete_bit_widths",
+            "num_groups",
+            "num_layers",
+            "backend",
+            "training_host_label",
+            "external_quality_path",
+            "external_quality_metric",
+            "sim_calibration",
+            "reward_perplexity_reference",
+            "seed",
+            "reward_weights",
+            "artifacts",
+            "moe",
+            "llama_cpp",
+            "torch",
+            "online",
+            "router",
+            "training",
+        }:
+            if name in FLAT_FIELD_MAP:
+                set_flat_field(self, name, value)
+            else:
+                object.__setattr__(self, name, value)
+            return
+        raise AttributeError(f"{type(self).__name__!r} has no attribute {name!r}")
 
     def __post_init__(self) -> None:
         v.validate_run_name(self.run_name)
@@ -267,7 +243,8 @@ class FrameworkConfig:
         )
 
     def rl_train_deterministic(self) -> bool:
-        return self.rl_train_policy_mode.strip().lower() == "deterministic"
+        mode = cast(str, self.rl_train_policy_mode)
+        return mode.strip().lower() == "deterministic"
 
     @classmethod
     def reproducible_research(
@@ -328,44 +305,44 @@ class FrameworkConfig:
         return modes
 
     def moe_variant_count(self) -> int:
-        return len(self.moe_variant_names)
+        return len(cast(tuple[str, ...], self.moe_variant_names))
 
     def default_moe_variant_index(self) -> int:
-        if not self.moe_variant_names:
+        names = cast(tuple[str, ...], self.moe_variant_names)
+        if not names:
             return 0
-        if "balanced" in self.moe_variant_names:
-            return self.moe_variant_names.index("balanced")
-        return min(1, len(self.moe_variant_names) - 1)
+        if "balanced" in names:
+            return names.index("balanced")
+        return min(1, len(names) - 1)
 
     def moe_variant_index(self, name: str) -> int | None:
-        if name in self.moe_variant_names:
-            return self.moe_variant_names.index(name)
+        names = cast(tuple[str, ...], self.moe_variant_names)
+        if name in names:
+            return names.index(name)
         return None
 
     def aggressive_moe_variant_index(self) -> int | None:
-        if "aggressive" in self.moe_variant_names:
-            return self.moe_variant_names.index("aggressive")
+        names = cast(tuple[str, ...], self.moe_variant_names)
+        if "aggressive" in names:
+            return names.index("aggressive")
         return None
 
     def moe_state_dim(self) -> int:
         if not self.moe_enabled:
             return 0
-        return 4 + self.moe_top_k * (5 + self.moe_variant_count())
+        top_k = cast(int, self.moe_top_k)
+        return 4 + top_k * (5 + self.moe_variant_count())
 
     def state_vector_dim(self) -> int:
         return len(self.ordered_hardware()) + 5 + 2 + self.num_layers + 3 + self.moe_state_dim()
 
     def clone(self, **changes: Any) -> FrameworkConfig:
-        raw_reward_weights = changes.pop("reward_weights", None)
-        if raw_reward_weights is None:
-            reward_weights = replace(self.reward_weights)
-        elif isinstance(raw_reward_weights, RewardWeights):
-            reward_weights = raw_reward_weights
-        elif isinstance(raw_reward_weights, Mapping):
-            reward_weights = replace(self.reward_weights, **dict(raw_reward_weights))
-        else:
-            reward_weights = raw_reward_weights
-        return replace(self, reward_weights=reward_weights, **changes)
+        flat = config_to_flat_dict(self)
+        flat.update(changes)
+        return FrameworkConfig(**flat)
+
+    def to_flat_dict(self) -> dict[str, Any]:
+        return config_to_flat_dict(self)
 
     def online_telemetry_path(self) -> str:
         return f"{self.log_dir}/{self.run_name}_online_telemetry.jsonl"

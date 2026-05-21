@@ -50,18 +50,22 @@ def collect_torch_system_report(
         )
         return report
 
+    from adaptive_quant.hardware import detect_cuda_device
+
+    cuda = detect_cuda_device()
     index = device.index if device.index is not None else torch.cuda.current_device()
-    properties = torch.cuda.get_device_properties(index)
     free_bytes, total_bytes = _mem_get_info(index)
     free_gb = round(free_bytes / (1024**3), 2)
-    total_gb = round(total_bytes / (1024**3), 2)
+    total_gb = cuda.total_memory_gb if cuda is not None else round(total_bytes / (1024**3), 2)
     bf16_supported = bool(getattr(torch.cuda, "is_bf16_supported", lambda: False)())
 
+    device_name = cuda.name if cuda is not None else str(torch.cuda.get_device_name(index))
+    props = torch.cuda.get_device_properties(index)
     report.update(
         {
             "device_index": index,
-            "device_name": properties.name,
-            "device_capability": f"{properties.major}.{properties.minor}",
+            "device_name": device_name,
+            "device_capability": f"{props.major}.{props.minor}",
             "device_total_memory_gb": total_gb,
             "device_free_memory_gb": free_gb,
             "bf16_supported": bf16_supported,

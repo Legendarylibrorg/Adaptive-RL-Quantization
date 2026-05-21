@@ -12,38 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hash-pin CI dev tools (including `pip-audit`), and PyTorch CPU smoke via `pip-compile` lockfiles (`requirements/dev.txt`, `pytorch-cpu.txt`); `verify_lockfiles.py` enforces inline hashes; scheduled weekly `pip-audit` on main; bootstrap `setup_from_clone.py` uses `--require-hashes` for setuptools.
 - Cap router/online prompt text; validate analysis CLI paths; bound paper-bundle digest reads; skip binary extensions in `secret_scan.py`; Docker `INSTALL_EXTRAS=torch` uses hash-pinned `pytorch-cpu.txt`.
 - Drop redundant `safetensors` pin and `compat_tomllib` shim; stop re-exporting `subprocess` from `adaptive_quant.backend`.
-
-### Added
-
-- Analysis unit tests (`tests/test_analysis_analyzers.py`) and optional real llama.cpp integration test (`ADAPTIVE_RL_RUN_LLAMA_CPP=1`).
-- Unit tests for multiseed aggregation (`tests/test_multiseed_aggregation.py`), online guardrails (`tests/test_guardrails.py`), and torch trainer helpers (`tests/test_torch_trainer.py`).
-- Direct unit coverage for reward math, features, backends (quality/simulator), pipeline helpers (`analysis_runner`, `report_markdown`, `pipeline/artifacts`), consolidated `config` exports, and CLI wiring (`tests/test_reward.py`, `test_features.py`, `test_backends_unit.py`, `test_pipeline_unit.py`, `test_presets_and_shims.py`, `test_cli_behavior.py`). `pre_commit_check.py` unittest step uses `PYTHONPATH=src` (matches mypy/CI editable install).
-- CI job `torch-cpu-smoke` (Ubuntu 3.12, hash-pinned `requirements/pytorch-cpu.txt`) runs torch trainer unit smoke without the full matrix.
-- CI coverage gate (68% floor on `adaptive_quant`).
-- Secure-run tooling: `docs/SECURE_RUN.md` tiers (VM → Docker → NVIDIA), `scripts/docker_secure_preflight.sh`, `scripts/docker_gpu_device_probe.py`, `config.docker.gpu_smoke.json`, Makefile `docker-gpu-verify` (local/VM use; not run in CI).
-
-### Security
-
 - Reject Hugging Face route ids passed as `llama_cpp_model_path` overrides; clarify online router GGUF path via `RouteCandidate.llama_cpp_model_path()`.
 - Harden Hugging Face model selection: require `router_hf_allowed_models` + pinned `router_hf_embedding_revision` for the HF router backend; validate `org/name` repo ids; GGUF filenames must end in `.gguf`; optional repo allowlists via `route_hf_allowed_repos` / `ADAPTIVE_RL_HF_ALLOWED_REPOS`.
-
-### Removed
-
-- Orphaned `config.pytorch_smoke.json` (CI no longer runs a separate PyTorch CPU smoke job; use `config.example.pytorch.toml` locally).
-- `adaptive_quant.runner_cli` re-export shim; use `adaptive_quant.cli.common` instead.
-
-### Changed
-
-- Enforce **ruff** (lint + format) and **mypy** (configuration, logging, easy_config, backends, `route_pipeline`, CLI, `torch_trainer`) in `pre_commit_check.py` and CI (`pip install -e ".[dev]"`).
-- **API:** `extract_numeric` is the public llama.cpp metric parser helper (`adaptive_quant.backends.llama_cpp`); removed `_extract_numeric` from `adaptive_quant.backend.__all__`. `git_commit_hash` is imported from `adaptive_quant.pipeline.vcs` (no longer listed in `research_pipeline.__all__`).
-- `compat_tomllib` always uses stdlib `tomllib` (Python 3.11+ only; minimal fallback removed from the public path).
-- CONFIG guide: prefer JSON/TOML for shared/CI runs; Python presets for local iteration.
-- Bumped optional runtime pins (`torch`, `transformers`, `safetensors`) and dev `ruff` floor in `pyproject.toml`.
-- Refreshed Docker base image digest (`python:3.12-slim-bookworm`) and pinned `dependency-review-action` with `fail-on-severity: high`.
-- Grouped Dependabot updates for GitHub Actions, CI bootstrap, and optional Python extras.
-
-### Security
-
 - Restored `dependency-review-action` v5.0.0 (was briefly pinned to v4.9.0 on the PR branch).
 - Reject `..` and control characters on llama.cpp runtime paths, route-catalog `local_path`, and `llama_cpp:` router routes.
 - Cap episode / replay counters loaded from config at `MAX_EPISODE_COUNT` (1,000,000).
@@ -52,6 +22,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cap `recommendation_*`, `llama_cpp_generate_tokens`, `jsonl_flush_every`, and `llama_cpp_cache_max_entries` at config load.
 - Optional `ADAPTIVE_RL_LLAMA_CPP_BINARY_PREFIXES` env var restricts resolved `llama_cpp_binary` to allowed directory roots.
 - CI `pip-audit` job scans hash-pinned bootstrap requirements (`requirements/ci.txt`).
+
+### Added
+
+- Nested `FrameworkConfig` sections (`artifacts`, `moe`, `llama_cpp`, `torch`, `online`, `router`, `training`) with flat JSON/TOML key compatibility; `config_to_flat_dict()` for pipeline summaries.
+- `adaptive-rl-quant-analyze` console entry (`analysis.__main__:main`).
+- `hardware.detect_cuda_device()` for shared CUDA name/VRAM probing.
+- Analysis warnings when JSONL logs are missing or empty after phase filter.
+- Analysis unit tests (`tests/test_analysis_analyzers.py`) and optional real llama.cpp integration test (`ADAPTIVE_RL_RUN_LLAMA_CPP=1`).
+- Unit tests for multiseed aggregation (`tests/test_multiseed_aggregation.py`), online guardrails (`tests/test_guardrails.py`), and torch trainer helpers (`tests/test_torch_trainer.py`).
+- Direct unit coverage for reward math, features, backends (quality/simulator), pipeline helpers (`analysis_runner`, `report_markdown`, `pipeline/artifacts`), consolidated `config` exports, and CLI wiring (`tests/test_reward.py`, `test_features.py`, `test_backends_unit.py`, `test_pipeline_unit.py`, `test_presets_and_shims.py`, `test_cli_behavior.py`). `pre_commit_check.py` unittest step uses `PYTHONPATH=src` (matches mypy/CI editable install).
+- CI job `torch-cpu-smoke` (Ubuntu 3.12, hash-pinned `requirements/pytorch-cpu.txt`) runs torch trainer unit smoke without the full matrix.
+- CI coverage gate (72% floor on `adaptive_quant`).
+- Secure-run tooling: `docs/SECURE_RUN.md` tiers (VM → Docker → NVIDIA), `scripts/docker_secure_preflight.sh`, `scripts/docker_gpu_device_probe.py`, `config.docker.gpu_smoke.json`, Makefile `docker-gpu-verify` (local/VM use; not run in CI).
+
+### Removed
+
+- Orphaned `config.pytorch_smoke.json` (CI no longer runs a separate PyTorch CPU smoke job; use `config.example.pytorch.toml` locally).
+- `adaptive_quant.runner_cli` re-export shim; use `adaptive_quant.cli.common` instead.
+
+### Changed
+
+- Split stdlib policy heads into `policy_heads.py`; expanded mypy scope (policy, environment, reward, analysis).
+- Enforce **ruff** (lint + format) and **mypy** (configuration, logging, easy_config, backends, `route_pipeline`, CLI, `torch_trainer`) in `pre_commit_check.py` and CI (`pip install -e ".[dev]"`).
+- **API:** `extract_numeric` is the public llama.cpp metric parser helper (`adaptive_quant.backends.llama_cpp`); removed `_extract_numeric` from `adaptive_quant.backend.__all__`. `git_commit_hash` is imported from `adaptive_quant.pipeline.vcs` (no longer listed in `research_pipeline.__all__`).
+- `compat_tomllib` always uses stdlib `tomllib` (Python 3.11+ only; minimal fallback removed from the public path).
+- CONFIG guide: prefer JSON/TOML for shared/CI runs; Python presets for local iteration.
+- Bumped optional runtime pins (`torch`, `transformers`, `safetensors`) and dev `ruff` floor in `pyproject.toml`.
+- Refreshed Docker base image digest (`python:3.12-slim-bookworm`) and pinned `dependency-review-action` with `fail-on-severity: high`.
+- Grouped Dependabot updates for GitHub Actions, CI bootstrap, and optional Python extras.
 
 ## [0.1.0] - 2026-04-26
 

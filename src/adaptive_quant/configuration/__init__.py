@@ -2,7 +2,17 @@
 
 from __future__ import annotations
 
+from adaptive_quant.configuration.flat_access import config_to_flat_dict
 from adaptive_quant.configuration.framework import FrameworkConfig, RewardWeights
+from adaptive_quant.configuration.sections import (
+    ArtifactPaths,
+    LlamaCppSettings,
+    MoESettings,
+    OnlineSettings,
+    RouterSettings,
+    TorchSettings,
+    TrainingSettings,
+)
 from adaptive_quant.configuration.validation import (
     MAX_EPISODE_COUNT,
     MAX_NUM_LAYERS,
@@ -31,8 +41,16 @@ from adaptive_quant.configuration.validation import (
 )
 
 __all__ = [
+    "ArtifactPaths",
     "FrameworkConfig",
+    "LlamaCppSettings",
+    "MoESettings",
+    "OnlineSettings",
     "RewardWeights",
+    "RouterSettings",
+    "TorchSettings",
+    "TrainingSettings",
+    "config_to_flat_dict",
     "MAX_EPISODE_COUNT",
     "MAX_NUM_LAYERS",
     "path_has_parent_reference",

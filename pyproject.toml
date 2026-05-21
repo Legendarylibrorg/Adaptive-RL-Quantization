@@ -51,6 +51,7 @@ adaptive-rl-quant-online = "adaptive_quant.cli.online_learning:main"
 adaptive-rl-quant-multiseed = "adaptive_quant.cli.multiseed:main"
 adaptive-rl-quant-calibrate = "adaptive_quant.cli.calibrate_llama_cpp:main"
 adaptive-rl-quant-route = "adaptive_quant.cli.route_learning:main"
+adaptive-rl-quant-analyze = "analysis.__main__:main"
 
 [project.optional-dependencies]
 # Sole PyPI runtime extra — PyTorch for training_backend="pytorch" / run_pytorch.py.
@@ -103,7 +104,7 @@ source = ["adaptive_quant", "analysis"]
 omit = ["*/tests/*"]
 
 [tool.coverage.report]
-fail_under = 68
+fail_under = 72
 show_missing = true
 skip_empty = true
 

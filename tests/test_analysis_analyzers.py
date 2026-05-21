@@ -4,6 +4,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import warnings
 from pathlib import Path
 
 from analysis.analyzers import (
@@ -23,6 +24,14 @@ _SRC = Path(__file__).resolve().parent.parent / "src"
 
 
 class AnalysisAnalyzerTests(unittest.TestCase):
+    def test_jsonl_analysis_warns_on_missing_log(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            missing = Path(temp_dir) / "missing.jsonl"
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                analyze_hardware(str(missing), f"{temp_dir}/out", phase="eval")
+            self.assertTrue(any("log not found" in str(w.message).lower() for w in caught))
+
     def test_analyze_hardware_writes_summary_and_chart(self) -> None:
         fixture = _FIXTURES / "analysis_eval.jsonl"
         with tempfile.TemporaryDirectory() as temp_dir:

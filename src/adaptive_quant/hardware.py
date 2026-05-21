@@ -13,6 +13,30 @@ from adaptive_quant.types import HardwareProfile, HardwareType
 
 
 @dataclass(frozen=True)
+class CudaDeviceInfo:
+    """CUDA device name and total VRAM from PyTorch or ``nvidia-smi``."""
+
+    name: str
+    total_memory_gb: float
+    cuda_available: bool = True
+    device_index: int = 0
+
+
+def detect_cuda_device(*, prefer_torch: bool = True) -> CudaDeviceInfo | None:
+    """Return the current CUDA device, probing PyTorch first then ``nvidia-smi``."""
+    if prefer_torch:
+        from_torch = _detect_accelerator_from_torch()
+        if from_torch is not None:
+            return from_torch
+    from_smi = _detect_accelerator_from_nvidia_smi()
+    if from_smi is not None:
+        return from_smi
+    if not prefer_torch:
+        return _detect_accelerator_from_torch()
+    return None
+
+
+@dataclass(frozen=True)
 class DetectedHardware:
     system: str
     machine: str
@@ -78,7 +102,10 @@ def default_hardware_profiles() -> dict[HardwareType, HardwareProfile]:
 
 @lru_cache(maxsize=1)
 def detect_host_hardware() -> DetectedHardware:
-    gpu_name, gpu_memory_gb, cuda_available = _detect_accelerator()
+    cuda = detect_cuda_device()
+    gpu_name = cuda.name if cuda is not None else None
+    gpu_memory_gb = cuda.total_memory_gb if cuda is not None else None
+    cuda_available = cuda.cuda_available if cuda is not None else False
     accelerator_type = HardwareType.GPU if gpu_name is not None else HardwareType.CPU
     accelerator_profile = (
         infer_gpu_profile(gpu_name, gpu_memory_gb) if gpu_name is not None else None
@@ -173,30 +200,28 @@ def resolve_target_hardware(
     return HardwareType.CPU
 
 
-def _detect_accelerator() -> tuple[str | None, float | None, bool]:
-    from_torch = _detect_accelerator_from_torch()
-    if from_torch[0] is not None:
-        return from_torch
-    return _detect_accelerator_from_nvidia_smi()
-
-
-def _detect_accelerator_from_torch() -> tuple[str | None, float | None, bool]:
+def _detect_accelerator_from_torch() -> CudaDeviceInfo | None:
     try:
         import torch
     except Exception:
-        return None, None, False
+        return None
     try:
         if not torch.cuda.is_available():
-            return None, None, False
+            return None
         index = torch.cuda.current_device()
         props = torch.cuda.get_device_properties(index)
         memory_gb = round(float(props.total_memory) / float(1024**3), 2)
-        return str(props.name), memory_gb, True
+        return CudaDeviceInfo(
+            name=str(props.name),
+            total_memory_gb=memory_gb,
+            cuda_available=True,
+            device_index=int(index),
+        )
     except Exception:
-        return None, None, False
+        return None
 
 
-def _detect_accelerator_from_nvidia_smi() -> tuple[str | None, float | None, bool]:
+def _detect_accelerator_from_nvidia_smi() -> CudaDeviceInfo | None:
     try:
         completed = subprocess.run(
             [
@@ -210,18 +235,21 @@ def _detect_accelerator_from_nvidia_smi() -> tuple[str | None, float | None, boo
             timeout=1.5,
         )
     except (OSError, subprocess.SubprocessError):
-        return None, None, False
+        return None
     if completed.returncode != 0:
-        return None, None, False
+        return None
     first_line = next((line.strip() for line in completed.stdout.splitlines() if line.strip()), "")
     if not first_line:
-        return None, None, False
+        return None
     name, _, memory_text = first_line.partition(",")
     try:
         memory_gb = round(float(memory_text.strip()) / 1024.0, 2) if memory_text.strip() else None
     except ValueError:
         memory_gb = None
-    return name.strip() or None, memory_gb, True
+    clean_name = name.strip() or None
+    if not clean_name or memory_gb is None:
+        return None
+    return CudaDeviceInfo(name=clean_name, total_memory_gb=memory_gb, cuda_available=True)
 
 
 def _detect_total_memory_gb() -> float | None:

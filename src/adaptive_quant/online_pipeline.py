@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import asdict
 from pathlib import Path
 
-from adaptive_quant.configuration import FrameworkConfig
+from adaptive_quant.configuration import FrameworkConfig, config_to_flat_dict
 from adaptive_quant.logging_utils import md_table, write_json, write_text_file
 from adaptive_quant.online_learning import OnlineLearningLoop, build_request_stream
 from adaptive_quant.pipeline.report_markdown import fmt_report_num, maybe_report_link, md_code_json
@@ -66,7 +65,7 @@ def run_online_pipeline(
         raise pipeline_error
 
     summary = {
-        "config": asdict(config),
+        "config": config_to_flat_dict(config),
         "git_commit": git_commit,
         "bootstrap_train": bootstrap_summary,
         "online": online_summary,

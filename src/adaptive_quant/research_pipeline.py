@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict
-
-from adaptive_quant.configuration import FrameworkConfig
+from adaptive_quant.configuration import FrameworkConfig, config_to_flat_dict
 from adaptive_quant.logging_utils import write_json
 from adaptive_quant.paper_bundle import create_pipeline_paper_bundle
 from adaptive_quant.pipeline.benchmark_warn import warn_if_benchmarks_are_large
@@ -131,7 +129,7 @@ class ResearchPipeline:
             recommendation_summary=recommendation_summary,
         )
         summary = {
-            "config": asdict(config),
+            "config": config_to_flat_dict(config),
             "git_commit": commit,
             "gpu_profile": gpu_profile_report,
             "preflight": preflight_report,
@@ -157,6 +155,7 @@ class ResearchPipeline:
         if self.original_config.training_backend != "pytorch":
             return self.original_config, None
         from adaptive_quant.gpu_profiles import apply_gpu_profile
+        from adaptive_quant.hardware import detect_cuda_device
         from adaptive_quant.torch_policy import (
             TORCH_BACKEND_REQUIRED_MESSAGE,
             TORCH_IMPORT_ERROR,
@@ -165,15 +164,11 @@ class ResearchPipeline:
 
         try:
             requested = self.requested_profile or self.original_config.torch_gpu_profile
-            device_name = None
-            total_memory_gb = None
             if torch is None:
                 raise ImportError(TORCH_BACKEND_REQUIRED_MESSAGE) from TORCH_IMPORT_ERROR
-            if torch.cuda.is_available():
-                index = torch.cuda.current_device()
-                properties = torch.cuda.get_device_properties(index)
-                device_name = properties.name
-                total_memory_gb = round(properties.total_memory / (1024**3), 2)
+            cuda = detect_cuda_device()
+            device_name = cuda.name if cuda is not None else None
+            total_memory_gb = cuda.total_memory_gb if cuda is not None else None
             return apply_gpu_profile(
                 self.original_config,
                 requested_profile=requested,
