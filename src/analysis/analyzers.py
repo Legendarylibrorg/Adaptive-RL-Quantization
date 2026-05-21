@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from adaptive_quant.analysis_utils import write_bar_chart, write_scatter_plot
+from adaptive_quant.analysis_utils import ensure_directory, write_bar_chart, write_scatter_plot
 from adaptive_quant.configuration.validation import validate_cli_path_argument
 from adaptive_quant.logging_utils import read_json, write_json
 from adaptive_quant.math_utils import mean
@@ -252,8 +252,6 @@ def analyze_quant(
 
 
 def analyze_training_dynamics(history_path: str, output_dir: str) -> dict[str, object]:
-    from adaptive_quant.analysis_utils import ensure_directory
-
     source = Path(history_path)
     output_root = ensure_directory(output_dir)
     if not source.exists():

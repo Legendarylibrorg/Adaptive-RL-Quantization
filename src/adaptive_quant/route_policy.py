@@ -34,9 +34,6 @@ from adaptive_quant.types import HardwareType
 _COMPLEXITY_BINS = ("low", "mid", "high")
 _DOMAIN_OTHER = "other"
 
-# Route learning keeps a historical mid-point split for stable route catalog metrics.
-_COMPLEXITY_LOW_HIGH = COMPLEXITY_ROUTE_THRESHOLDS
-
 
 @dataclass
 class RouteContext:
@@ -67,7 +64,11 @@ class RouteContext:
         return cls(
             hardware=hw,
             domain=domain_normalized,
-            complexity=_complexity_bucket(float(complexity_score)),
+            complexity=complexity_bucket(
+                float(complexity_score),
+                thresholds=COMPLEXITY_ROUTE_THRESHOLDS,
+                labels=_COMPLEXITY_BINS,
+            ),
         )
 
     def key(self) -> str:
@@ -379,10 +380,6 @@ class RouteBandit:
             f"explore: arm {route.route_id!r} warming up "
             f"(n={arm.pulls}<warmup={self.warmup_pulls}); score={score:.3f}"
         )
-
-
-def _complexity_bucket(score: float) -> str:
-    return complexity_bucket(score, thresholds=_COMPLEXITY_LOW_HIGH, labels=_COMPLEXITY_BINS)
 
 
 __all__ = [
