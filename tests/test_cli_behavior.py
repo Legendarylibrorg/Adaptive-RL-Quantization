@@ -8,7 +8,6 @@ from pathlib import Path
 from unittest import mock
 
 from adaptive_quant.cli.common import load_config_or_fallback
-from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.presets.baseline import CONFIG as BASELINE_CONFIG
 from adaptive_quant.presets.moe import CONFIG_MOE
 
