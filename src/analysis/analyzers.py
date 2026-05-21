@@ -5,6 +5,10 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+from adaptive_quant.analysis_utils import write_bar_chart, write_scatter_plot
+from adaptive_quant.configuration.validation import validate_cli_path_argument
+from adaptive_quant.logging_utils import read_json, write_json
+from adaptive_quant.math_utils import mean
 from analysis.log_records import (
     DEFAULT_ANALYSIS_PHASE,
     bucket_records_by_complexity,
@@ -18,10 +22,6 @@ from analysis.log_records import (
     summary_stats,
     training_step_reward,
 )
-from adaptive_quant.analysis_utils import write_bar_chart, write_scatter_plot
-from adaptive_quant.configuration.validation import validate_cli_path_argument
-from adaptive_quant.logging_utils import read_json, write_json
-from adaptive_quant.math_utils import mean
 
 
 def analyze_hardware(
