@@ -25,6 +25,24 @@ from analysis.log_records import (
 )
 
 
+def _publish_analysis(
+    output_root: Path,
+    summary: dict[str, object],
+    *,
+    json_name: str,
+    bar_charts: list[tuple[str, str, dict[str, float], str]] | None = None,
+    scatter_charts: list[tuple[str, str, list[tuple[float, float]], str, str]] | None = None,
+) -> dict[str, object]:
+    write_analysis_artifacts(
+        output_root,
+        summary,
+        json_name=json_name,
+        bar_charts=bar_charts,
+        scatter_charts=scatter_charts,
+    )
+    return summary
+
+
 def analyze_hardware(
     log_path: str,
     output_dir: str,
@@ -45,7 +63,7 @@ def analyze_hardware(
         "perplexity_by_hardware": perplexity_by_hardware,
         "generalization_gap": (max(rewards) - min(rewards)) if rewards else 0.0,
     }
-    write_analysis_artifacts(
+    return _publish_analysis(
         output_root,
         summary,
         json_name="hardware_generalization_summary.json",
@@ -64,7 +82,6 @@ def analyze_hardware(
             ),
         ],
     )
-    return summary
 
 
 def analyze_inputs(
@@ -83,7 +100,7 @@ def analyze_inputs(
         for name, bucket in bucket_records_by_complexity(records).items()
     }
     summary: dict[str, object] = {"log_path": log_path, "by_complexity": by_c}
-    write_analysis_artifacts(
+    return _publish_analysis(
         output_root,
         summary,
         json_name="input_adaptation_summary.json",
@@ -105,7 +122,6 @@ def analyze_inputs(
             )
         ],
     )
-    return summary
 
 
 def analyze_moe_cache(
@@ -135,7 +151,7 @@ def analyze_moe_cache(
         "mean_cache_miss_count": mean(cache_misses),
         "reward_by_hardware": reward_by_hardware,
     }
-    write_analysis_artifacts(
+    return _publish_analysis(
         output_root,
         summary,
         json_name="moe_cache_behavior_summary.json",
@@ -167,7 +183,6 @@ def analyze_moe_cache(
             ),
         ],
     )
-    return summary
 
 
 def analyze_moe_experts(
@@ -208,7 +223,7 @@ def analyze_moe_experts(
         "mean_aggressiveness": mean([p[1] for p in sensitivity_vs_aggressiveness]),
         "selection_count": len(sensitivity_vs_aggressiveness),
     }
-    write_analysis_artifacts(
+    return _publish_analysis(
         output_root,
         summary,
         json_name="moe_expert_behavior_summary.json",
@@ -226,7 +241,6 @@ def analyze_moe_experts(
             )
         ],
     )
-    return summary
 
 
 def analyze_quant(
@@ -255,7 +269,7 @@ def analyze_quant(
     }
     sf, cr, pl = summary["scale_factor"], summary["clipping_range"], summary["precision_level"]
     assert isinstance(sf, dict) and isinstance(cr, dict) and isinstance(pl, dict)
-    write_analysis_artifacts(
+    return _publish_analysis(
         output_root,
         summary,
         json_name="quant_function_behavior_summary.json",
@@ -273,7 +287,6 @@ def analyze_quant(
             )
         ],
     )
-    return summary
 
 
 def analyze_training_dynamics(history_path: str, output_dir: str) -> dict[str, object]:
@@ -321,7 +334,7 @@ def analyze_online(
         "rollback_count": sum(1 for r in records if r.get("drift_event") == "rollback"),
         "mean_served_reward": mean([served_reward(r) for r in records]),
     }
-    write_analysis_artifacts(
+    return _publish_analysis(
         output_root,
         summary,
         json_name="online_learning_summary.json",
@@ -343,7 +356,6 @@ def analyze_online(
             )
         ],
     )
-    return summary
 
 
 _CLI: dict[str, tuple[str, object, str, bool]] = {

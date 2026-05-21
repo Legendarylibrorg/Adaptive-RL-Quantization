@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 
 from adaptive_quant.analysis_utils import (
@@ -62,7 +63,21 @@ def jsonl_analysis_setup(
     *,
     phase: str | None = DEFAULT_ANALYSIS_PHASE,
 ) -> tuple[list[dict], Path]:
+    source = Path(log_path)
+    if not source.exists():
+        warnings.warn(
+            f"Analysis log not found: {source.resolve()} — summaries will be empty.",
+            UserWarning,
+            stacklevel=2,
+        )
     records = filter_phase(load_jsonl(log_path), phase)
+    if source.exists() and not records:
+        phase_label = "all phases" if phase is None else f"phase={phase!r}"
+        warnings.warn(
+            f"No JSONL records matched {phase_label} in {source.resolve()}.",
+            UserWarning,
+            stacklevel=2,
+        )
     return records, ensure_directory(output_dir)
 
 

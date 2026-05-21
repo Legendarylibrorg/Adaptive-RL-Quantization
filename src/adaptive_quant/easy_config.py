@@ -7,16 +7,24 @@ from pathlib import Path
 from typing import Any
 
 from adaptive_quant.configuration import FrameworkConfig, RewardWeights
+from adaptive_quant.configuration.flat_access import all_flat_config_keys, apply_flat_kwargs
+from adaptive_quant.configuration.sections import NESTED_SECTION_KEYS
 from adaptive_quant.logging_utils import (
     enforce_local_read_limit,
     enforce_safe_parsed_json,
     safe_json_loads,
 )
 
-_FRAMEWORK_FIELD_NAMES = {f.name for f in fields(FrameworkConfig)}
+_FRAMEWORK_FIELD_NAMES = all_flat_config_keys() | NESTED_SECTION_KEYS
 _REWARD_FIELD_NAMES = {f.name for f in fields(RewardWeights)}
 _TUPLE_STRING_FIELDS = frozenset(
-    {"hardware_modes", "moe_variant_names", "router_hf_allowed_models", "route_hf_allowed_repos"}
+    {
+        "hardware_modes",
+        "moe_variant_names",
+        "router_hf_allowed_models",
+        "route_hf_allowed_repos",
+        "router_routes",
+    }
 )
 _TUPLE_INT_FIELDS = frozenset({"discrete_bit_widths"})
 _TUPLE_FLOAT_FIELDS = frozenset({"scale_bounds", "clip_bounds", "precision_bounds"})
@@ -55,12 +63,14 @@ def config_from_dict(
     """
     Build a FrameworkConfig from a plain mapping (e.g. JSON/TOML).
 
-    Lists are coerced to tuples where needed. Nested ``reward_weights`` is merged
-    onto the base. Unknown top-level keys are ignored (warning) unless ``strict=True``.
+    Lists are coerced to tuples where needed. Nested ``reward_weights`` or section keys
+    (``moe``, ``torch``, ``llama_cpp``, …) are merged onto the base. Unknown top-level keys
+    are ignored (warning) unless ``strict=True``.
     """
-    base_obj = base or FrameworkConfig()
+    base_obj = base.clone() if base is not None else FrameworkConfig()
     d = dict(data)
     rw_raw = d.pop("reward_weights", None)
+    nested_raw = {k: d.pop(k) for k in list(d) if k in NESTED_SECTION_KEYS and k != "reward_weights"}
 
     if strict:
         bad_fw = set(d) - _FRAMEWORK_FIELD_NAMES
@@ -99,14 +109,17 @@ def config_from_dict(
             v = tuple(float(x) for x in v)
         coerced[k] = v
 
-    new_rw = base_obj.reward_weights
     if rw_raw is not None:
         if not isinstance(rw_raw, Mapping):
             raise TypeError("reward_weights must be a mapping")
         rw_dict = {k: v for k, v in dict(rw_raw).items() if k in _REWARD_FIELD_NAMES}
-        new_rw = replace(base_obj.reward_weights, **rw_dict)
+        coerced["reward_weights"] = replace(base_obj.reward_weights, **rw_dict)
 
-    return replace(base_obj, reward_weights=new_rw, **coerced)
+    apply_flat_kwargs(base_obj, coerced)
+    for section_key, section_value in nested_raw.items():
+        apply_flat_kwargs(base_obj, {section_key: section_value})
+    base_obj.__post_init__()
+    return base_obj
 
 
 def quick_config(**kwargs: Any) -> FrameworkConfig:

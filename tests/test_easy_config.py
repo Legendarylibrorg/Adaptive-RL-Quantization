@@ -60,6 +60,18 @@ class EasyConfigTests(unittest.TestCase):
         self.assertEqual(cfg.scale_bounds, (0.5, 1.5))
         self.assertEqual(cfg.router_hf_allowed_models, ("org/model-a", "org/model-b"))
 
+    def test_config_from_dict_accepts_nested_sections(self) -> None:
+        cfg = config_from_dict(
+            {
+                "run_name": "nested_sections",
+                "moe": {"num_experts": 8, "top_k": 1},
+                "torch": {"preflight": False},
+            }
+        )
+        self.assertEqual(cfg.moe_num_experts, 8)
+        self.assertEqual(cfg.moe_top_k, 1)
+        self.assertFalse(cfg.torch_preflight)
+
     def test_config_from_dict_merges_reward_weights(self) -> None:
         cfg = config_from_dict(
             {"run_name": "rw_test", "reward_weights": {"gamma_perplexity": 0.5}},

@@ -20,12 +20,12 @@ later for inference-time recommendations.
 from __future__ import annotations
 
 from collections import Counter
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from adaptive_quant.backend import build_backend
-from adaptive_quant.configuration import FrameworkConfig
+from adaptive_quant.configuration import FrameworkConfig, config_to_flat_dict
 from adaptive_quant.configuration.validation import assert_hf_repo_allowed
 from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.logging_utils import JsonlLogger, read_json, write_json
@@ -419,7 +419,7 @@ def save_bandit_artifacts(
 
     summary_payload: dict[str, Any] = {
         "run_name": config.run_name,
-        "config": asdict(config),
+        "config": config_to_flat_dict(config),
         "git_commit": git_commit_hash(),
         "training_backend": config.training_backend,
         "backend": config.backend,

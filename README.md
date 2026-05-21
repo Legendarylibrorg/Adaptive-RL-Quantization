@@ -170,6 +170,7 @@ Programmatically: `FrameworkConfig.from_file("path.json")`, `load_config()` from
 | Calibrate simulator from llama.cpp | `adaptive-rl-quant-calibrate` (binary + model in config) |
 | GGUF route catalog + contextual bandit | `adaptive-rl-quant-route --catalog outputs/routes/catalog.json seed` |
 | Online / continual experiment | `adaptive-rl-quant-online` |
+| Post-hoc log / history analysis | `adaptive-rl-quant-analyze` or `python -m analysis` |
 
 Full descriptions: **[docs/RUNNING.md](docs/RUNNING.md)**. Pass **`--help`** on any installed command for `-c` / `--config`. Source-checkout equivalents remain available as `python3 run_*.py`.
 
