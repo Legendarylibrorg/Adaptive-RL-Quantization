@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from adaptive_quant.analysis_utils import ensure_directory, grouped_mean, write_bar_chart, write_scatter_plot
+from adaptive_quant.analysis_utils import (
+    ensure_directory,
+    grouped_mean,
+    write_bar_chart,
+    write_scatter_plot,
+)
 from adaptive_quant.features import complexity_bucket
 from adaptive_quant.logging_utils import load_jsonl, write_json
 from adaptive_quant.math_utils import mean

@@ -13,7 +13,6 @@ from adaptive_quant.trainer_utils import (
     feedback_vector,
     run_env_episode_rollout,
     summarize_episode_results,
-    zero_previous_action,
 )
 from adaptive_quant.types import EpisodeResult, HardwareType, QuantizationDecision
 
