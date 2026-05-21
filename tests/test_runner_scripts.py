@@ -385,7 +385,7 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertEqual(setuptools_cfg["package-dir"], {"": "src"})
         self.assertEqual(setuptools_cfg["packages"]["find"]["where"], ["src"])
         py_modules = setuptools_cfg["py-modules"]
-        self.assertIn("config_online", py_modules)
+        self.assertEqual(py_modules, ["config"])
         self.assertNotIn("run_research", py_modules)
 
     def test_console_entrypoints_have_help(self) -> None:

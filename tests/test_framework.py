@@ -36,7 +36,7 @@ from analysis.analyzers import (
     analyze_online,
     analyze_quant,
 )
-from config_4090_universal import CONFIG_4090_UNIVERSAL
+from config import CONFIG_4090_UNIVERSAL
 
 
 class FrameworkTests(unittest.TestCase):

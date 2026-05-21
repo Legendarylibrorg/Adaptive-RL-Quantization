@@ -107,7 +107,7 @@ Artifacts land under **`outputs/`** (see [Outputs](#outputs) below).
 | --- | --- |
 | `src/` | **Packaged source layout** (`src/adaptive_quant/`, `src/analysis/`, `src/config*.py`) |
 | `src/adaptive_quant/` | Core library: env, trainers, policies, backends, CLI under **`cli/`**, **`easy_config.py`**, presets under **`presets/`** |
-| `src/config.py`, `src/config_*.py` | Python experiment presets (also exposed as top-level `config` modules after `pip install -e .`) |
+| `src/config.py` | Python experiment presets (`CONFIG`, `CONFIG_GPU`, …; also `adaptive_quant.presets` after `pip install -e .`) |
 | `config.example.json` | Example **JSON** config (`preset` + overrides) |
 | `config.e2e_smoke.json` | **Short reproducible RL run** (train+eval+benchmarks+analysis) for CI and quick tuning |
 | `config.example.pytorch.toml` | Example **TOML** for `run_pytorch.py --config` (needs CUDA PyTorch) |
@@ -135,7 +135,7 @@ Artifacts land under **`outputs/`** (see [Outputs](#outputs) below).
 
 ## Configuration
 
-**1. Python presets** — Edit or copy `src/config.py`, `src/config_gpu.py`, `src/config_moe.py`, etc. (or use `adaptive_quant.presets` in code). After `pip install -e .`, `from config import CONFIG` still works. This is the default when you do **not** pass `--config`.
+**1. Python presets** — Edit or copy `src/config.py` (exports `CONFIG`, `CONFIG_GPU`, `CONFIG_MOE`, …) or use `adaptive_quant.presets` in code. After `pip install -e .`, `from config import CONFIG` still works. This is the default when you do **not** pass `--config`.
 
 **2. JSON / TOML** — Copy **`config.example.json`**, or write a `.toml` file with the same keys. Optional top-level **`preset`**: `default`, `minimal`, `pytorch`, `reproducible`. A file passed with `--config` replaces the Python preset selected by the entrypoint; put `preset` inside the JSON/TOML when you want layering. Config paths and default artifact directories such as `outputs/` are resolved relative to the current working directory, so run these commands from the repository root or use absolute paths.
 Load from the installed CLI:

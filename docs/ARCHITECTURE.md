@@ -40,8 +40,10 @@ Installed console commands map onto those wrappers:
 
 - `src/adaptive_quant/configuration/`: canonical experiment contract (`FrameworkConfig`, validation)
 - `src/adaptive_quant/easy_config.py`: JSON/TOML loading and preset layering
-- `src/config.py`, `src/config_*.py`: curated Python presets (also top-level `config*` modules when installed)
-- `src/adaptive_quant/presets/`: preset definitions used by those modules
+- `src/adaptive_quant/presets/`: curated `FrameworkConfig` presets (`CONFIG`, `CONFIG_GPU`, `CONFIG_MOE`, …)
+- `src/config.py`: single top-level export surface after `pip install -e .` (`from config import CONFIG_4090`, etc.)
+
+Legacy per-preset `config_*.py` shim modules were removed; import named constants from `config` or `adaptive_quant.presets` directly.
 
 This layer defines reproducibility knobs such as:
 
@@ -66,10 +68,30 @@ The key architecture rule here is: **different backends share the same `Framewor
 
 ## 4. Analysis and reporting
 
-- `src/analysis/`: post-hoc analysis (`analyzers.py` + `python -m analysis` CLI)
+- `src/analysis/`: post-hoc analysis (`analyzers.py`, shared `log_records.py`, `python -m analysis` CLI)
 - `src/adaptive_quant/research_pipeline.py`: full offline pipeline orchestration
-- `src/adaptive_quant/pipeline/`: VCS stamp, benchmark warnings, analysis runner, Markdown report
+- `src/adaptive_quant/pipeline/`: VCS stamp, benchmark warnings, training-history/checkpoint writers (`artifacts.py`), analysis runner, Markdown report
 - `src/adaptive_quant/run_footer.py`: consistent CLI summaries
+
+### Routing modules (do not conflate)
+
+Two separate “route” concepts share reward/hardware context but differ in arms and learning rule:
+
+| Module | Purpose | Learner |
+| --- | --- | --- |
+| `routing.py` | In-run **backend / model_id** selection when `router_enabled` on `FrameworkConfig` | Stdlib policy-gradient + value baseline (hash or optional HF embeddings) |
+| `model_routes.py` + `route_policy.py` + `route_pipeline.py` | Offline **GGUF catalog** workflow (`adaptive-rl-quant-route`): Hub repos, quant labels, local paths | Contextual **UCB1** bandit per (hardware, domain, complexity) bucket |
+
+Use `routing.py` for experiments that pick among configured `router_routes` during training. Use the route catalog stack for comparing downloadable GGUF variants and persisting a bandit table next to `outputs/routes/catalog.json`.
+
+### GPU profiles vs host hardware
+
+| Module | Role |
+| --- | --- |
+| `gpu_profiles.py` | **Training** overrides (`torch_*` batch sizes, preflight budgets) keyed by `infer_gpu_profile`; also `SIMULATOR_PROFILE_TUNING` for simulator fidelity |
+| `hardware.py` | **Runtime detection** (`detect_host_hardware`) and host-aware `HardwareProfile` construction for the env/reward path |
+
+Profile names (`rtx4090`, `consumer_8gb`, …) are shared; training overrides and simulator tuning values are intentionally different tables.
 
 Reports are intended to be derived from machine-readable outputs, not handwritten after the fact.
 

@@ -5,74 +5,23 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from adaptive_quant.analysis_utils import (
-    ensure_directory,
-    grouped_mean,
-    write_bar_chart,
-    write_scatter_plot,
-)
+from adaptive_quant.analysis_utils import write_bar_chart, write_scatter_plot
 from adaptive_quant.configuration.validation import validate_cli_path_argument
-from adaptive_quant.features import complexity_bucket
-from adaptive_quant.logging_utils import load_jsonl, read_json, write_json
+from adaptive_quant.logging_utils import read_json, write_json
 from adaptive_quant.math_utils import mean
-
-DEFAULT_ANALYSIS_PHASE = "eval"
-
-
-def _summary_stats(values: list[float]) -> dict[str, float]:
-    if not values:
-        return {"mean": 0.0, "min": 0.0, "max": 0.0}
-    return {"mean": mean(values), "min": min(values), "max": max(values)}
-
-
-def _filter_phase(records: list[dict], phase: str | None) -> list[dict]:
-    """Filter JSONL records by ``phase`` field.
-
-    - ``phase=None`` keeps every record.
-    - Otherwise keep only records whose ``phase`` equals the requested value.
-      If *no* record carries a ``phase`` field (legacy logs), the records are
-      returned unchanged so old logs remain analyzable.
-    """
-    if phase is None:
-        return records
-    if not any("phase" in record for record in records):
-        return records
-    return [record for record in records if record.get("phase") == phase]
-
-
-def _mean_effective_bits(decision: dict) -> float:
-    bits = decision.get("effective_layer_bits", [])
-    return mean([float(b) for b in bits]) if bits else 0.0
-
-
-def _training_step_reward(record: dict) -> float:
-    return float(record.get("batch_reward", record.get("reward", 0.0)))
-
-
-def _served_reward(record: dict) -> float:
-    return float(record.get("served_metrics", {}).get("reward", 0.0))
-
-
-def _input_complexity(record: dict) -> float:
-    return float(record.get("input_features", {}).get("complexity_score", 0.0))
-
-
-def _mean_flag_rate(records: list[dict], key: str) -> float:
-    return mean([1.0 if r.get(key) else 0.0 for r in records])
-
-
-def _by_hardware(records: list[dict], metric_path: tuple[str, ...]) -> dict[str, float]:
-    return grouped_mean(records, "hardware_mode", metric_path)
-
-
-def _jsonl_analysis_setup(
-    log_path: str,
-    output_dir: str,
-    *,
-    phase: str | None = DEFAULT_ANALYSIS_PHASE,
-) -> tuple[list[dict], Path]:
-    records = _filter_phase(load_jsonl(log_path), phase)
-    return records, ensure_directory(output_dir)
+from analysis.log_records import (
+    DEFAULT_ANALYSIS_PHASE,
+    bucket_records_by_complexity,
+    by_hardware,
+    complexity_bucket_metrics,
+    input_complexity,
+    jsonl_analysis_setup,
+    mean_effective_bits,
+    mean_flag_rate,
+    served_reward,
+    summary_stats,
+    training_step_reward,
+)
 
 
 def analyze_hardware(
@@ -81,11 +30,11 @@ def analyze_hardware(
     *,
     phase: str | None = DEFAULT_ANALYSIS_PHASE,
 ) -> dict[str, object]:
-    records, output_root = _jsonl_analysis_setup(log_path, output_dir, phase=phase)
-    reward_by_hardware = _by_hardware(records, ("metrics", "reward"))
-    latency_by_hardware = _by_hardware(records, ("metrics", "latency_ms"))
-    throughput_by_hardware = _by_hardware(records, ("metrics", "throughput_tps"))
-    perplexity_by_hardware = _by_hardware(records, ("metrics", "perplexity"))
+    records, output_root = jsonl_analysis_setup(log_path, output_dir, phase=phase)
+    reward_by_hardware = by_hardware(records, ("metrics", "reward"))
+    latency_by_hardware = by_hardware(records, ("metrics", "latency_ms"))
+    throughput_by_hardware = by_hardware(records, ("metrics", "throughput_tps"))
+    perplexity_by_hardware = by_hardware(records, ("metrics", "perplexity"))
     rewards = list(reward_by_hardware.values())
     summary: dict[str, object] = {
         "log_path": log_path,
@@ -117,33 +66,19 @@ def analyze_inputs(
     *,
     phase: str | None = DEFAULT_ANALYSIS_PHASE,
 ) -> dict[str, object]:
-    records, output_root = _jsonl_analysis_setup(log_path, output_dir, phase=phase)
-    buckets: dict[str, list[dict]] = {"low": [], "medium": [], "high": []}
+    records, output_root = jsonl_analysis_setup(log_path, output_dir, phase=phase)
     points: list[tuple[float, float]] = []
     for record in records:
         decision = record.get("decision", {})
-        complexity = _input_complexity(record)
-        average_bits = _mean_effective_bits(decision)
-        points.append((complexity, average_bits))
-        buckets[complexity_bucket(complexity)].append(record)
-    summary: dict[str, object] = {"log_path": log_path, "by_complexity": {}}
-    for bucket_name, bucket_records in buckets.items():
-        avg_bits, avg_perplexity, avg_reward = [], [], []
-        for record in bucket_records:
-            decision = record.get("decision", {})
-            metrics = record.get("metrics", {})
-            if decision.get("effective_layer_bits"):
-                avg_bits.append(_mean_effective_bits(decision))
-            if "perplexity" in metrics:
-                avg_perplexity.append(float(metrics["perplexity"]))
-            if "reward" in metrics:
-                avg_reward.append(float(metrics["reward"]))
-        summary["by_complexity"][bucket_name] = {
-            "average_bits": mean(avg_bits),
-            "average_perplexity": mean(avg_perplexity),
-            "average_reward": mean(avg_reward),
-            "count": len(bucket_records),
-        }
+        complexity = input_complexity(record)
+        points.append((complexity, mean_effective_bits(decision)))
+    summary: dict[str, object] = {
+        "log_path": log_path,
+        "by_complexity": {
+            name: complexity_bucket_metrics(bucket)
+            for name, bucket in bucket_records_by_complexity(records).items()
+        },
+    }
     write_json(str(output_root / "input_adaptation_summary.json"), summary)
     by_c = summary["by_complexity"]
     assert isinstance(by_c, dict)
@@ -169,7 +104,7 @@ def analyze_moe_cache(
     *,
     phase: str | None = DEFAULT_ANALYSIS_PHASE,
 ) -> dict[str, object]:
-    records, output_root = _jsonl_analysis_setup(log_path, output_dir, phase=phase)
+    records, output_root = jsonl_analysis_setup(log_path, output_dir, phase=phase)
     cache_vs_latency: list[tuple[float, float]] = []
     entropy_vs_reward: list[tuple[float, float]] = []
     swap_costs, cache_misses = [], []
@@ -184,7 +119,7 @@ def analyze_moe_cache(
         cache_misses.append(cache_miss)
         cache_vs_latency.append((cache_miss, latency))
         entropy_vs_reward.append((router_entropy, reward))
-    reward_by_hardware = _by_hardware(records, ("metrics", "reward"))
+    reward_by_hardware = by_hardware(records, ("metrics", "reward"))
     summary: dict[str, object] = {
         "log_path": log_path,
         "mean_swap_cost_ms": mean(swap_costs),
@@ -224,7 +159,7 @@ def analyze_moe_experts(
     *,
     phase: str | None = DEFAULT_ANALYSIS_PHASE,
 ) -> dict[str, object]:
-    records, output_root = _jsonl_analysis_setup(log_path, output_dir, phase=phase)
+    records, output_root = jsonl_analysis_setup(log_path, output_dir, phase=phase)
     variant_usage: dict[str, float] = {}
     expert_frequency: dict[str, float] = {}
     sensitivity_vs_aggressiveness: list[tuple[float, float]] = []
@@ -281,22 +216,22 @@ def analyze_quant(
     *,
     phase: str | None = DEFAULT_ANALYSIS_PHASE,
 ) -> dict[str, object]:
-    records, output_root = _jsonl_analysis_setup(log_path, output_dir, phase=phase)
+    records, output_root = jsonl_analysis_setup(log_path, output_dir, phase=phase)
     learned = [r for r in records if r.get("decision", {}).get("mode") == "learned"]
     scale_values = [float(r["decision"].get("scale_factor", 0.0)) for r in learned]
     clip_values = [float(r["decision"].get("clipping_range", 0.0)) for r in learned]
     precision_values = [float(r["decision"].get("precision_level", 0.0)) for r in learned]
-    average_bits = []
-    for r in learned:
-        d = r.get("decision", {})
-        if d.get("effective_layer_bits"):
-            average_bits.append(_mean_effective_bits(d))
+    average_bits = [
+        mean_effective_bits(d)
+        for r in learned
+        if (d := r.get("decision", {})).get("effective_layer_bits")
+    ]
     summary: dict[str, object] = {
         "log_path": log_path,
         "learned_episode_count": len(learned),
-        "scale_factor": _summary_stats(scale_values),
-        "clipping_range": _summary_stats(clip_values),
-        "precision_level": _summary_stats(precision_values),
+        "scale_factor": summary_stats(scale_values),
+        "clipping_range": summary_stats(clip_values),
+        "precision_level": summary_stats(precision_values),
         "effective_bits_mean": mean(average_bits),
     }
     write_json(str(output_root / "quant_function_behavior_summary.json"), summary)
@@ -317,6 +252,8 @@ def analyze_quant(
 
 
 def analyze_training_dynamics(history_path: str, output_dir: str) -> dict[str, object]:
+    from adaptive_quant.analysis_utils import ensure_directory
+
     source = Path(history_path)
     output_root = ensure_directory(output_dir)
     if not source.exists():
@@ -324,8 +261,8 @@ def analyze_training_dynamics(history_path: str, output_dir: str) -> dict[str, o
         write_json(str(output_root / "training_dynamics_summary.json"), summary)
         return summary
     records = read_json(source, label="Training history JSON")
-    rewards = [_training_step_reward(r) for r in records]
-    points = [(float(r.get("step", 0.0)), _training_step_reward(r)) for r in records]
+    rewards = [training_step_reward(r) for r in records]
+    points = [(float(r.get("step", 0.0)), training_step_reward(r)) for r in records]
     summary: dict[str, object] = {
         "history_path": history_path,
         "records": len(records),
@@ -349,22 +286,17 @@ def analyze_online(
     *,
     phase: str | None = None,
 ) -> dict[str, object]:
-    """Online telemetry has its own ``served_metrics`` shape and no train/eval split,
-    so phase filtering defaults to ``None`` here."""
-    records, output_root = _jsonl_analysis_setup(log_path, output_dir, phase=phase)
-    reward_by_hardware = _by_hardware(records, ("served_metrics", "reward"))
-    accept_rate = _mean_flag_rate(records, "accepted_candidate")
-    update_rate = _mean_flag_rate(records, "online_update_applied")
-    rollback_count = sum(1 for r in records if r.get("drift_event") == "rollback")
-    complexity_reward_points = [(_input_complexity(r), _served_reward(r)) for r in records]
+    records, output_root = jsonl_analysis_setup(log_path, output_dir, phase=phase)
+    reward_by_hardware = by_hardware(records, ("served_metrics", "reward"))
+    complexity_reward_points = [(input_complexity(r), served_reward(r)) for r in records]
     summary: dict[str, object] = {
         "log_path": log_path,
         "records": len(records),
         "reward_by_hardware": reward_by_hardware,
-        "candidate_accept_rate": accept_rate,
-        "online_update_rate": update_rate,
-        "rollback_count": rollback_count,
-        "mean_served_reward": mean([_served_reward(r) for r in records]),
+        "candidate_accept_rate": mean_flag_rate(records, "accepted_candidate"),
+        "online_update_rate": mean_flag_rate(records, "online_update_applied"),
+        "rollback_count": sum(1 for r in records if r.get("drift_event") == "rollback"),
+        "mean_served_reward": mean([served_reward(r) for r in records]),
     }
     write_json(str(output_root / "online_learning_summary.json"), summary)
     write_bar_chart(

@@ -461,7 +461,7 @@ class RouteCliTests(unittest.TestCase):
             payload["project"]["scripts"]["adaptive-rl-quant-route"],
             "adaptive_quant.cli.route_learning:main",
         )
-        self.assertIn("config_online", payload["tool"]["setuptools"]["py-modules"])
+        self.assertEqual(payload["tool"]["setuptools"]["py-modules"], ["config"])
 
 
 if __name__ == "__main__":

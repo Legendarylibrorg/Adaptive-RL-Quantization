@@ -71,15 +71,7 @@ dev = [
 
 [tool.setuptools]
 package-dir = {"" = "src"}
-py-modules = [
-    "config",
-    "config_3090",
-    "config_4090",
-    "config_4090_universal",
-    "config_gpu",
-    "config_moe",
-    "config_online",
-]
+py-modules = ["config"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -41,13 +41,8 @@ Lists in JSON for tuple fields (`hardware_modes`, `discrete_bit_widths`, `scale_
 
 Configuration also lives in:
 
-- [`config.py`](../src/config.py)
-- [`config_moe.py`](../src/config_moe.py)
-- [`config_online.py`](../src/config_online.py)
-- [`config_gpu.py`](../src/config_gpu.py)
-- [`config_3090.py`](../src/config_3090.py)
-- [`config_4090.py`](../src/config_4090.py)
-- [`config_4090_universal.py`](../src/config_4090_universal.py)
+- [`config.py`](../src/config.py) — exports `CONFIG`, `CONFIG_MOE`, `CONFIG_ONLINE`, `CONFIG_GPU`, `CONFIG_3090`, `CONFIG_4090`, `CONFIG_4090_UNIVERSAL`
+- [`adaptive_quant/presets/`](../src/adaptive_quant/presets/) — preset definitions
 - [`adaptive_quant/configuration/`](../src/adaptive_quant/configuration/) (`framework.py`: `FrameworkConfig`)
 
 Use [`config.py`](../src/config.py) as the canonical offline research baseline when you are not using `--config`. It is the simplest preset to reproduce and the best starting point for stable experiments.
@@ -208,40 +203,40 @@ Local laptop or quick CI-style validation:
 
 Auto-tuned GPU training:
 
-- use [`config_gpu.py`](../src/config_gpu.py)
+- use `from config import CONFIG_GPU` (or clone [`config.py`](../src/config.py))
 - keep `torch_gpu_profile="auto"` unless you want to force a profile
 - keep `cache_prompt_features=True`
 - keep `torch_preflight=True`
 
 RTX 3090 training:
 
-- use [`config_3090.py`](../src/config_3090.py) (or `adaptive-rl-quant-pytorch --preset 3090`)
+- use `from config import CONFIG_3090` (or `adaptive-rl-quant-pytorch --preset 3090`)
 - same hygiene as other CUDA presets: `torch_preflight=True`, `cache_prompt_features=True`
 
 RTX 4090 training:
 
-- use [`config_4090.py`](../src/config_4090.py)
+- use `from config import CONFIG_4090`
 - keep `training_backend="pytorch"`
 - keep `cache_prompt_features=True`
 - keep `torch_preflight=True`
 
 4090-host universal policy training:
 
-- use [`config_4090_universal.py`](../src/config_4090_universal.py) (or `adaptive-rl-quant-pytorch --preset 4090-universal` from the repo root)
+- use `from config import CONFIG_4090_UNIVERSAL` (or `adaptive-rl-quant-pytorch --preset 4090-universal` from the repo root)
 - keep `training_host_label="rtx4090"`
 - keep `multi_hardware=True`
 - keep `hardware_modes=("gpu", "cpu", "low_resource")`
 
 Canonical MoE research:
 
-- use [`config_moe.py`](../src/config_moe.py)
+- use `from config import CONFIG_MOE`
 - keep `moe_enabled=True`
 - keep `moe_variant_names=("safe", "balanced", "aggressive")`
 - keep `moe_max_aggressive_experts` and `moe_max_swap_cost_ms` enabled for safety
 
 Experimental continual adaptation:
 
-- use [`config_online.py`](../src/config_online.py) for continual adaptation experiments
+- use `from config import CONFIG_ONLINE` for continual adaptation experiments
 - keep `online_learning=True`
 - tune `online_exploration_rate` and `online_reward_guard` together
 - increase `online_drift_reward_delta` if the loop is too rollback-heavy

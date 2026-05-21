@@ -156,6 +156,80 @@ GPU_PROFILES: dict[str, GpuProfile] = {
     ),
 }
 
+# Simulator ``HardwareProfile`` tuning keyed by :func:`infer_gpu_profile` names (not training overrides).
+SIMULATOR_PROFILE_TUNING: dict[str, dict[str, float]] = {
+    "consumer_8gb": {
+        "compute_factor": 1.35,
+        "throughput_bias": 1.45,
+        "latency_bias": 0.96,
+        "preferred_bits": 4.7,
+        "kernel_uniformity_preference": 0.74,
+    },
+    "rtx4070": {
+        "compute_factor": 1.62,
+        "throughput_bias": 1.72,
+        "latency_bias": 0.88,
+        "preferred_bits": 5.1,
+        "kernel_uniformity_preference": 0.81,
+    },
+    "rtx4080": {
+        "compute_factor": 1.82,
+        "throughput_bias": 1.93,
+        "latency_bias": 0.78,
+        "preferred_bits": 5.4,
+        "kernel_uniformity_preference": 0.86,
+    },
+    "rtx3090": {
+        "compute_factor": 1.90,
+        "throughput_bias": 2.01,
+        "latency_bias": 0.74,
+        "preferred_bits": 5.5,
+        "kernel_uniformity_preference": 0.88,
+    },
+    "rtx4090": {
+        "compute_factor": 2.00,
+        "throughput_bias": 2.12,
+        "latency_bias": 0.70,
+        "preferred_bits": 5.8,
+        "kernel_uniformity_preference": 0.91,
+    },
+    "l4": {
+        "compute_factor": 1.78,
+        "throughput_bias": 1.88,
+        "latency_bias": 0.76,
+        "preferred_bits": 5.3,
+        "kernel_uniformity_preference": 0.88,
+    },
+    "pro_48gb": {
+        "compute_factor": 2.18,
+        "throughput_bias": 2.26,
+        "latency_bias": 0.62,
+        "preferred_bits": 6.0,
+        "kernel_uniformity_preference": 0.94,
+    },
+    "a100_40gb": {
+        "compute_factor": 2.34,
+        "throughput_bias": 2.44,
+        "latency_bias": 0.58,
+        "preferred_bits": 6.2,
+        "kernel_uniformity_preference": 0.95,
+    },
+    "a100_80gb": {
+        "compute_factor": 2.52,
+        "throughput_bias": 2.65,
+        "latency_bias": 0.54,
+        "preferred_bits": 6.4,
+        "kernel_uniformity_preference": 0.97,
+    },
+    "h100": {
+        "compute_factor": 2.82,
+        "throughput_bias": 2.95,
+        "latency_bias": 0.47,
+        "preferred_bits": 6.6,
+        "kernel_uniformity_preference": 0.99,
+    },
+}
+
 
 def available_gpu_profiles() -> list[str]:
     return sorted(GPU_PROFILES.keys())

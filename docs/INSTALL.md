@@ -291,7 +291,7 @@ If you want real `llama.cpp`-backed measurements instead of the simulator backen
 - a built `llama.cpp` CLI binary
 - a local model file
 
-Then set these config values in [`config.py`](../src/config.py), [`config_gpu.py`](../src/config_gpu.py), or [`config_4090.py`](../src/config_4090.py):
+Then set these config values in [`config.py`](../src/config.py) (e.g. `CONFIG_GPU`, `CONFIG_4090`) or your JSON/TOML `--config` file:
 
 - `backend="llama_cpp"`
 - `llama_cpp_binary="/absolute/path/to/llama-cli-or-equivalent"`

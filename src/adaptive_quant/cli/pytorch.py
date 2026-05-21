@@ -55,7 +55,7 @@ def main(argv: Iterable[str] | None = None) -> None:
         default="gpu",
         help=(
             "Used when --config is omitted: gpu=auto-detected VRAM profile; 3090/4090=fixed host presets; "
-            "4090-universal=multi-hardware policy on a 4090-class host (see config_4090_universal.py)."
+            "4090-universal=multi-hardware policy on a 4090-class host (see config.CONFIG_4090_UNIVERSAL)."
         ),
     )
     args = parser.parse_args(list(argv) if argv is not None else None)

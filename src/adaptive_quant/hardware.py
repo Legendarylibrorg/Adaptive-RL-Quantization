@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any
 
-from adaptive_quant.gpu_profiles import infer_gpu_profile
+from adaptive_quant.gpu_profiles import SIMULATOR_PROFILE_TUNING, infer_gpu_profile
 from adaptive_quant.math_utils import clamp
 from adaptive_quant.types import HardwareProfile, HardwareType
 
@@ -76,80 +76,6 @@ def default_hardware_profiles() -> dict[HardwareType, HardwareProfile]:
     }
 
 
-_GPU_PROFILE_SIM_PRESETS: dict[str, dict[str, float]] = {
-    "consumer_8gb": {
-        "compute_factor": 1.35,
-        "throughput_bias": 1.45,
-        "latency_bias": 0.96,
-        "preferred_bits": 4.7,
-        "kernel_uniformity_preference": 0.74,
-    },
-    "rtx4070": {
-        "compute_factor": 1.62,
-        "throughput_bias": 1.72,
-        "latency_bias": 0.88,
-        "preferred_bits": 5.1,
-        "kernel_uniformity_preference": 0.81,
-    },
-    "rtx4080": {
-        "compute_factor": 1.82,
-        "throughput_bias": 1.93,
-        "latency_bias": 0.78,
-        "preferred_bits": 5.4,
-        "kernel_uniformity_preference": 0.86,
-    },
-    "rtx3090": {
-        "compute_factor": 1.90,
-        "throughput_bias": 2.01,
-        "latency_bias": 0.74,
-        "preferred_bits": 5.5,
-        "kernel_uniformity_preference": 0.88,
-    },
-    "rtx4090": {
-        "compute_factor": 2.00,
-        "throughput_bias": 2.12,
-        "latency_bias": 0.70,
-        "preferred_bits": 5.8,
-        "kernel_uniformity_preference": 0.91,
-    },
-    "l4": {
-        "compute_factor": 1.78,
-        "throughput_bias": 1.88,
-        "latency_bias": 0.76,
-        "preferred_bits": 5.3,
-        "kernel_uniformity_preference": 0.88,
-    },
-    "pro_48gb": {
-        "compute_factor": 2.18,
-        "throughput_bias": 2.26,
-        "latency_bias": 0.62,
-        "preferred_bits": 6.0,
-        "kernel_uniformity_preference": 0.94,
-    },
-    "a100_40gb": {
-        "compute_factor": 2.34,
-        "throughput_bias": 2.44,
-        "latency_bias": 0.58,
-        "preferred_bits": 6.2,
-        "kernel_uniformity_preference": 0.95,
-    },
-    "a100_80gb": {
-        "compute_factor": 2.52,
-        "throughput_bias": 2.65,
-        "latency_bias": 0.54,
-        "preferred_bits": 6.4,
-        "kernel_uniformity_preference": 0.97,
-    },
-    "h100": {
-        "compute_factor": 2.82,
-        "throughput_bias": 2.95,
-        "latency_bias": 0.47,
-        "preferred_bits": 6.6,
-        "kernel_uniformity_preference": 0.99,
-    },
-}
-
-
 @lru_cache(maxsize=1)
 def detect_host_hardware() -> DetectedHardware:
     gpu_name, gpu_memory_gb, cuda_available = _detect_accelerator()
@@ -213,8 +139,8 @@ def host_aware_hardware_profiles(
     )
 
     if detected.accelerator_type == HardwareType.GPU and detected.accelerator_profile is not None:
-        template = _GPU_PROFILE_SIM_PRESETS.get(
-            detected.accelerator_profile, _GPU_PROFILE_SIM_PRESETS["consumer_8gb"]
+        template = SIMULATOR_PROFILE_TUNING.get(
+            detected.accelerator_profile, SIMULATOR_PROFILE_TUNING["consumer_8gb"]
         )
         gpu_memory_gb = detected.accelerator_memory_gb or 8.0
         profiles[HardwareType.GPU] = HardwareProfile(
