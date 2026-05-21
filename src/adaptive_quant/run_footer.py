@@ -76,11 +76,16 @@ def print_pipeline_footer(
     recommendation = summary.get("recommendation")
     if isinstance(recommendation, dict):
         rows.append(
-            ("target_hardware", format_display(recommendation.get("target_hardware"), style="footer"))
+            (
+                "target_hardware",
+                format_display(recommendation.get("target_hardware"), style="footer"),
+            )
         )
         fixed = recommendation.get("recommended_quant")
         if isinstance(fixed, dict):
-            rows.append(("recommended_quant", format_display(fixed.get("signature"), style="footer")))
+            rows.append(
+                ("recommended_quant", format_display(fixed.get("signature"), style="footer"))
+            )
             evaluation = fixed.get("evaluation")
             if isinstance(evaluation, dict):
                 rows.append(
@@ -136,14 +141,20 @@ def print_online_footer(
     rows: list[tuple[str, str]] = [
         ("run_name", config.run_name),
         ("training_backend", str(config.training_backend)),
-        ("bootstrap_mean_reward", format_display(bootstrap_map.get("mean_reward", 0.0), style="footer")),
+        (
+            "bootstrap_mean_reward",
+            format_display(bootstrap_map.get("mean_reward", 0.0), style="footer"),
+        ),
         ("online_requests", str(online_map.get("requests", ""))),
         (
             "online_mean_served_reward",
             format_display(online_map.get("mean_served_reward", 0.0), style="footer"),
         ),
         ("online_total_updates", str(online_map.get("total_updates", 0))),
-        ("eval_mean_reward", format_display(evaluation_map.get("mean_reward", 0.0), style="footer")),
+        (
+            "eval_mean_reward",
+            format_display(evaluation_map.get("mean_reward", 0.0), style="footer"),
+        ),
         ("summary_json", summary_path),
         ("online_detail_json", str(artifact_map.get("online_detail", ""))),
         ("telemetry_jsonl", str(artifact_map.get("online_telemetry", ""))),

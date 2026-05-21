@@ -50,8 +50,18 @@ def analyze_hardware(
         summary,
         json_name="hardware_generalization_summary.json",
         bar_charts=[
-            ("hardware_generalization_reward.svg", "Policy Reward by Hardware", reward_by_hardware, "Reward"),
-            ("hardware_generalization_latency.svg", "Latency by Hardware", latency_by_hardware, "Latency (ms)"),
+            (
+                "hardware_generalization_reward.svg",
+                "Policy Reward by Hardware",
+                reward_by_hardware,
+                "Reward",
+            ),
+            (
+                "hardware_generalization_latency.svg",
+                "Latency by Hardware",
+                latency_by_hardware,
+                "Latency (ms)",
+            ),
         ],
     )
     return summary
@@ -141,8 +151,20 @@ def analyze_moe_cache(
             )
         ],
         scatter_charts=[
-            ("moe_cache_miss_vs_latency.svg", "Cache Misses vs Latency", cache_vs_latency, "Cache miss count", "Latency (ms)"),
-            ("moe_router_entropy_vs_reward.svg", "Router Entropy vs Reward", entropy_vs_reward, "Router entropy", "Reward"),
+            (
+                "moe_cache_miss_vs_latency.svg",
+                "Cache Misses vs Latency",
+                cache_vs_latency,
+                "Cache miss count",
+                "Latency (ms)",
+            ),
+            (
+                "moe_router_entropy_vs_reward.svg",
+                "Router Entropy vs Reward",
+                entropy_vs_reward,
+                "Router entropy",
+                "Reward",
+            ),
         ],
     )
     return summary
@@ -304,7 +326,12 @@ def analyze_online(
         summary,
         json_name="online_learning_summary.json",
         bar_charts=[
-            ("online_reward_by_hardware.svg", "Online Reward by Hardware", reward_by_hardware, "Reward")
+            (
+                "online_reward_by_hardware.svg",
+                "Online Reward by Hardware",
+                reward_by_hardware,
+                "Reward",
+            )
         ],
         scatter_charts=[
             (
