@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from adaptive_quant.configuration.flat_access import (
     apply_flat_kwargs,
@@ -243,7 +243,8 @@ class FrameworkConfig:
         )
 
     def rl_train_deterministic(self) -> bool:
-        return self.rl_train_policy_mode.strip().lower() == "deterministic"
+        mode = cast(str, self.rl_train_policy_mode)
+        return mode.strip().lower() == "deterministic"
 
     @classmethod
     def reproducible_research(
@@ -304,29 +305,33 @@ class FrameworkConfig:
         return modes
 
     def moe_variant_count(self) -> int:
-        return len(self.moe_variant_names)
+        return len(cast(tuple[str, ...], self.moe_variant_names))
 
     def default_moe_variant_index(self) -> int:
-        if not self.moe_variant_names:
+        names = cast(tuple[str, ...], self.moe_variant_names)
+        if not names:
             return 0
-        if "balanced" in self.moe_variant_names:
-            return self.moe_variant_names.index("balanced")
-        return min(1, len(self.moe_variant_names) - 1)
+        if "balanced" in names:
+            return names.index("balanced")
+        return min(1, len(names) - 1)
 
     def moe_variant_index(self, name: str) -> int | None:
-        if name in self.moe_variant_names:
-            return self.moe_variant_names.index(name)
+        names = cast(tuple[str, ...], self.moe_variant_names)
+        if name in names:
+            return names.index(name)
         return None
 
     def aggressive_moe_variant_index(self) -> int | None:
-        if "aggressive" in self.moe_variant_names:
-            return self.moe_variant_names.index("aggressive")
+        names = cast(tuple[str, ...], self.moe_variant_names)
+        if "aggressive" in names:
+            return names.index("aggressive")
         return None
 
     def moe_state_dim(self) -> int:
         if not self.moe_enabled:
             return 0
-        return 4 + self.moe_top_k * (5 + self.moe_variant_count())
+        top_k = cast(int, self.moe_top_k)
+        return 4 + top_k * (5 + self.moe_variant_count())
 
     def state_vector_dim(self) -> int:
         return len(self.ordered_hardware()) + 5 + 2 + self.num_layers + 3 + self.moe_state_dim()

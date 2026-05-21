@@ -160,8 +160,8 @@ def analyze_moe_cache(
                 "moe_cache_metrics.svg",
                 "MoE Cache Metrics",
                 {
-                    "swap_cost_ms": summary["mean_swap_cost_ms"],
-                    "cache_miss_count": summary["mean_cache_miss_count"],
+                    "swap_cost_ms": float(summary["mean_swap_cost_ms"]),
+                    "cache_miss_count": float(summary["mean_cache_miss_count"]),
                 },
                 "Average value",
             )
@@ -281,7 +281,7 @@ def analyze_quant(
                     "scale": sf["mean"],
                     "clip": cr["mean"],
                     "precision": pl["mean"],
-                    "bits": summary["effective_bits_mean"],
+                    "bits": float(summary["effective_bits_mean"]),
                 },
                 "Average value",
             )
@@ -293,9 +293,9 @@ def analyze_training_dynamics(history_path: str, output_dir: str) -> dict[str, o
     source = Path(history_path)
     output_root = ensure_directory(output_dir)
     if not source.exists():
-        summary = {"history_path": history_path, "records": 0}
-        write_json(str(output_root / "training_dynamics_summary.json"), summary)
-        return summary
+        empty_summary = {"history_path": history_path, "records": 0}
+        write_json(str(output_root / "training_dynamics_summary.json"), empty_summary)
+        return empty_summary
     records = read_json(source, label="Training history JSON")
     rewards = [training_step_reward(r) for r in records]
     points = [(float(r.get("step", 0.0)), training_step_reward(r)) for r in records]
