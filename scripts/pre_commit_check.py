@@ -171,7 +171,7 @@ def main(argv: list[str] | None = None) -> int:
     if not args.skip_tests:
         print("== unittest ==")
         env = dict(os.environ)
-        env["PYTHONPATH"] = str(root) + os.pathsep + env.get("PYTHONPATH", "")
+        env["PYTHONPATH"] = str(root / "src") + os.pathsep + env.get("PYTHONPATH", "")
         subprocess.run(
             [python_bin, "-m", "unittest", "discover", "-s", "tests", "-q"],
             cwd=str(root),
