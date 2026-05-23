@@ -145,7 +145,7 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertIn("github.event.repository.private == false", workflow_text)
         self.assertIn("actions/dependency-review-action@", workflow_text)
         self.assertIn(
-            "actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294",
+            "actions/dependency-review-action@dcd589ca9f7a6ded22e224ca2e288beb6bf9846b",
             workflow_text,
         )
         self.assertIn("fail-on-severity: high", workflow_text)
