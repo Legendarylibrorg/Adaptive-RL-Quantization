@@ -38,8 +38,6 @@ A high-signal report makes triage fast:
 - Configuration that triggers the issue (sanitize secrets first).
 - Your proposed fix, if you have one.
 
-Machine-readable disclosure metadata is published at [`.well-known/security.txt`](./.well-known/security.txt) (RFC 9116) for scanners and automation.
-
 ## Our response
 
 When you submit a private advisory, you can expect:
