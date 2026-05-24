@@ -7,6 +7,10 @@ from pathlib import Path
 from typing import Any, cast
 
 from adaptive_quant.base_trainer import TrainerBase, coerce_previous_action
+from adaptive_quant.checkpoint_integrity import (
+    attach_torch_sidecar_integrity,
+    verify_torch_sidecar_integrity,
+)
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import read_json, write_json
 from adaptive_quant.math_utils import mean
@@ -449,7 +453,6 @@ if torch is not None:
                 "previous_action": self.previous_action,
                 "training_history": self.training_history,
             }
-            write_json(meta_path, meta)
             torch.save(
                 {
                     "model_state": self.policy.snapshot(),
@@ -457,6 +460,8 @@ if torch is not None:
                 },
                 target,
             )
+            meta = attach_torch_sidecar_integrity(meta, target)
+            write_json(meta_path, meta)
             return str(target)
 
         def load_checkpoint(self, path: str) -> None:
@@ -464,6 +469,9 @@ if torch is not None:
             meta_path = Path(_checkpoint_meta_path(str(pt_path)))
             if meta_path.is_file():
                 raw_meta = read_json(meta_path, label="Checkpoint sidecar")
+                verify_torch_sidecar_integrity(
+                    raw_meta, pt_path, label="Checkpoint sidecar"
+                )
                 if int(raw_meta.get("format", 0)) != _CHECKPOINT_FORMAT_V2:
                     raise ValueError(f"Unsupported checkpoint metadata format in {meta_path}")
                 tensors = _torch_load_v2_tensor_file(str(pt_path))

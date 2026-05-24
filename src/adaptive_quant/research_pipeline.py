@@ -6,6 +6,7 @@ from adaptive_quant.paper_bundle import create_pipeline_paper_bundle
 from adaptive_quant.pipeline.benchmark_warn import warn_if_benchmarks_are_large
 from adaptive_quant.pipeline.report_markdown import write_research_report_markdown
 from adaptive_quant.pipeline.vcs import git_commit_hash
+from adaptive_quant.security_audit import build_security_audit_record
 
 
 def write_training_history(config: FrameworkConfig, trainer) -> str | None:
@@ -131,6 +132,7 @@ class ResearchPipeline:
         summary = {
             "config": config_to_flat_dict(config),
             "git_commit": commit,
+            "security_audit": build_security_audit_record(config),
             "gpu_profile": gpu_profile_report,
             "preflight": preflight_report,
             "vram": vram_report,

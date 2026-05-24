@@ -23,7 +23,6 @@ from pathlib import Path
 from typing import Any
 
 from adaptive_quant.configuration.validation import (
-    assert_hf_repo_allowed,
     validate_hf_filename,
     validate_hf_model_id,
     validate_hf_revision,
@@ -128,7 +127,6 @@ class ModelRoute:
         if self.local_path is not None:
             validate_optional_filesystem_path("local_path", self.local_path)
         validate_hf_model_id("repo_id", self.repo_id, require_hub_namespace=True)
-        assert_hf_repo_allowed(self.repo_id)
         if self.filename is not None:
             validate_hf_filename("filename", self.filename)
             if self.family.strip().lower() == "gguf" and not self.filename.lower().endswith(

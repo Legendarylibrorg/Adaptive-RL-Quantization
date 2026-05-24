@@ -210,6 +210,11 @@ class FrameworkConfig:
         v.validate_bounded_positive_int("online_requests", self.online_requests)
         v.validate_bounded_nonneg_int("replay_buffer_capacity", self.replay_buffer_capacity)
         v.validate_bounded_positive_int("online_replay_capacity", self.online_replay_capacity)
+        v.validate_bounded_positive_int(
+            "online_max_replay_entries_per_prompt_hash",
+            self.online_max_replay_entries_per_prompt_hash,
+            ceiling=v.MAX_ONLINE_REPLAY_ENTRIES_PER_PROMPT_HASH,
+        )
         v.validate_router_routes(self.router_routes)
         v.validate_moe_topology(
             num_experts=self.moe_num_experts,

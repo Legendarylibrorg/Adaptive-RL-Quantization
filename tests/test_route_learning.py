@@ -208,11 +208,13 @@ class RouteBanditTests(unittest.TestCase):
 class HuggingFaceCliTests(unittest.TestCase):
     def test_build_download_command_modern_dialect(self) -> None:
         cli = HuggingFaceCli(binary="/usr/local/bin/hf", dialect="hf")
+        allowed = ("bartowski/Meta-Llama-3.1-8B-Instruct-GGUF",)
         argv = build_download_command(
             cli,
             repo_id="bartowski/Meta-Llama-3.1-8B-Instruct-GGUF",
             filename="Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
             local_dir="/tmp/models",
+            allowed_repos=allowed,
         )
         self.assertEqual(argv[0], "/usr/local/bin/hf")
         self.assertIn("download", argv)
@@ -265,12 +267,22 @@ class HuggingFaceCliTests(unittest.TestCase):
             # TimeoutError is not subprocess.TimeoutExpired; ensure only the intended timeout
             # exception is converted to a DownloadResult.
             with self.assertRaises(TimeoutError):
-                run_download(cli, repo_id="org/repo", timeout_s=1)
+                run_download(
+                    cli,
+                    repo_id="org/repo",
+                    timeout_s=1,
+                    allowed_repos=("org/repo",),
+                )
         with mock.patch(
             "adaptive_quant.huggingface_cli.subprocess.run",
             side_effect=__import__("subprocess").TimeoutExpired(cmd=["hf"], timeout=1),
         ):
-            result = run_download(cli, repo_id="org/repo", timeout_s=1)
+            result = run_download(
+                cli,
+                repo_id="org/repo",
+                timeout_s=1,
+                allowed_repos=("org/repo",),
+            )
         self.assertTrue(result.timed_out)
         self.assertEqual(result.returncode, -1)
 

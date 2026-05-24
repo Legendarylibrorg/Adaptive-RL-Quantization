@@ -5,6 +5,12 @@ from pathlib import Path
 
 from adaptive_quant.base_trainer import TrainerBase, coerce_previous_action
 from adaptive_quant.configuration import FrameworkConfig
+from adaptive_quant.checkpoint_integrity import (
+    attach_dict_integrity,
+    attach_torch_sidecar_integrity,
+    verify_dict_integrity,
+    verify_torch_sidecar_integrity,
+)
 from adaptive_quant.logging_utils import read_json, write_json
 from adaptive_quant.math_utils import mean
 from adaptive_quant.policy import PolicyTrace, UniversalQuantizationPolicy
@@ -89,20 +95,23 @@ class Trainer(TrainerBase):
     def save_checkpoint(self, path: str) -> str:
         target = _python_checkpoint_path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
-        payload = {
-            "format": _PYTHON_CHECKPOINT_FORMAT,
-            "run_name": self.config.run_name,
-            "completed_episodes": self.completed_episodes,
-            "previous_action": self.previous_action,
-            "training_history": self.training_history,
-            "policy_state": self.policy.checkpoint_state(),
-        }
+        payload = attach_dict_integrity(
+            {
+                "format": _PYTHON_CHECKPOINT_FORMAT,
+                "run_name": self.config.run_name,
+                "completed_episodes": self.completed_episodes,
+                "previous_action": self.previous_action,
+                "training_history": self.training_history,
+                "policy_state": self.policy.checkpoint_state(),
+            }
+        )
         write_json(str(target), payload)
         return str(target)
 
     def load_checkpoint(self, path: str) -> None:
         target = _resolve_python_checkpoint_path(path)
         payload = read_json(target, label="Python trainer checkpoint")
+        verify_dict_integrity(payload, label="Python trainer checkpoint")
         if int(payload.get("format", 0)) != _PYTHON_CHECKPOINT_FORMAT:
             raise ValueError(f"Unsupported Python trainer checkpoint format in {target}")
         policy_state = payload.get("policy_state")

@@ -92,6 +92,7 @@ class OnlineSettings:
     drift_window: int = 48
     drift_reward_delta: float = 1.50
     safe_mode_cooldown: int = 16
+    max_replay_entries_per_prompt_hash: int = 32
 
 
 @dataclass

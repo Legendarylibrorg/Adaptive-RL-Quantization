@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import unicodedata
 from pathlib import Path
 
 _RUN_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
@@ -12,6 +13,7 @@ _HF_LEGACY_MODEL_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$")
 _HF_FILENAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$")
 
 _HF_ALLOWED_REPOS_ENV = "ADAPTIVE_RL_HF_ALLOWED_REPOS"
+_HF_ALLOW_UNLISTED_ENV = "ADAPTIVE_RL_HF_ALLOW_UNLISTED"
 
 # Absolute ceiling for episode / buffer counters loaded from JSON/TOML (DoS guard).
 MAX_EPISODE_COUNT = 1_000_000
@@ -42,6 +44,7 @@ MAX_LLAMA_CPP_CACHE_ENTRIES = 65_536
 # Router / online prompt text (UTF-8 code units) — limits tokenizer RAM blow-ups.
 MAX_ROUTER_TASK_TEXT_CHARS = 262_144
 MAX_ONLINE_PROMPT_TEXT_CHARS = MAX_ROUTER_TASK_TEXT_CHARS
+MAX_ONLINE_REPLAY_ENTRIES_PER_PROMPT_HASH = 64
 # CLI analysis scripts (log path + output dir).
 MAX_CLI_PATH_CHARS = 4096
 
@@ -213,16 +216,28 @@ def validate_cli_path_argument(label: str, path: str) -> None:
         raise ValueError(f"{label} exceeds {MAX_CLI_PATH_CHARS} characters")
 
 
+def sanitize_user_text(text: str) -> str:
+    """Normalize and strip invisible Unicode before feature extraction or subprocess use."""
+    if not isinstance(text, str):
+        raise TypeError("text must be a string")
+    normalized = unicodedata.normalize("NFKC", text)
+    stripped = "".join(
+        ch for ch in normalized if unicodedata.category(ch) != "Cf" and ch != "\x00"
+    )
+    return stripped.strip()
+
+
 def validate_router_task_text(text: str) -> str:
     if not isinstance(text, str):
         raise TypeError("task_text must be a string")
     if "\x00" in text:
         raise ValueError("task_text must not contain NUL bytes")
-    if len(text) > MAX_ROUTER_TASK_TEXT_CHARS:
+    sanitized = sanitize_user_text(text)
+    if len(sanitized) > MAX_ROUTER_TASK_TEXT_CHARS:
         raise ValueError(
-            f"task_text exceeds {MAX_ROUTER_TASK_TEXT_CHARS} characters ({len(text)} given)"
+            f"task_text exceeds {MAX_ROUTER_TASK_TEXT_CHARS} characters ({len(sanitized)} given)"
         )
-    return text
+    return sanitized
 
 
 def validate_online_prompt_text(text: str) -> str:
@@ -230,11 +245,12 @@ def validate_online_prompt_text(text: str) -> str:
         raise TypeError("prompt_text must be a string")
     if "\x00" in text:
         raise ValueError("prompt_text must not contain NUL bytes")
-    if len(text) > MAX_ONLINE_PROMPT_TEXT_CHARS:
+    sanitized = sanitize_user_text(text)
+    if len(sanitized) > MAX_ONLINE_PROMPT_TEXT_CHARS:
         raise ValueError(
-            f"prompt_text exceeds {MAX_ONLINE_PROMPT_TEXT_CHARS} characters ({len(text)} given)"
+            f"prompt_text exceeds {MAX_ONLINE_PROMPT_TEXT_CHARS} characters ({len(sanitized)} given)"
         )
-    return text
+    return sanitized
 
 
 def validate_llama_cpp_binary_allowlist(resolved_binary: str) -> None:
@@ -416,6 +432,11 @@ def validate_hf_revision(field_name: str, revision: str) -> None:
     validate_optional_hf_revision(field_name, revision)
 
 
+def hf_allow_unlisted_from_env() -> bool:
+    raw = os.environ.get(_HF_ALLOW_UNLISTED_ENV, "").strip().lower()
+    return raw in {"1", "true", "yes", "on"}
+
+
 def hf_allowed_repos_from_env() -> frozenset[str]:
     raw = os.environ.get(_HF_ALLOWED_REPOS_ENV, "").strip()
     if not raw:
@@ -436,11 +457,17 @@ def assert_hf_repo_allowed(
     field_name: str = "repo_id",
     config_allowlist: tuple[str, ...] = (),
 ) -> None:
-    """When an allowlist is configured, require ``repo_id`` to be listed exactly."""
+    """Require ``repo_id`` on an allowlist unless ``ADAPTIVE_RL_HF_ALLOW_UNLISTED=1``."""
+    if hf_allow_unlisted_from_env():
+        return
     env_repos = hf_allowed_repos_from_env()
     combined = env_repos | frozenset(config_allowlist)
     if not combined:
-        return
+        raise ValueError(
+            f"Hugging Face repo downloads are denied by default. Set {_HF_ALLOWED_REPOS_ENV} "
+            f"(comma-separated org/name ids) and/or route_hf_allowed_repos in config, or set "
+            f"{_HF_ALLOW_UNLISTED_ENV}=1 only in trusted local environments."
+        )
     normalized = repo_id.strip()
     if normalized not in combined:
         raise ValueError(
