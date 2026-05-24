@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import hashlib
 import random
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from adaptive_quant.configuration import FrameworkConfig
@@ -12,6 +13,7 @@ from adaptive_quant.logging_utils import JsonlLogger, to_jsonable, write_json
 from adaptive_quant.math_utils import mean
 from adaptive_quant.prompts import PromptLibrary
 from adaptive_quant.routing import EfficientTaskRouter
+from adaptive_quant.security_audit import build_security_audit_record
 from adaptive_quant.trainer_utils import zero_previous_action
 from adaptive_quant.types import OnlineRequest, PromptSample, QuantizationDecision, QuantMode
 
@@ -80,6 +82,7 @@ class OnlineLearningLoop:
         self.total_canaries = 0
         self.total_candidate_accepts = 0
         self.total_candidate_rejects = 0
+        self._prompt_replay_counts: dict[str, int] = {}
         self.recent_served_rewards: deque[float] = deque(maxlen=max(4, config.online_drift_window))
         self.best_recent_reward = float("-inf")
         self.best_policy_snapshot = self.trainer.snapshot_policy()
@@ -89,7 +92,9 @@ class OnlineLearningLoop:
         self._router_baseline_perplexity: dict[str, float] = {}
 
     def serve_request(self, request: OnlineRequest) -> dict[str, Any]:
-        validate_online_prompt_text(request.prompt_text)
+        sanitized_prompt = validate_online_prompt_text(request.prompt_text)
+        request = replace(request, prompt_text=sanitized_prompt)
+        prompt_hash = hashlib.sha256(sanitized_prompt.encode("utf-8")).hexdigest()
         prompt = self._request_prompt(request)
         safe_mode_active = self.safe_mode_remaining > 0
         explore = bool(
@@ -193,6 +198,7 @@ class OnlineLearningLoop:
         self.trainer.previous_action = list(self.previous_action)
 
         if explore and candidate_payload is not None:
+            replay_allowed = self._can_add_prompt_replay(prompt_hash)
             entry = ReplayEntry(
                 payload=candidate_payload,
                 reward=float(candidate_result.metrics.reward),
@@ -203,12 +209,15 @@ class OnlineLearningLoop:
                 canary=canary,
                 explore=explore,
             )
-            self.replay_buffer.add(entry)
-            self.pending_experiences += 1
+            if replay_allowed:
+                self.replay_buffer.add(entry)
+                self.pending_experiences += 1
             self.replay_logger.log(
                 {
                     "request_index": self.request_index,
                     "prompt_id": prompt.prompt_id,
+                    "prompt_hash": prompt_hash,
+                    "replay_allowed": replay_allowed,
                     "hardware_mode": request.hardware.value,
                     "candidate_metrics": candidate_result.metrics,
                     "served_metrics": served_result.metrics,
@@ -229,6 +238,7 @@ class OnlineLearningLoop:
         telemetry = {
             "request_index": self.request_index - 1,
             "run_name": self.config.run_name,
+            "prompt_hash": prompt_hash,
             "hardware_mode": request.hardware.value,
             "prompt_id": prompt.prompt_id,
             "prompt_domain": prompt.domain,
@@ -264,6 +274,7 @@ class OnlineLearningLoop:
         ]
         summary = {
             "requests": len(records),
+            "security_audit": build_security_audit_record(self.config),
             "mean_served_reward": mean(served_rewards),
             "mean_candidate_reward": mean(candidate_rewards),
             "exploration_rate_observed": self.total_explorations / max(1, len(records)),
@@ -289,6 +300,14 @@ class OnlineLearningLoop:
         self.best_policy_snapshot = self.trainer.snapshot_policy()
         self.best_recent_reward = float("-inf")
         self.recent_served_rewards.clear()
+
+    def _can_add_prompt_replay(self, prompt_hash: str) -> bool:
+        limit = int(self.config.online_max_replay_entries_per_prompt_hash)
+        count = self._prompt_replay_counts.get(prompt_hash, 0)
+        if count >= limit:
+            return False
+        self._prompt_replay_counts[prompt_hash] = count + 1
+        return True
 
     def _request_prompt(self, request: OnlineRequest) -> PromptSample:
         if request.prompt_id is not None:

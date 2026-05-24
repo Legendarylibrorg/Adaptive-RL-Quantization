@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import hashlib
 import json
 import math
 import os
@@ -27,6 +28,7 @@ MAX_JSON_ARRAY_LENGTH = 2_000_000
 MAX_JSON_STRING_BYTES = 4 << 20
 # Sum of all string key/value UTF-8 bytes in the tree (memory-DoS guard for wide short strings).
 MAX_JSON_AGGREGATE_STRING_BYTES = 96 << 20
+_JSONL_INTEGRITY_CHAIN_ENV = "ADAPTIVE_RL_JSONL_INTEGRITY_CHAIN"
 
 
 def enforce_local_read_limit(path: str | Path, *, label: str = "File") -> None:
@@ -182,11 +184,20 @@ class JsonlLogger:
         self._flush_every = max(1, int(flush_every))
         self._handle: TextIO | None = None
         self._pending = 0
+        self._integrity_chain = _jsonl_integrity_chain_enabled()
+        self._prev_integrity_hash = ""
 
     def log(self, record: dict[str, Any]) -> None:
         # Bound outbound records so a poisoned in-process dict cannot write multi-GB lines.
         safe = to_jsonable(record)
         enforce_safe_parsed_json(safe, label="JsonlLogger record")
+        if self._integrity_chain:
+            safe = dict(safe)
+            safe["_integrity_prev"] = self._prev_integrity_hash
+            line_core = json.dumps(safe, sort_keys=True, separators=(",", ":"))
+            line_hash = hashlib.sha256(line_core.encode("utf-8")).hexdigest()
+            safe["_integrity_hash"] = line_hash
+            self._prev_integrity_hash = line_hash
         payload = json.dumps(safe, sort_keys=True) + "\n"
         line_bytes = len(payload.encode("utf-8"))
         if line_bytes > MAX_JSONL_LINE_BYTES:
@@ -284,6 +295,11 @@ def md_table(headers: list[str], rows: list[list[object]]) -> list[str]:
     return ["| " + " | ".join(headers) + " |", sep] + [
         "| " + " | ".join(str(c) for c in row) + " |" for row in rows
     ]
+
+
+def _jsonl_integrity_chain_enabled() -> bool:
+    raw = os.environ.get(_JSONL_INTEGRITY_CHAIN_ENV, "").strip().lower()
+    return raw in {"1", "true", "yes", "on"}
 
 
 def _write_text_atomically(path: str | Path, writer: Callable[[TextIO], None]) -> None:

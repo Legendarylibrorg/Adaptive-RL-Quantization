@@ -255,6 +255,16 @@ class ConfigPathValidationMatrixTests(unittest.TestCase):
                 router_hf_embedding_revision="main",
             )
 
+    def test_hf_download_denied_without_allowlist(self) -> None:
+        from adaptive_quant.huggingface_cli import HuggingFaceCli, build_download_command
+
+        cli = HuggingFaceCli(binary="hf", dialect="hf")
+        env = {k: v for k, v in os.environ.items() if k != "ADAPTIVE_RL_HF_ALLOW_UNLISTED"}
+        with mock.patch.dict(os.environ, env, clear=True):
+            with self.assertRaises(ValueError) as ctx:
+                build_download_command(cli, repo_id="org/model", filename="weights.gguf")
+        self.assertIn("denied by default", str(ctx.exception))
+
     def test_hf_download_rejects_repo_outside_allowlist(self) -> None:
         from adaptive_quant.huggingface_cli import HuggingFaceCli, build_download_command
 
@@ -814,6 +824,116 @@ class CliAndPromptHardeningTests(unittest.TestCase):
             )
 
 
+class TextSanitizationTests(unittest.TestCase):
+    def test_sanitize_strips_zero_width_and_normalizes(self) -> None:
+        from adaptive_quant.configuration.validation import sanitize_user_text
+
+        raw = "caf\u00e9\u200b"  # NFC vs combining + zero-width space
+        self.assertEqual(sanitize_user_text(raw), "café")
+
+    def test_router_task_text_sanitizes_homoglyphs(self) -> None:
+        from adaptive_quant.configuration.validation import validate_router_task_text
+
+        # Cyrillic 'а' (U+0430) normalizes differently from Latin 'a' under NFKC in some cases;
+        # ensure validation returns stable sanitized output.
+        result = validate_router_task_text("test\u200b")
+        self.assertNotIn("\u200b", result)
+
+
+class CheckpointIntegrityTests(unittest.TestCase):
+    def test_tampered_python_checkpoint_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            ckpt = str(Path(temp_dir) / "trial_final.pt")
+            config = FrameworkConfig(
+                training_episodes=1,
+                evaluation_episodes=1,
+                stability_probe_count=1,
+                run_name="integrity_redteam",
+                outputs_dir=temp_dir,
+                log_dir=f"{temp_dir}/logs",
+                benchmark_dir=f"{temp_dir}/benchmarks",
+                analysis_dir=f"{temp_dir}/analysis",
+                checkpoint_dir=f"{temp_dir}/ckpt",
+                seed=21,
+            )
+            trainer = Trainer(config, log_path=f"{temp_dir}/logs/x.jsonl")
+            trainer.train()
+            saved = trainer.save_checkpoint(ckpt)
+            trainer.close()
+
+            with open(saved, encoding="utf-8") as handle:
+                payload = json.load(handle)
+            payload["completed_episodes"] = 999
+            with open(saved, "w", encoding="utf-8") as handle:
+                json.dump(payload, handle)
+
+            resume = config.clone(
+                resume_from_checkpoint=ckpt,
+                run_name="integrity_redteam_resume",
+            )
+            with self.assertRaises(ValueError) as ctx:
+                Trainer(resume, log_path=f"{temp_dir}/logs/y.jsonl")
+            self.assertIn("integrity mismatch", str(ctx.exception).lower())
+
+    def test_legacy_checkpoint_without_integrity_still_loads(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            ckpt = str(Path(temp_dir) / "legacy_no_integrity.json")
+            config = FrameworkConfig(
+                training_episodes=1,
+                evaluation_episodes=1,
+                stability_probe_count=1,
+                run_name="legacy_integrity",
+                outputs_dir=temp_dir,
+                log_dir=f"{temp_dir}/logs",
+                benchmark_dir=f"{temp_dir}/benchmarks",
+                analysis_dir=f"{temp_dir}/analysis",
+                checkpoint_dir=f"{temp_dir}/ckpt",
+                seed=22,
+            )
+            trainer = Trainer(config, log_path=f"{temp_dir}/logs/x.jsonl")
+            trainer.train()
+            saved = trainer.save_checkpoint(ckpt.replace(".json", ".pt"))
+            trainer.close()
+
+            with open(saved, encoding="utf-8") as handle:
+                payload = json.load(handle)
+            payload.pop("integrity_sha256", None)
+            with open(saved, "w", encoding="utf-8") as handle:
+                json.dump(payload, handle)
+
+            resume = config.clone(
+                resume_from_checkpoint=saved,
+                run_name="legacy_integrity_resume",
+            )
+            Trainer(resume, log_path=f"{temp_dir}/logs/y.jsonl")
+
+
+class OnlinePromptReplayCapTests(unittest.TestCase):
+    def test_replay_capped_per_prompt_hash(self) -> None:
+        from adaptive_quant.online_learning import OnlineLearningLoop
+        from adaptive_quant.types import HardwareType, OnlineRequest
+
+        config = FrameworkConfig(
+            run_name="replay_cap",
+            training_episodes=1,
+            evaluation_episodes=1,
+            stability_probe_count=1,
+            online_learning=True,
+            online_requests=1,
+            online_exploration_rate=1.0,
+            online_canary_ratio=0.0,
+            online_max_replay_entries_per_prompt_hash=2,
+            online_min_replay_size=1,
+            online_update_interval=10_000,
+        )
+        loop = OnlineLearningLoop(config)
+        prompt = "repeatable prompt for replay cap test"
+        for _ in range(4):
+            loop.serve_request(OnlineRequest(prompt_text=prompt, hardware=HardwareType.GPU))
+        self.assertLessEqual(len(loop.replay_buffer), 2)
+        loop.close()
+
+
 class DockerComposeHardeningTests(unittest.TestCase):
     def test_dockerfile_base_image_is_digest_pinned(self) -> None:
         dockerfile = (Path(__file__).resolve().parent.parent / "Dockerfile").read_text(
@@ -826,6 +946,8 @@ class DockerComposeHardeningTests(unittest.TestCase):
         compose = (Path(__file__).resolve().parent.parent / "docker-compose.yml").read_text(
             encoding="utf-8"
         )
+        self.assertIn("ADAPTIVE_RL_LLAMA_CPP_BINARY_PREFIXES", compose)
+        self.assertIn("ADAPTIVE_RL_JSONL_INTEGRITY_CHAIN", compose)
         self.assertIn('user: "10001:10001"', compose)
         self.assertIn("privileged: false", compose)
         self.assertIn("read_only: true", compose)

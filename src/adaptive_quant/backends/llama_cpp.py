@@ -12,6 +12,7 @@ from adaptive_quant.backends.quality import ExternalQualityScores, apply_externa
 from adaptive_quant.backends.simulator import SimulatorBackend
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.configuration.validation import (
+    sanitize_user_text,
     validate_llama_cpp_binary_allowlist,
     validate_runtime_filesystem_path,
 )
@@ -98,9 +99,8 @@ def _llama_cpp_command(
     prompt_text: str,
     ngl: int,
 ) -> list[str]:
-    prompt_text = (
-        (prompt_text or "").replace("\x00", " ").replace("\r", " ").replace("\n", " ").strip()
-    )
+    prompt_text = sanitize_user_text(prompt_text or "")
+    prompt_text = prompt_text.replace("\r", " ").replace("\n", " ")
     max_chars = int(config.llama_cpp_max_prompt_chars)
     if max_chars > 0 and len(prompt_text) > max_chars:
         prompt_text = prompt_text[:max_chars]
