@@ -8,6 +8,7 @@ from adaptive_quant.online_learning import OnlineLearningLoop, build_request_str
 from adaptive_quant.pipeline.report_markdown import fmt_report_num, maybe_report_link, md_code_json
 from adaptive_quant.pipeline.vcs import git_commit_hash
 from adaptive_quant.research_pipeline import maybe_save_final_checkpoint, write_training_history
+from adaptive_quant.security_bypass import enforce_security_bypass_policy
 from adaptive_quant.trainer import build_trainer
 
 
@@ -28,6 +29,8 @@ def run_online_pipeline(
     history_path: str | None = None
     checkpoint_path: str | None = None
     report_path: str | None = None
+
+    enforce_security_bypass_policy(context="online pipeline")
 
     try:
         bootstrap_summary = trainer.train()

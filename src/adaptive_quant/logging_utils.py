@@ -29,6 +29,7 @@ MAX_JSON_STRING_BYTES = 4 << 20
 # Sum of all string key/value UTF-8 bytes in the tree (memory-DoS guard for wide short strings).
 MAX_JSON_AGGREGATE_STRING_BYTES = 96 << 20
 _JSONL_INTEGRITY_CHAIN_ENV = "ADAPTIVE_RL_JSONL_INTEGRITY_CHAIN"
+_JSONL_REQUIRE_INTEGRITY_CHAIN_ENV = "ADAPTIVE_RL_JSONL_REQUIRE_INTEGRITY_CHAIN"
 
 
 def enforce_local_read_limit(path: str | Path, *, label: str = "File") -> None:
@@ -268,6 +269,7 @@ def load_jsonl(path: str) -> list[dict[str, Any]]:
         return []
     enforce_local_read_limit(source, label="JSONL")
     records: list[dict[str, Any]] = []
+    prev_integrity_hash = ""
     with source.open("r", encoding="utf-8") as handle:
         for i, line in enumerate(handle):
             if i >= MAX_JSONL_LINES:
@@ -280,7 +282,13 @@ def load_jsonl(path: str) -> list[dict[str, Any]]:
             line = line.strip()
             if line:
                 line_label = f"JSONL {source} line {i + 1}"
-                records.append(safe_json_loads(line, label=line_label))
+                record = safe_json_loads(line, label=line_label)
+                prev_integrity_hash = _verify_jsonl_record_integrity(
+                    record,
+                    prev_hash=prev_integrity_hash,
+                    label=line_label,
+                )
+                records.append(record)
     return records
 
 
@@ -300,6 +308,38 @@ def md_table(headers: list[str], rows: list[list[object]]) -> list[str]:
 def _jsonl_integrity_chain_enabled() -> bool:
     raw = os.environ.get(_JSONL_INTEGRITY_CHAIN_ENV, "").strip().lower()
     return raw in {"1", "true", "yes", "on"}
+
+
+def _jsonl_require_integrity_chain_enabled() -> bool:
+    raw = os.environ.get(_JSONL_REQUIRE_INTEGRITY_CHAIN_ENV, "").strip().lower()
+    return raw in {"1", "true", "yes", "on"}
+
+
+def _verify_jsonl_record_integrity(record: dict[str, Any], *, prev_hash: str, label: str) -> str:
+    stored_hash = record.get("_integrity_hash")
+    if stored_hash is None:
+        if _jsonl_require_integrity_chain_enabled():
+            raise ValueError(
+                f"{label}: missing _integrity_hash; refusing JSONL without integrity chain "
+                f"(unset {_JSONL_REQUIRE_INTEGRITY_CHAIN_ENV} to allow legacy lines)."
+            )
+        return prev_hash
+
+    prev_expected = record.get("_integrity_prev", "")
+    if str(prev_expected) != str(prev_hash):
+        raise ValueError(
+            f"{label}: JSONL integrity chain broken at _integrity_prev "
+            f"(expected {prev_hash!r}, got {prev_expected!r})."
+        )
+
+    body = {key: value for key, value in record.items() if key != "_integrity_hash"}
+    line_core = json.dumps(body, sort_keys=True, separators=(",", ":"))
+    computed = hashlib.sha256(line_core.encode("utf-8")).hexdigest()
+    if str(stored_hash) != computed:
+        raise ValueError(
+            f"{label}: JSONL integrity hash mismatch (expected {stored_hash!r}, computed {computed!r})."
+        )
+    return str(stored_hash)
 
 
 def _write_text_atomically(path: str | Path, writer: Callable[[TextIO], None]) -> None:

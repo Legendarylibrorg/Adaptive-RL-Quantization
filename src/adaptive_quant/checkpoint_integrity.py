@@ -10,10 +10,16 @@ from typing import Any
 
 INTEGRITY_FIELD = "integrity_sha256"
 _SKIP_ENV = "ADAPTIVE_RL_SKIP_CHECKPOINT_INTEGRITY"
+_REQUIRE_ENV = "ADAPTIVE_RL_REQUIRE_CHECKPOINT_INTEGRITY"
 
 
 def skip_checkpoint_integrity_verification() -> bool:
     raw = os.environ.get(_SKIP_ENV, "").strip().lower()
+    return raw in {"1", "true", "yes", "on"}
+
+
+def require_checkpoint_integrity_verification() -> bool:
+    raw = os.environ.get(_REQUIRE_ENV, "").strip().lower()
     return raw in {"1", "true", "yes", "on"}
 
 
@@ -48,6 +54,11 @@ def verify_dict_integrity(payload: dict[str, Any], *, label: str) -> None:
         return
     expected = payload.get(INTEGRITY_FIELD)
     if not expected:
+        if require_checkpoint_integrity_verification():
+            raise ValueError(
+                f"{label}: missing {INTEGRITY_FIELD}; refusing to load checkpoint without "
+                f"integrity tag (set {_REQUIRE_ENV}=0 or unset to allow legacy sidecars)."
+            )
         return
     actual = _sha256_bytes(canonical_json_bytes(payload))
     if str(expected) != actual:
@@ -73,6 +84,11 @@ def verify_torch_sidecar_integrity(
         return
     expected = meta.get(INTEGRITY_FIELD)
     if not expected:
+        if require_checkpoint_integrity_verification():
+            raise ValueError(
+                f"{label}: missing {INTEGRITY_FIELD}; refusing to load checkpoint without "
+                f"integrity tag (set {_REQUIRE_ENV}=0 or unset to allow legacy sidecars)."
+            )
         return
     meta_digest = _sha256_bytes(canonical_json_bytes(meta))
     tensor_digest = sha256_file(pt_path)
@@ -90,6 +106,7 @@ __all__ = [
     "attach_dict_integrity",
     "attach_torch_sidecar_integrity",
     "canonical_json_bytes",
+    "require_checkpoint_integrity_verification",
     "sha256_file",
     "skip_checkpoint_integrity_verification",
     "verify_dict_integrity",
