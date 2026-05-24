@@ -469,9 +469,7 @@ if torch is not None:
             meta_path = Path(_checkpoint_meta_path(str(pt_path)))
             if meta_path.is_file():
                 raw_meta = read_json(meta_path, label="Checkpoint sidecar")
-                verify_torch_sidecar_integrity(
-                    raw_meta, pt_path, label="Checkpoint sidecar"
-                )
+                verify_torch_sidecar_integrity(raw_meta, pt_path, label="Checkpoint sidecar")
                 if int(raw_meta.get("format", 0)) != _CHECKPOINT_FORMAT_V2:
                     raise ValueError(f"Unsupported checkpoint metadata format in {meta_path}")
                 tensors = _torch_load_v2_tensor_file(str(pt_path))

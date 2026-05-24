@@ -66,7 +66,9 @@ def attach_torch_sidecar_integrity(meta: dict[str, Any], pt_path: str | Path) ->
     return stamped
 
 
-def verify_torch_sidecar_integrity(meta: dict[str, Any], pt_path: str | Path, *, label: str) -> None:
+def verify_torch_sidecar_integrity(
+    meta: dict[str, Any], pt_path: str | Path, *, label: str
+) -> None:
     if skip_checkpoint_integrity_verification():
         return
     expected = meta.get(INTEGRITY_FIELD)

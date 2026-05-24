@@ -221,9 +221,7 @@ def sanitize_user_text(text: str) -> str:
     if not isinstance(text, str):
         raise TypeError("text must be a string")
     normalized = unicodedata.normalize("NFKC", text)
-    stripped = "".join(
-        ch for ch in normalized if unicodedata.category(ch) != "Cf" and ch != "\x00"
-    )
+    stripped = "".join(ch for ch in normalized if unicodedata.category(ch) != "Cf" and ch != "\x00")
     return stripped.strip()
 
 

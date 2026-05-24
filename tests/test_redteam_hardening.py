@@ -929,9 +929,7 @@ class OnlinePromptReplayCapTests(unittest.TestCase):
         loop = OnlineLearningLoop(config)
         prompt = "repeatable prompt for replay cap test"
         for _ in range(4):
-            loop.serve_request(
-                OnlineRequest(prompt_text=prompt, hardware=HardwareType.GPU)
-            )
+            loop.serve_request(OnlineRequest(prompt_text=prompt, hardware=HardwareType.GPU))
         self.assertLessEqual(len(loop.replay_buffer), 2)
         loop.close()
 
