@@ -12,10 +12,10 @@ from adaptive_quant.backends.quality import ExternalQualityScores, apply_externa
 from adaptive_quant.backends.simulator import SimulatorBackend
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.configuration.validation import (
+    sanitize_user_text,
     validate_llama_cpp_binary_allowlist,
     validate_runtime_filesystem_path,
 )
-from adaptive_quant.configuration.validation import sanitize_user_text
 from adaptive_quant.types import BackendMetricDict, EpisodeState, QuantizationDecision
 
 _NUMBER_RE = r"-?\d+(?:\.\d+)?"

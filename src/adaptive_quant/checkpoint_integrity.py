@@ -61,7 +61,7 @@ def attach_torch_sidecar_integrity(meta: dict[str, Any], pt_path: str | Path) ->
     stamped = dict(meta)
     meta_digest = _sha256_bytes(canonical_json_bytes(stamped))
     tensor_digest = sha256_file(pt_path)
-    combined = f"{meta_digest}:{tensor_digest}".encode("utf-8")
+    combined = f"{meta_digest}:{tensor_digest}".encode()
     stamped[INTEGRITY_FIELD] = _sha256_bytes(combined)
     return stamped
 
@@ -74,7 +74,7 @@ def verify_torch_sidecar_integrity(meta: dict[str, Any], pt_path: str | Path, *,
         return
     meta_digest = _sha256_bytes(canonical_json_bytes(meta))
     tensor_digest = sha256_file(pt_path)
-    combined = f"{meta_digest}:{tensor_digest}".encode("utf-8")
+    combined = f"{meta_digest}:{tensor_digest}".encode()
     actual = _sha256_bytes(combined)
     if str(expected) != actual:
         raise ValueError(

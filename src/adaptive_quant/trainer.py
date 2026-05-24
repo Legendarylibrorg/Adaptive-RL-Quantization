@@ -4,13 +4,8 @@ import sys
 from pathlib import Path
 
 from adaptive_quant.base_trainer import TrainerBase, coerce_previous_action
+from adaptive_quant.checkpoint_integrity import attach_dict_integrity, verify_dict_integrity
 from adaptive_quant.configuration import FrameworkConfig
-from adaptive_quant.checkpoint_integrity import (
-    attach_dict_integrity,
-    attach_torch_sidecar_integrity,
-    verify_dict_integrity,
-    verify_torch_sidecar_integrity,
-)
 from adaptive_quant.logging_utils import read_json, write_json
 from adaptive_quant.math_utils import mean
 from adaptive_quant.policy import PolicyTrace, UniversalQuantizationPolicy
