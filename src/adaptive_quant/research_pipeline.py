@@ -7,6 +7,7 @@ from adaptive_quant.pipeline.benchmark_warn import warn_if_benchmarks_are_large
 from adaptive_quant.pipeline.report_markdown import write_research_report_markdown
 from adaptive_quant.pipeline.vcs import git_commit_hash
 from adaptive_quant.security_audit import build_security_audit_record
+from adaptive_quant.security_bypass import enforce_security_bypass_policy
 
 
 def write_training_history(config: FrameworkConfig, trainer) -> str | None:
@@ -69,6 +70,7 @@ class ResearchPipeline:
         self.requested_profile = requested_profile
 
     def run(self) -> dict[str, object]:
+        enforce_security_bypass_policy(context="research pipeline")
         config, gpu_profile_report = self._resolve_config()
         commit = git_commit_hash()
         trainer = None

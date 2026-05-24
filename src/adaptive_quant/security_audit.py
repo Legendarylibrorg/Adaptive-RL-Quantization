@@ -12,6 +12,7 @@ from adaptive_quant.configuration.validation import (
     hf_allow_unlisted_from_env,
     hf_allowed_repos_from_env,
 )
+from adaptive_quant.security_bypass import active_security_bypasses
 
 
 def build_security_audit_record(config: FrameworkConfig) -> dict[str, Any]:
@@ -28,6 +29,7 @@ def build_security_audit_record(config: FrameworkConfig) -> dict[str, Any]:
         "llama_cpp_binary_prefixes_env_set": bool(
             os.environ.get(_LLAMA_CPP_BINARY_PREFIXES_ENV, "").strip()
         ),
+        "security_bypass_env_active": [name for name, _desc in active_security_bypasses()],
     }
     binary = config.llama_cpp_binary
     if binary:

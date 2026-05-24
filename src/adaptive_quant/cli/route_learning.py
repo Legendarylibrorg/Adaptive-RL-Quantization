@@ -225,6 +225,11 @@ def main(argv: Iterable[str] | None = None) -> None:
 
     args = parser.parse_args(list(argv) if argv is not None else None)
 
+    if args.command in {"download", "train", "recommend"}:
+        from adaptive_quant.security_bypass import enforce_security_bypass_policy
+
+        enforce_security_bypass_policy(context=f"route {args.command}")
+
     catalog_path = Path(args.catalog)
 
     if args.command == "seed":

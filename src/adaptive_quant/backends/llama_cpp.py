@@ -258,9 +258,8 @@ class LlamaCppBackend:
             )
 
         max_chars = int(getattr(self.config, "llama_cpp_max_prompt_chars", 0))
-        text = (
-            (prompt_text or "").replace("\x00", " ").replace("\r", " ").replace("\n", " ").strip()
-        )
+        text = sanitize_user_text(prompt_text or "")
+        text = text.replace("\r", " ").replace("\n", " ")
         if max_chars > 0 and len(text) > max_chars:
             text = text[:max_chars]
         digest = hashlib.blake2b(text.encode("utf-8"), digest_size=16).hexdigest()

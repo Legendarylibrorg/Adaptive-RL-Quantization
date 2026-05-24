@@ -839,6 +839,97 @@ class TextSanitizationTests(unittest.TestCase):
         result = validate_router_task_text("test\u200b")
         self.assertNotIn("\u200b", result)
 
+    def test_llama_cpp_cache_uses_sanitized_prompt_key(self) -> None:
+        from adaptive_quant.backends.llama_cpp import LlamaCppBackend
+
+        raw = "probe\u200btext"
+        config = FrameworkConfig(
+            run_name="llama_cache_sanitize",
+            training_episodes=1,
+            evaluation_episodes=1,
+            stability_probe_count=1,
+            llama_cpp_cache_enabled=True,
+            llama_cpp_cache_max_entries=8,
+            llama_cpp_binary="/usr/bin/true",
+            llama_cpp_model="/tmp/model.gguf",
+        )
+        backend = LlamaCppBackend(config)
+        with mock.patch(
+            "adaptive_quant.backends.llama_cpp.run_llama_cpp_measurement",
+            return_value={"throughput_tps": 1.0},
+        ) as measure_mock:
+            backend._run_or_cache_measurement(
+                llama_cpp_binary="/usr/bin/true",
+                llama_cpp_model="/tmp/model.gguf",
+                prompt_text=raw,
+                ngl=0,
+            )
+            backend._run_or_cache_measurement(
+                llama_cpp_binary="/usr/bin/true",
+                llama_cpp_model="/tmp/model.gguf",
+                prompt_text="probetext",
+                ngl=0,
+            )
+        self.assertEqual(measure_mock.call_count, 1)
+
+
+class JsonlIntegrityChainTests(unittest.TestCase):
+    def test_load_jsonl_verifies_integrity_chain(self) -> None:
+        import adaptive_quant.logging_utils as logging_utils
+        from adaptive_quant.logging_utils import JsonlLogger, load_jsonl
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = str(Path(temp_dir) / "chain.jsonl")
+            orig = logging_utils._jsonl_integrity_chain_enabled
+            try:
+                logging_utils._jsonl_integrity_chain_enabled = lambda: True  # type: ignore[method-assign]
+                logger = JsonlLogger(path)
+                logger.log({"phase": "a", "value": 1})
+                logger.log({"phase": "b", "value": 2})
+                logger.close()
+                records = load_jsonl(path)
+                self.assertEqual(len(records), 2)
+            finally:
+                logging_utils._jsonl_integrity_chain_enabled = orig  # type: ignore[method-assign]
+
+    def test_load_jsonl_rejects_broken_chain(self) -> None:
+        from adaptive_quant.logging_utils import load_jsonl
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "broken.jsonl"
+            path.write_text(
+                '{"phase":"a","_integrity_prev":"","_integrity_hash":"deadbeef"}\n',
+                encoding="utf-8",
+            )
+            with self.assertRaises(ValueError) as ctx:
+                load_jsonl(str(path))
+            self.assertIn("integrity hash mismatch", str(ctx.exception).lower())
+
+
+class RequireCheckpointIntegrityTests(unittest.TestCase):
+    def test_require_integrity_rejects_legacy_sidecar(self) -> None:
+        from adaptive_quant.checkpoint_integrity import verify_dict_integrity
+
+        env = {**os.environ, "ADAPTIVE_RL_REQUIRE_CHECKPOINT_INTEGRITY": "1"}
+        with mock.patch.dict(os.environ, env, clear=False):
+            with self.assertRaises(ValueError) as ctx:
+                verify_dict_integrity({"format": 1, "run_name": "x"}, label="legacy")
+            self.assertIn("missing integrity_sha256", str(ctx.exception).lower())
+
+
+class SecurityBypassPolicyTests(unittest.TestCase):
+    def test_abort_on_bypass_env(self) -> None:
+        from adaptive_quant.security_bypass import enforce_security_bypass_policy
+
+        env = {
+            **os.environ,
+            "ADAPTIVE_RL_HF_ALLOW_UNLISTED": "1",
+            "ADAPTIVE_RL_ABORT_ON_SECURITY_BYPASS": "1",
+        }
+        with mock.patch.dict(os.environ, env, clear=False):
+            with self.assertRaises(SystemExit):
+                enforce_security_bypass_policy(context="test")
+
 
 class CheckpointIntegrityTests(unittest.TestCase):
     def test_tampered_python_checkpoint_rejected(self) -> None:

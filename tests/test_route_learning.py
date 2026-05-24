@@ -55,6 +55,12 @@ def _smoke_config(tmpdir: Path, *, run_name: str = "route_test") -> FrameworkCon
         rl_train_policy_mode="deterministic",
         stability_probe_sampling="deterministic",
         detect_host_hardware=False,
+        route_hf_allowed_repos=(
+            "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF",
+            "bartowski/Qwen2.5-7B-Instruct-GGUF",
+            "bartowski/Phi-3.5-mini-instruct-GGUF",
+            "bartowski/Llama-3.2-1B-Instruct-GGUF",
+        ),
     )
 
 
@@ -377,6 +383,20 @@ class RoutePipelineTests(unittest.TestCase):
                 hardware=HardwareType.GPU,
             )
             self.assertTrue(selection.feasible or len(catalog) == 0)
+            self.assertIn(selection.route.route_id, {r.route_id for r in catalog.routes})
+
+    def test_recommend_route_sanitizes_adhoc_prompt(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = _smoke_config(Path(tmp), run_name="route_recommend_sanitize")
+            catalog = default_route_catalog()
+            bandit = make_bandit(catalog, cfg)
+            selection = recommend_route(
+                config=cfg,
+                bandit=bandit,
+                prompt_text="hello\u200bworld",
+                domain="code",
+                hardware=HardwareType.GPU,
+            )
             self.assertIn(selection.route.route_id, {r.route_id for r in catalog.routes})
 
     def test_evaluate_route_uses_size_penalty(self) -> None:
