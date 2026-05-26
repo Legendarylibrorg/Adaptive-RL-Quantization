@@ -381,6 +381,7 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertEqual(
             scripts["adaptive-rl-quant-route"], "adaptive_quant.cli.route_learning:main"
         )
+        self.assertEqual(scripts["adaptive-rl-quant-replay"], "adaptive_quant.cli.replay:main")
         setuptools_cfg = payload["tool"]["setuptools"]
         self.assertEqual(setuptools_cfg["package-dir"], {"": "src"})
         self.assertEqual(setuptools_cfg["packages"]["find"]["where"], ["src"])
@@ -401,6 +402,17 @@ class RunnerScriptCliTests(unittest.TestCase):
                 )
                 self.assertEqual(proc.returncode, 0, msg=proc.stderr)
                 self.assertTrue(proc.stdout.strip())
+
+    def test_run_replay_help(self) -> None:
+        proc = subprocess.run(
+            [sys.executable, str(_REPO_ROOT / "run_replay.py"), "--help"],
+            cwd=str(_REPO_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(proc.returncode, 0, msg=proc.stderr)
+        self.assertIn("manifest", proc.stdout.lower())
 
     def test_run_pytorch_help_lists_gpu_presets(self) -> None:
         proc = subprocess.run(

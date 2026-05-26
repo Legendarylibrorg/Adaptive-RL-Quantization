@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import Callable
 from importlib import import_module
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 _SRC = Path(__file__).resolve().parent / "src"
 
@@ -17,6 +18,7 @@ _RUN_SCRIPT_MODULES: dict[str, str] = {
     "run_online_learning.py": "adaptive_quant.cli.online_learning",
     "run_pytorch.py": "adaptive_quant.cli.pytorch",
     "run_research.py": "adaptive_quant.cli.research",
+    "run_replay.py": "adaptive_quant.cli.replay",
     "run_route_learning.py": "adaptive_quant.cli.route_learning",
 }
 

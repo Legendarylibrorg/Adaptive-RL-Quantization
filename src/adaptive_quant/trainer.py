@@ -6,6 +6,7 @@ from pathlib import Path
 from adaptive_quant.base_trainer import TrainerBase, coerce_previous_action
 from adaptive_quant.checkpoint_integrity import attach_dict_integrity, verify_dict_integrity
 from adaptive_quant.configuration import FrameworkConfig
+from adaptive_quant.configuration.validation import MAX_EPISODE_COUNT
 from adaptive_quant.logging_utils import read_json, write_json
 from adaptive_quant.math_utils import mean
 from adaptive_quant.policy import PolicyTrace, UniversalQuantizationPolicy
@@ -115,11 +116,17 @@ class Trainer(TrainerBase):
                 f"Refusing to load legacy Python checkpoint {target}: missing serialized policy state."
             )
         self.policy.restore_checkpoint_state(policy_state)
-        self.completed_episodes = int(
-            payload.get("completed_episodes", len(payload.get("training_history", [])))
-        )
+        completed = int(payload.get("completed_episodes", len(payload.get("training_history", []))))
+        if completed < 0 or completed > MAX_EPISODE_COUNT:
+            raise ValueError(
+                f"completed_episodes must be in [0, {MAX_EPISODE_COUNT}], got {completed}"
+            )
+        self.completed_episodes = completed
         self.previous_action = coerce_previous_action(payload.get("previous_action"))
-        self.training_history = list(payload.get("training_history", []))
+        history = list(payload.get("training_history", []))
+        if len(history) > MAX_EPISODE_COUNT:
+            history = history[-MAX_EPISODE_COUNT:]
+        self.training_history = history
 
 
 def build_trainer(config: FrameworkConfig, log_path: str | None = None) -> Trainer:

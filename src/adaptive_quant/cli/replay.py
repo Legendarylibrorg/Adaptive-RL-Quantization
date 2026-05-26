@@ -13,6 +13,7 @@ from adaptive_quant.replay_trace import (
     replay_from_manifest_file,
     verify_jsonl_against_manifest,
 )
+from adaptive_quant.security_bypass import enforce_security_bypass_policy
 
 
 def main() -> None:
@@ -55,6 +56,12 @@ def main() -> None:
         help="Only verify JSONL hashes against the manifest (no simulator replay).",
     )
     args = parser.parse_args()
+    enforce_security_bypass_policy(context="replay cli")
+
+    if args.config is None and not args.build_manifest:
+        raise SystemExit(
+            "--config is required for replay verification (pass the original experiment JSON/TOML)."
+        )
 
     config = load_config_or_fallback(
         args.config,

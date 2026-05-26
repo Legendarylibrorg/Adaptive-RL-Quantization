@@ -101,9 +101,10 @@ class ResearchPipeline:
             eval_summary = trainer.evaluate()
             log_path = getattr(trainer.env.logger, "path", None)
             if log_path is not None:
-                replay_report = finalize_replay_artifacts(
-                    config, log_path, git_commit=commit
-                )
+                flush = getattr(trainer.env.logger, "flush", None)
+                if callable(flush):
+                    flush()
+                replay_report = finalize_replay_artifacts(config, log_path, git_commit=commit)
             recommendation_summary = self._recommend_quantization(config, trainer)
             recommendation_path = config.recommendation_path()
             write_json(recommendation_path, recommendation_summary)
