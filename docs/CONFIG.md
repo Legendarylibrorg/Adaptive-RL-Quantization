@@ -56,12 +56,18 @@ Use [`config.py`](../src/config.py) as the canonical offline research baseline w
 - **`rl_train_policy_mode`**: `stochastic` (sample π during training) | `deterministic` (greedy / argmax during training rollouts).
 - **`stability_probe_sampling`**: `random` | `deterministic` — probe order for the stability penalty term.
 - **`torch_deterministic`**: enable CUDNN deterministic mode, cuBLAS workspace, global seeds, and stricter PyTorch algorithms (GPU; slower). **`torch.compile` is skipped** when this is true.
+- **`jsonl_integrity_chain`**: each JSONL log line includes `_integrity_prev` / `_integrity_hash` (hash chain over canonical step payloads).
+- **`replay_manifest_enabled`**: after training, write `outputs/logs/<run_name>_replay_manifest.json` with per-step `step_sha256` and rolling `chain_sha256`, plus `config_sha256`.
+- **`replay_verify_after_run`**: when a manifest is written, re-hash the JSONL and re-execute logged decisions in the simulator to confirm outcomes match.
+
+Factory: **`FrameworkConfig.reproducible_research(...)`** turns on sequential sampling, deterministic train/probes, static hardware profiles (`detect_host_hardware=False`), JSONL integrity chain, and replay manifest + verify.
+
+**Replay CLI:** `adaptive-rl-quant-replay --config <file> --manifest <path> --jsonl <path>` (or `run_replay.py`) verifies JSONL against a manifest and replays logged decisions. Use `--build-manifest` to regenerate a manifest from JSONL; `--verify-jsonl-only` to skip simulator replay.
 - **`torch_policy_algorithm`**: `ppo` | `vpg` | `awr` (PyTorch trainer only).
 - **`torch_awr_beta`**: temperature for `awr` weights.
 - **`reward_weights.eta_token_latency`**: optional extra penalty on `latency_ms / prompt_length` (default `0.0`); increase to reward token-efficient routes; perplexity and stability terms still bound quality.
 - **`reward_perplexity_reference`**, **`reward_weights.zeta_perplexity_over_ref`**: hinge penalty when perplexity exceeds a baseline (throughput-focused runs with a quality guard).
 
-Factory: **`FrameworkConfig.reproducible_research(seed=..., run_name=..., **kwargs)`** aligns seeds and turns on the full reproducibility-oriented stack.
 
 ## Most important fields
 

@@ -68,11 +68,13 @@ class AdaptiveQuantizationEnv:
             self.expert_bank = ExpertBank(config)
         else:
             self.expert_bank = None
+        resolved_log = log_path or config.primary_log_path()
         self.logger = (
             JsonlLogger(
-                log_path or f"{config.log_dir}/{config.run_name}.jsonl",
+                resolved_log,
                 buffered=bool(config.jsonl_buffered),
                 flush_every=int(config.jsonl_flush_every),
+                integrity_chain=bool(config.jsonl_integrity_chain),
             )
             if enable_logging
             else NullJsonlLogger()

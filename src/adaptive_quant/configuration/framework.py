@@ -268,6 +268,10 @@ class FrameworkConfig:
             "stability_probe_sampling": "deterministic",
             "torch_deterministic": True,
             "torch_compile": False,
+            "detect_host_hardware": False,
+            "jsonl_integrity_chain": True,
+            "replay_manifest_enabled": True,
+            "replay_verify_after_run": True,
             "run_name": run_name,
             "training_backend": training_backend,
         }
@@ -372,3 +376,9 @@ class FrameworkConfig:
 
     def report_path(self) -> str:
         return f"{self.report_dir}/{self.run_name}_report.md"
+
+    def replay_manifest_path(self) -> str:
+        return f"{self.log_dir}/{self.run_name}_replay_manifest.json"
+
+    def primary_log_path(self) -> str:
+        return f"{self.log_dir}/{self.run_name}.jsonl"

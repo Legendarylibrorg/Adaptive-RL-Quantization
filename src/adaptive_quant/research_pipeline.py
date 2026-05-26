@@ -6,6 +6,7 @@ from adaptive_quant.paper_bundle import create_pipeline_paper_bundle
 from adaptive_quant.pipeline.benchmark_warn import warn_if_benchmarks_are_large
 from adaptive_quant.pipeline.report_markdown import write_research_report_markdown
 from adaptive_quant.pipeline.vcs import git_commit_hash
+from adaptive_quant.replay_trace import finalize_replay_artifacts
 from adaptive_quant.security_audit import build_security_audit_record
 from adaptive_quant.security_bypass import enforce_security_bypass_policy
 
@@ -82,6 +83,7 @@ class ResearchPipeline:
         history_path: str | None = None
         checkpoint_path: str | None = None
         recommendation_path: str | None = None
+        replay_report: dict[str, object] | None = None
         pipeline_error: Exception | None = None
         try:
             trainer = self._build_trainer(config)
@@ -97,6 +99,11 @@ class ResearchPipeline:
             train_summary = trainer.train()
             vram_report = self._collect_vram_report(trainer)
             eval_summary = trainer.evaluate()
+            log_path = getattr(trainer.env.logger, "path", None)
+            if log_path is not None:
+                replay_report = finalize_replay_artifacts(
+                    config, log_path, git_commit=commit
+                )
             recommendation_summary = self._recommend_quantization(config, trainer)
             recommendation_path = config.recommendation_path()
             write_json(recommendation_path, recommendation_summary)
@@ -143,11 +150,13 @@ class ResearchPipeline:
             "recommendation": recommendation_summary,
             "benchmarks": benchmark_summary,
             "analysis": analysis,
+            "replay": replay_report,
             "artifacts": {
                 "training_history": history_path,
                 "final_checkpoint": checkpoint_path,
                 "recommendation": recommendation_path,
                 "report": report_path,
+                "replay_manifest": (replay_report or {}).get("manifest_path"),
             },
         }
         paper_bundle = create_pipeline_paper_bundle(config=config, summary=summary)

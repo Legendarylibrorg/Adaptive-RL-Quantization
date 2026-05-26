@@ -178,14 +178,24 @@ def to_jsonable(value: Any) -> Any:
 
 
 class JsonlLogger:
-    def __init__(self, path: str, *, buffered: bool = False, flush_every: int = 1) -> None:
+    def __init__(
+        self,
+        path: str,
+        *,
+        buffered: bool = False,
+        flush_every: int = 1,
+        integrity_chain: bool | None = None,
+    ) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._buffered = bool(buffered)
         self._flush_every = max(1, int(flush_every))
         self._handle: TextIO | None = None
         self._pending = 0
-        self._integrity_chain = _jsonl_integrity_chain_enabled()
+        if integrity_chain is None:
+            self._integrity_chain = _jsonl_integrity_chain_enabled()
+        else:
+            self._integrity_chain = bool(integrity_chain)
         self._prev_integrity_hash = ""
 
     def log(self, record: dict[str, Any]) -> None:
@@ -263,11 +273,16 @@ def write_text_file(path: str | Path, text: str) -> None:
     _write_text_atomically(path, _write)
 
 
-def load_jsonl(path: str) -> list[dict[str, Any]]:
+def load_jsonl(path: str, *, require_integrity_chain: bool | None = None) -> list[dict[str, Any]]:
     source = Path(path)
     if not source.exists():
         return []
     enforce_local_read_limit(source, label="JSONL")
+    require = (
+        _jsonl_require_integrity_chain_enabled()
+        if require_integrity_chain is None
+        else bool(require_integrity_chain)
+    )
     records: list[dict[str, Any]] = []
     prev_integrity_hash = ""
     with source.open("r", encoding="utf-8") as handle:
@@ -287,6 +302,7 @@ def load_jsonl(path: str) -> list[dict[str, Any]]:
                     record,
                     prev_hash=prev_integrity_hash,
                     label=line_label,
+                    require=require,
                 )
                 records.append(record)
     return records
@@ -315,10 +331,15 @@ def _jsonl_require_integrity_chain_enabled() -> bool:
     return raw in {"1", "true", "yes", "on"}
 
 
-def _verify_jsonl_record_integrity(record: dict[str, Any], *, prev_hash: str, label: str) -> str:
+def _verify_jsonl_record_integrity(
+    record: dict[str, Any], *, prev_hash: str, label: str, require: bool | None = None
+) -> str:
     stored_hash = record.get("_integrity_hash")
+    require_chain = (
+        _jsonl_require_integrity_chain_enabled() if require is None else bool(require)
+    )
     if stored_hash is None:
-        if _jsonl_require_integrity_chain_enabled():
+        if require_chain:
             raise ValueError(
                 f"{label}: missing _integrity_hash; refusing JSONL without integrity chain "
                 f"(unset {_JSONL_REQUIRE_INTEGRITY_CHAIN_ENV} to allow legacy lines)."

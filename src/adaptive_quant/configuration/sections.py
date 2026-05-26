@@ -149,6 +149,9 @@ class TrainingSettings:
     env_forced_hardware: str | None = None
     rl_train_policy_mode: str = "stochastic"
     stability_probe_sampling: str = "random"
+    jsonl_integrity_chain: bool = False
+    replay_manifest_enabled: bool = False
+    replay_verify_after_run: bool = True
 
 
 # Flat JSON/TOML keys → (section attribute on FrameworkConfig, field on section dataclass).
