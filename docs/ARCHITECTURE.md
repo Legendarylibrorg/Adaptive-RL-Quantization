@@ -7,6 +7,7 @@ The code is intentionally split into a small number of layers so experiments sta
 ## Design principles
 
 - **Config-first**: every meaningful run should be reconstructible from `FrameworkConfig` or a JSON/TOML file.
+- **Hash-chained replay**: with `replay_manifest_enabled`, each JSONL step is chained (`_integrity_hash`) and summarized in `*_replay_manifest.json` (`config_sha256`, per-step `step_sha256`, `chain_head_sha256`) for audit and simulator re-verification (`adaptive-rl-quant-replay`).
 - **One artifact contract**: entrypoints write structured outputs under `outputs/` so analysis and reports do not depend on ad-hoc filenames.
 - **Linux-first operations**: CUDA and low-level tooling are designed around Linux; Windows users should prefer **WSL2** for parity with the Linux workflow.
 - **Simulator-first evidence**: the simulator path is the stable baseline for repeatable experiments; optional PyTorch and `llama.cpp` paths extend it without changing the config surface.

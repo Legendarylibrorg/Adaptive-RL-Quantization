@@ -242,6 +242,9 @@ class FrameworkTests(unittest.TestCase):
         self.assertTrue(cfg.torch_deterministic)
         self.assertFalse(cfg.torch_compile)
         self.assertTrue(cfg.rl_train_deterministic())
+        self.assertTrue(cfg.jsonl_integrity_chain)
+        self.assertTrue(cfg.replay_manifest_enabled)
+        self.assertFalse(cfg.detect_host_hardware)
         self.assertEqual(cfg.training_episodes, 4)
 
     def test_research_env_config_validators(self) -> None:

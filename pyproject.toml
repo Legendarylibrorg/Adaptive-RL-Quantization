@@ -51,6 +51,7 @@ adaptive-rl-quant-online = "adaptive_quant.cli.online_learning:main"
 adaptive-rl-quant-multiseed = "adaptive_quant.cli.multiseed:main"
 adaptive-rl-quant-calibrate = "adaptive_quant.cli.calibrate_llama_cpp:main"
 adaptive-rl-quant-route = "adaptive_quant.cli.route_learning:main"
+adaptive-rl-quant-replay = "adaptive_quant.cli.replay:main"
 adaptive-rl-quant-analyze = "analysis.__main__:main"
 
 [project.optional-dependencies]

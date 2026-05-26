@@ -171,6 +171,7 @@ Programmatically: `FrameworkConfig.from_file("path.json")`, `load_config()` from
 | GGUF route catalog + contextual bandit | `adaptive-rl-quant-route --catalog outputs/routes/catalog.json seed` |
 | Online / continual experiment | `adaptive-rl-quant-online` |
 | Post-hoc log / history analysis | `adaptive-rl-quant-analyze` or `python -m analysis` |
+| Hash-chain replay / audit verify | `adaptive-rl-quant-replay --config <file>` |
 
 Full descriptions: **[docs/RUNNING.md](docs/RUNNING.md)**. Pass **`--help`** on any installed command for `-c` / `--config`. Source-checkout equivalents remain available as `python3 run_*.py`.
 
@@ -183,6 +184,7 @@ adaptive-rl-quant-pytorch --help
 adaptive-rl-quant-multiseed --help
 adaptive-rl-quant-calibrate --help
 adaptive-rl-quant-route --help
+adaptive-rl-quant-replay --help
 python3 -m unittest discover -s tests -q
 ```
 
