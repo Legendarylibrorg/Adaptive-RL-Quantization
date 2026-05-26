@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import Callable
 from importlib import import_module
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 _SRC = Path(__file__).resolve().parent / "src"
 

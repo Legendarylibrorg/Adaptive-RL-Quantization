@@ -345,9 +345,7 @@ def _verify_jsonl_record_integrity(
     record: dict[str, Any], *, prev_hash: str, label: str, require: bool | None = None
 ) -> str:
     stored_hash = record.get("_integrity_hash")
-    require_chain = (
-        _jsonl_require_integrity_chain_enabled() if require is None else bool(require)
-    )
+    require_chain = _jsonl_require_integrity_chain_enabled() if require is None else bool(require)
     if stored_hash is None:
         if require_chain:
             raise ValueError(

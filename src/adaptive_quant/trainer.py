@@ -116,9 +116,7 @@ class Trainer(TrainerBase):
                 f"Refusing to load legacy Python checkpoint {target}: missing serialized policy state."
             )
         self.policy.restore_checkpoint_state(policy_state)
-        completed = int(
-            payload.get("completed_episodes", len(payload.get("training_history", [])))
-        )
+        completed = int(payload.get("completed_episodes", len(payload.get("training_history", []))))
         if completed < 0 or completed > MAX_EPISODE_COUNT:
             raise ValueError(
                 f"completed_episodes must be in [0, {MAX_EPISODE_COUNT}], got {completed}"

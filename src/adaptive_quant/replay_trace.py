@@ -69,8 +69,7 @@ def _require_simulator_replay(config: FrameworkConfig) -> None:
 def _require_full_episode_logging(config: FrameworkConfig) -> None:
     if int(config.log_every_n_episodes) != 1:
         raise ValueError(
-            "Replay manifests require log_every_n_episodes=1 "
-            f"(got {config.log_every_n_episodes})."
+            f"Replay manifests require log_every_n_episodes=1 (got {config.log_every_n_episodes})."
         )
 
 
@@ -95,10 +94,7 @@ def assert_replay_verified(report: dict[str, Any] | None, config: FrameworkConfi
             )
         if not bool(block.get("verified")):
             mismatches = block.get("mismatches") or []
-            raise RuntimeError(
-                f"Replay verification failed ({block_name}): "
-                f"{mismatches[:5]}"
-            )
+            raise RuntimeError(f"Replay verification failed ({block_name}): {mismatches[:5]}")
 
 
 def strip_integrity_meta(record: Mapping[str, Any]) -> dict[str, Any]:
@@ -240,9 +236,7 @@ def write_replay_manifest(
     log_path: str | None = None,
 ) -> str:
     target = Path(path or config.replay_manifest_path())
-    payload = build_manifest_payload(
-        config, records, git_commit=git_commit, log_path=log_path
-    )
+    payload = build_manifest_payload(config, records, git_commit=git_commit, log_path=log_path)
     write_json(target, payload)
     return str(target)
 
@@ -460,9 +454,7 @@ def finalize_replay_artifacts(
         "manifest_path": manifest_path,
         "step_count": len(records),
         "config_sha256": config_fingerprint(config),
-        "chain_head_sha256": build_manifest_steps(records)[-1]["chain_sha256"]
-        if records
-        else "",
+        "chain_head_sha256": build_manifest_steps(records)[-1]["chain_sha256"] if records else "",
     }
     if config.replay_verify_after_run:
         manifest = load_replay_manifest(manifest_path)

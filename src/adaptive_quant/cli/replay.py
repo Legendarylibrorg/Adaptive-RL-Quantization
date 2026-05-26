@@ -59,7 +59,9 @@ def main() -> None:
     enforce_security_bypass_policy(context="replay cli")
 
     if args.config is None and not args.build_manifest:
-        raise SystemExit("--config is required for replay verification (pass the original experiment JSON/TOML).")
+        raise SystemExit(
+            "--config is required for replay verification (pass the original experiment JSON/TOML)."
+        )
 
     config = load_config_or_fallback(
         args.config,

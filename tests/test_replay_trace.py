@@ -106,7 +106,9 @@ class ReplayTraceTests(unittest.TestCase):
                 trainer.close()
             assert report is not None
             self.assertEqual(report["step_count"], 5)
-            phases = {step["phase"] for step in load_replay_manifest(report["manifest_path"])["steps"]}
+            phases = {
+                step["phase"] for step in load_replay_manifest(report["manifest_path"])["steps"]
+            }
             self.assertEqual(phases, {"train", "eval"})
 
     def test_assert_replay_verified_raises_on_mismatch(self) -> None:
@@ -141,7 +143,14 @@ class ReplayTraceTests(unittest.TestCase):
                     "prompt_id": "p0",
                     "previous_action": [0.0, 0.0, 0.0],
                     "decision": {"mode": "discrete", "base_bit_width": 4},
-                    "metrics": {"reward": 1.0, "latency_ms": 1.0, "throughput_tps": 1.0, "perplexity": 5.0, "memory_mb": 100.0, "stability_penalty": 0.0},
+                    "metrics": {
+                        "reward": 1.0,
+                        "latency_ms": 1.0,
+                        "throughput_tps": 1.0,
+                        "perplexity": 5.0,
+                        "memory_mb": 100.0,
+                        "stability_penalty": 0.0,
+                    },
                 }
             )
             logger.close()

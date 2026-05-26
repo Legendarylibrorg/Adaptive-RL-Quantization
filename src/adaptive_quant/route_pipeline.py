@@ -416,7 +416,7 @@ def save_bandit_artifacts(
     bandit_path = f"{config.benchmark_dir}/{config.run_name}_route_bandit.json"
     summary_path = f"{config.benchmark_dir}/{config.run_name}_route_summary.json"
 
-    from adaptive_quant.checkpoint_integrity import attach_dict_integrity, verify_dict_integrity
+    from adaptive_quant.checkpoint_integrity import attach_dict_integrity
 
     bandit_payload = attach_dict_integrity(
         {
