@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from adaptive_quant.checkpoint_integrity import (
     INTEGRITY_FIELD,
@@ -13,8 +14,7 @@ from adaptive_quant.checkpoint_integrity import (
 )
 from adaptive_quant.configuration import FrameworkConfig, config_to_flat_dict
 from adaptive_quant.environment import AdaptiveQuantizationEnv
-from adaptive_quant.logging_utils import load_jsonl, read_json, write_json
-from adaptive_quant.logging_utils import to_jsonable
+from adaptive_quant.logging_utils import load_jsonl, read_json, to_jsonable, write_json
 from adaptive_quant.types import QuantizationDecision, QuantMode
 
 MANIFEST_VERSION = 1
@@ -98,7 +98,7 @@ def step_fingerprint(record: Mapping[str, Any]) -> str:
 
 
 def chain_step_hash(previous_chain: str, step_hash: str) -> str:
-    return hashlib.sha256(f"{previous_chain}:{step_hash}".encode("utf-8")).hexdigest()
+    return hashlib.sha256(f"{previous_chain}:{step_hash}".encode()).hexdigest()
 
 
 def decision_from_logged(payload: Mapping[str, Any]) -> QuantizationDecision:
@@ -298,7 +298,7 @@ def replay_manifest_steps(
             episode = step.get("episode")
             phase = str(step.get("phase") or "train")
             ep_index = int(episode) if episode is not None else None
-            state = env.reset(phase=phase, episode_index=ep_index)
+            env.reset(phase=phase, episode_index=ep_index)
             decision_payload = step.get("decision")
             if not isinstance(decision_payload, Mapping):
                 mismatches.append(
