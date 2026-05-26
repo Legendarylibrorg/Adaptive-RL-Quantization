@@ -26,7 +26,10 @@ from pathlib import Path
 
 from adaptive_quant.cli.common import add_config_file_argument, load_config_or_fallback
 from adaptive_quant.configuration import FrameworkConfig
-from adaptive_quant.configuration.validation import hf_allowed_repos_from_env
+from adaptive_quant.configuration.validation import (
+    hf_allowed_repos_from_env,
+    validate_cli_path_argument,
+)
 from adaptive_quant.huggingface_cli import (
     build_download_command,
     find_huggingface_cli,
@@ -386,6 +389,7 @@ def _cmd_download(catalog_path: Path, args: argparse.Namespace) -> None:
 
 
 def _cmd_train(catalog_path: Path, args: argparse.Namespace) -> None:
+    validate_cli_path_argument("catalog", str(catalog_path))
     catalog = _load_catalog(catalog_path)
     config = _resolve_config(args.config)
     if config.backend == "llama_cpp" or args.require_local_models:
@@ -395,7 +399,13 @@ def _cmd_train(catalog_path: Path, args: argparse.Namespace) -> None:
             raise SystemExit(str(exc)) from exc
     bandit = make_bandit(catalog, config, ucb_c=float(args.ucb_c))
     if args.resume is not None:
-        _, resumed = load_bandit_artifact(args.resume)
+        validate_cli_path_argument("resume", args.resume)
+        resume_catalog, resumed = load_bandit_artifact(args.resume)
+        if catalog.to_dict() != resume_catalog.to_dict():
+            raise SystemExit(
+                "--resume bandit artifact catalog does not match --catalog; "
+                "refusing to apply statistics to a different route set."
+            )
         bandit.load_state_dict(resumed.state_dict())
 
     bandit, summary = train_route_bandit(

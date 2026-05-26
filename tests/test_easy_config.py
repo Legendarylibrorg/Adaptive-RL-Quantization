@@ -34,6 +34,9 @@ class EasyConfigTests(unittest.TestCase):
         cfg = named_preset("reproducible")
         self.assertEqual(cfg.env_sampling_mode, "sequential")
         self.assertTrue(cfg.torch_deterministic)
+        self.assertTrue(cfg.jsonl_integrity_chain)
+        self.assertTrue(cfg.replay_manifest_enabled)
+        self.assertTrue(cfg.replay_verify_after_run)
 
     def test_named_preset_unknown(self) -> None:
         with self.assertRaises(ValueError):

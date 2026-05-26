@@ -10,7 +10,7 @@ from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.features import estimate_layer_sensitivity, extract_input_features
 from adaptive_quant.guardrails import should_fallback_due_to_instability
 from adaptive_quant.hardware import detect_host_hardware, host_aware_hardware_profiles
-from adaptive_quant.logging_utils import JsonlLogger, NullJsonlLogger
+from adaptive_quant.logging_utils import JsonlLogger, NullJsonlLogger, jsonl_integrity_chain_enabled
 from adaptive_quant.math_utils import variance
 from adaptive_quant.moe import ExpertBank
 from adaptive_quant.prompts import PromptLibrary
@@ -74,7 +74,8 @@ class AdaptiveQuantizationEnv:
                 resolved_log,
                 buffered=bool(config.jsonl_buffered),
                 flush_every=int(config.jsonl_flush_every),
-                integrity_chain=bool(config.jsonl_integrity_chain),
+                integrity_chain=bool(config.jsonl_integrity_chain)
+                or jsonl_integrity_chain_enabled(),
             )
             if enable_logging
             else NullJsonlLogger()
@@ -307,6 +308,7 @@ class AdaptiveQuantizationEnv:
             "prompt_domain": result.state.prompt.domain,
             "input_features": result.state.input_features,
             "sensitivity": result.state.sensitivity,
+            "previous_action": result.state.previous_action,
             "moe_context": result.state.moe_context,
             "decision": result.decision,
             "metrics": result.metrics,

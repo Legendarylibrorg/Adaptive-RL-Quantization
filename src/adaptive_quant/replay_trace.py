@@ -15,6 +15,7 @@ from adaptive_quant.checkpoint_integrity import (
 from adaptive_quant.configuration import FrameworkConfig, config_to_flat_dict
 from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.logging_utils import load_jsonl, read_json, to_jsonable, write_json
+from adaptive_quant.trainer_utils import feedback_vector, zero_previous_action
 from adaptive_quant.types import QuantizationDecision, QuantMode
 
 MANIFEST_VERSION = 1
@@ -25,7 +26,13 @@ _CONFIG_FINGERPRINT_EXCLUDE = frozenset(
     {
         "resume_from_checkpoint",
         "write_research_report",
+        "write_training_history",
         "replay_verify_after_run",
+        "replay_manifest_enabled",
+        "jsonl_integrity_chain",
+        "jsonl_buffered",
+        "jsonl_flush_every",
+        "log_every_n_episodes",
         "run_name",
         "outputs_dir",
         "log_dir",
@@ -33,6 +40,10 @@ _CONFIG_FINGERPRINT_EXCLUDE = frozenset(
         "analysis_dir",
         "checkpoint_dir",
         "report_dir",
+        "training_host_label",
+        "external_quality_path",
+        "llama_cpp_binary",
+        "llama_cpp_model",
     }
 )
 
@@ -42,8 +53,52 @@ _INTEGRITY_META_KEYS = frozenset({"_integrity_hash", "_integrity_prev", INTEGRIT
 def sha256_canonical(payload: Any) -> str:
     import json
 
-    body = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+    safe = to_jsonable(payload)
+    body = json.dumps(safe, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(body.encode("utf-8")).hexdigest()
+
+
+def _require_simulator_replay(config: FrameworkConfig) -> None:
+    if config.backend.strip().lower() != "simulator":
+        raise ValueError(
+            "Hash replay verification is only supported for backend='simulator'; "
+            f"got {config.backend!r}."
+        )
+
+
+def _require_full_episode_logging(config: FrameworkConfig) -> None:
+    if int(config.log_every_n_episodes) != 1:
+        raise ValueError(
+            "Replay manifests require log_every_n_episodes=1 "
+            f"(got {config.log_every_n_episodes})."
+        )
+
+
+def _integrity_chain_required(
+    config: FrameworkConfig | None, manifest: Mapping[str, Any] | None = None
+) -> bool:
+    if manifest is not None and str(manifest.get("jsonl_tail_integrity_sha256") or ""):
+        return True
+    if config is not None:
+        return bool(config.jsonl_integrity_chain)
+    return False
+
+
+def assert_replay_verified(report: dict[str, Any] | None, config: FrameworkConfig) -> None:
+    if not config.replay_verify_after_run or report is None:
+        return
+    for block_name in ("jsonl_verify", "replay_verify"):
+        block = report.get(block_name)
+        if not isinstance(block, dict):
+            raise RuntimeError(
+                f"Replay verification enabled but {block_name!r} is missing from replay report."
+            )
+        if not bool(block.get("verified")):
+            mismatches = block.get("mismatches") or []
+            raise RuntimeError(
+                f"Replay verification failed ({block_name}): "
+                f"{mismatches[:5]}"
+            )
 
 
 def strip_integrity_meta(record: Mapping[str, Any]) -> dict[str, Any]:
@@ -65,6 +120,7 @@ def observation_fingerprint(record: Mapping[str, Any]) -> str:
         "prompt_domain": record.get("prompt_domain"),
         "input_features": record.get("input_features"),
         "sensitivity": record.get("sensitivity"),
+        "previous_action": record.get("previous_action"),
         "moe_context": record.get("moe_context"),
     }
     return sha256_canonical(body)
@@ -140,6 +196,7 @@ def build_manifest_steps(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "outcome_sha256": outcome_fingerprint(clean),
                 "step_sha256": step_hash,
                 "chain_sha256": chain,
+                "previous_action": clean.get("previous_action"),
                 "decision": clean.get("decision"),
             }
         )
@@ -197,6 +254,12 @@ def load_replay_manifest(path: str | Path) -> dict[str, Any]:
         raise ValueError(
             f"Unsupported replay manifest version in {path}: {payload.get('manifest_version')!r}"
         )
+    schema = str(payload.get("schema") or "")
+    if schema != MANIFEST_SCHEMA:
+        raise ValueError(
+            f"Unsupported replay manifest schema in {path}: {schema!r} "
+            f"(expected {MANIFEST_SCHEMA!r})."
+        )
     return payload
 
 
@@ -208,11 +271,12 @@ def verify_jsonl_against_manifest(
     require_integrity_chain: bool = True,
 ) -> dict[str, Any]:
     manifest = load_replay_manifest(manifest_path)
-    records = load_jsonl(
-        str(jsonl_path),
-        require_integrity_chain=require_integrity_chain
-        and bool(manifest.get("jsonl_tail_integrity_sha256")),
+    chain_required = require_integrity_chain and (
+        _integrity_chain_required(config, manifest)
+        if config is not None
+        else bool(manifest.get("jsonl_tail_integrity_sha256"))
     )
+    records = load_jsonl(str(jsonl_path), require_integrity_chain=chain_required)
     expected_config = str(manifest["config_sha256"])
     if config is not None:
         actual_config = config_fingerprint(config)
@@ -279,6 +343,7 @@ def replay_manifest_steps(
     *,
     log_path: str | None = None,
 ) -> dict[str, Any]:
+    _require_simulator_replay(config)
     expected_config = str(manifest["config_sha256"])
     actual_config = config_fingerprint(config)
     if actual_config != expected_config:
@@ -293,12 +358,24 @@ def replay_manifest_steps(
     )
     mismatches: list[dict[str, Any]] = []
     steps = list(manifest.get("steps") or [])
+    previous_action = zero_previous_action()
     try:
         for step in steps:
             episode = step.get("episode")
             phase = str(step.get("phase") or "train")
             ep_index = int(episode) if episode is not None else None
-            env.reset(phase=phase, episode_index=ep_index)
+            logged_previous = step.get("previous_action")
+            if logged_previous is not None and list(logged_previous) != previous_action:
+                mismatches.append(
+                    {
+                        "kind": "previous_action_chain",
+                        "episode": episode,
+                        "phase": phase,
+                        "expected": previous_action,
+                        "actual": logged_previous,
+                    }
+                )
+            env.reset(previous_action=previous_action, phase=phase, episode_index=ep_index)
             decision_payload = step.get("decision")
             if not isinstance(decision_payload, Mapping):
                 mismatches.append(
@@ -319,6 +396,7 @@ def replay_manifest_steps(
                 "prompt_domain": result.state.prompt.domain,
                 "input_features": to_jsonable(result.state.input_features),
                 "sensitivity": to_jsonable(result.state.sensitivity),
+                "previous_action": to_jsonable(result.state.previous_action),
                 "moe_context": to_jsonable(result.state.moe_context),
                 "decision": to_jsonable(result.decision),
                 "metrics": to_jsonable(result.metrics),
@@ -335,6 +413,12 @@ def replay_manifest_steps(
                         "actual": actual_step,
                     }
                 )
+            previous_action = feedback_vector(
+                result.decision,
+                max_bits=max(config.discrete_bit_widths),
+                scale_upper=config.scale_bounds[1],
+                clip_upper=config.clip_bounds[1],
+            )
     finally:
         env.logger.close()
     return {
@@ -352,6 +436,8 @@ def finalize_replay_artifacts(
 ) -> dict[str, Any] | None:
     if not config.replay_manifest_enabled:
         return None
+    _require_simulator_replay(config)
+    _require_full_episode_logging(config)
     path = Path(log_path)
     if not path.is_file():
         return {"manifest_path": None, "reason": "log_missing"}
@@ -359,6 +445,11 @@ def finalize_replay_artifacts(
         str(path),
         require_integrity_chain=bool(config.jsonl_integrity_chain),
     )
+    if config.jsonl_integrity_chain and records and not records[-1].get("_integrity_hash"):
+        raise ValueError(
+            "jsonl_integrity_chain is enabled but the primary log has no _integrity_hash; "
+            "flush the logger before building the replay manifest."
+        )
     manifest_path = write_replay_manifest(
         config,
         records,
@@ -374,13 +465,15 @@ def finalize_replay_artifacts(
         else "",
     }
     if config.replay_verify_after_run:
+        manifest = load_replay_manifest(manifest_path)
         report["jsonl_verify"] = verify_jsonl_against_manifest(
             path,
             manifest_path,
             config=config,
-            require_integrity_chain=bool(config.jsonl_integrity_chain),
+            require_integrity_chain=True,
         )
-        report["replay_verify"] = replay_manifest_steps(config, load_replay_manifest(manifest_path))
+        report["replay_verify"] = replay_manifest_steps(config, manifest)
+        assert_replay_verified(report, config)
     return report
 
 
@@ -390,6 +483,7 @@ def replay_from_manifest_file(
     *,
     verify_jsonl: str | Path | None = None,
 ) -> dict[str, Any]:
+    _require_simulator_replay(config)
     manifest = load_replay_manifest(manifest_path)
     result: dict[str, Any] = {
         "manifest_path": str(manifest_path),
@@ -400,6 +494,6 @@ def replay_from_manifest_file(
             verify_jsonl,
             manifest_path,
             config=config,
-            require_integrity_chain=bool(config.jsonl_integrity_chain),
+            require_integrity_chain=True,
         )
     return result

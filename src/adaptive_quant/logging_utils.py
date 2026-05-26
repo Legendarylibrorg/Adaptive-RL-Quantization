@@ -193,7 +193,7 @@ class JsonlLogger:
         self._handle: TextIO | None = None
         self._pending = 0
         if integrity_chain is None:
-            self._integrity_chain = _jsonl_integrity_chain_enabled()
+            self._integrity_chain = jsonl_integrity_chain_enabled()
         else:
             self._integrity_chain = bool(integrity_chain)
         self._prev_integrity_hash = ""
@@ -232,11 +232,16 @@ class JsonlLogger:
             self._handle.flush()
             self._pending = 0
 
+    def flush(self) -> None:
+        if self._handle is not None and not self._handle.closed:
+            if self._pending:
+                self._handle.flush()
+                self._pending = 0
+
     def close(self) -> None:
         if self._handle is not None:
             try:
-                if self._pending:
-                    self._handle.flush()
+                self.flush()
             finally:
                 self._handle.close()
             self._pending = 0
@@ -321,9 +326,14 @@ def md_table(headers: list[str], rows: list[list[object]]) -> list[str]:
     ]
 
 
-def _jsonl_integrity_chain_enabled() -> bool:
+def jsonl_integrity_chain_enabled() -> bool:
+    """True when ``ADAPTIVE_RL_JSONL_INTEGRITY_CHAIN`` requests hash-chained JSONL lines."""
     raw = os.environ.get(_JSONL_INTEGRITY_CHAIN_ENV, "").strip().lower()
     return raw in {"1", "true", "yes", "on"}
+
+
+def _jsonl_integrity_chain_enabled() -> bool:
+    return jsonl_integrity_chain_enabled()
 
 
 def _jsonl_require_integrity_chain_enabled() -> bool:

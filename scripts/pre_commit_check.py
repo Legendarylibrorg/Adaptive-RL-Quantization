@@ -56,7 +56,10 @@ def _python_compile(root: Path) -> None:
 
 def _ruff_check(root: Path, python_bin: str) -> None:
     print("== ruff (lint + format) ==")
-    targets = ["src", "tests", "scripts"]
+    targets = ["src", "tests", "scripts"] + sorted(str(p) for p in root.glob("run_*.py"))
+    entrypoint = root / "_repo_entrypoint.py"
+    if entrypoint.is_file():
+        targets.append(str(entrypoint))
     run([python_bin, "-m", "ruff", "check", *targets], cwd=root)
     run([python_bin, "-m", "ruff", "format", "--check", *targets], cwd=root)
 

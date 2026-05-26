@@ -26,6 +26,9 @@ def add_config_file_argument(
 def load_config_or_fallback(path: str | None, fallback: FrameworkConfig) -> FrameworkConfig:
     if path is None:
         return fallback
+    from adaptive_quant.configuration.validation import validate_cli_path_argument
+
+    validate_cli_path_argument("config", path)
     try:
         return FrameworkConfig.from_file(path)
     except (TypeError, ValueError, FileNotFoundError) as exc:

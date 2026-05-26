@@ -101,6 +101,9 @@ class ResearchPipeline:
             eval_summary = trainer.evaluate()
             log_path = getattr(trainer.env.logger, "path", None)
             if log_path is not None:
+                flush = getattr(trainer.env.logger, "flush", None)
+                if callable(flush):
+                    flush()
                 replay_report = finalize_replay_artifacts(
                     config, log_path, git_commit=commit
                 )

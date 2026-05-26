@@ -17,6 +17,7 @@ _RUN_SCRIPT_MODULES: dict[str, str] = {
     "run_online_learning.py": "adaptive_quant.cli.online_learning",
     "run_pytorch.py": "adaptive_quant.cli.pytorch",
     "run_research.py": "adaptive_quant.cli.research",
+    "run_replay.py": "adaptive_quant.cli.replay",
     "run_route_learning.py": "adaptive_quant.cli.route_learning",
 }
 

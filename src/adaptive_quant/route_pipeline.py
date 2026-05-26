@@ -416,10 +416,14 @@ def save_bandit_artifacts(
     bandit_path = f"{config.benchmark_dir}/{config.run_name}_route_bandit.json"
     summary_path = f"{config.benchmark_dir}/{config.run_name}_route_summary.json"
 
-    bandit_payload = {
-        "catalog": catalog.to_dict(),
-        "bandit": bandit.state_dict(),
-    }
+    from adaptive_quant.checkpoint_integrity import attach_dict_integrity, verify_dict_integrity
+
+    bandit_payload = attach_dict_integrity(
+        {
+            "catalog": catalog.to_dict(),
+            "bandit": bandit.state_dict(),
+        }
+    )
     write_json(bandit_path, bandit_payload)
 
     summary_payload: dict[str, Any] = {
@@ -460,7 +464,10 @@ def load_bandit_artifact(path: str | Path) -> tuple[RouteCatalog, RouteBandit]:
     target = Path(path)
     if not target.is_file():
         raise FileNotFoundError(f"Route bandit artifact not found: {target}")
+    from adaptive_quant.checkpoint_integrity import verify_dict_integrity
+
     payload = read_json(target, label="Route bandit artifact")
+    verify_dict_integrity(payload, label="Route bandit artifact")
     catalog = RouteCatalog.from_dict(payload.get("catalog", {}))
     bandit_state = payload.get("bandit") or {}
     bandit = RouteBandit(
