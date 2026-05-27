@@ -45,7 +45,7 @@ class CliCommonTests(unittest.TestCase):
                 "--set",
                 "reward_weights.beta_throughput=0.08",
                 "--set",
-                "hardware_modes=[\"gpu\",\"cpu\"]",
+                'hardware_modes=["gpu","cpu"]',
             ]
         )
 
@@ -144,7 +144,9 @@ class PytorchCliTests(unittest.TestCase):
         from adaptive_quant.cli import pytorch
 
         with mock.patch("adaptive_quant.cli.pytorch.run_pipeline_entrypoint") as run_pipeline:
-            pytorch.main(["--preset", "gpu", "--training-episodes", "33", "--set", "torch_preflight=false"])
+            pytorch.main(
+                ["--preset", "gpu", "--training-episodes", "33", "--set", "torch_preflight=false"]
+            )
             passed = run_pipeline.call_args[0][0]
             self.assertEqual(passed.training_episodes, 33)
             self.assertFalse(passed.torch_preflight)
