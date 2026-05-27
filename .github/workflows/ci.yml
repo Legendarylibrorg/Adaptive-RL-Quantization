@@ -1,4 +1,4 @@
-# Quality gate: hash-verified setuptools → editable install (setuptools build backend) → pre_commit_check (tests, git, syntax) → E2E RL smoke.
+# Quality gate: ci_precheck (fast) → hash-verified setuptools → editable install → pre_commit_check → E2E RL smoke.
 # OS coverage on the declared Python (3.12) plus interpreter coverage (3.11/3.13) on Linux to actually exercise the `requires-python = ">=3.11"` floor and ceiling.
 # Windows: git config + safe.directory so `pre_commit_check` git diff --check and subprocess git behave reliably.
 name: CI
@@ -21,8 +21,23 @@ env:
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
   PYTHONUTF8: "1"
   PYTHONIOENCODING: "utf-8"
+  ADAPTIVE_RL_ABORT_ON_SECURITY_BYPASS: "1"
 
 jobs:
+  precheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@c8813ba1bc76ebf779b911ad8ffccbf2e449cb48
+        with:
+          python-version: "3.12"
+
+      - name: CI precheck (supply chain, secrets, syntax, CLI security)
+        run: python scripts/ci_precheck.py
+
   pip-audit:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -44,6 +59,7 @@ jobs:
           python -m pip_audit -r requirements/dev.txt
 
   test:
+    needs: precheck
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -108,6 +124,7 @@ jobs:
           python -m coverage report --rcfile pyproject.toml
 
   torch-cpu-smoke:
+    needs: precheck
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:

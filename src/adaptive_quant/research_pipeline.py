@@ -66,9 +66,16 @@ def run_research_analysis(config: FrameworkConfig, history_path: str | None) -> 
 class ResearchPipeline:
     """Single orchestrated experiment: train policy → evaluate → benchmark suite → analysis → ``*_summary.json``."""
 
-    def __init__(self, config: FrameworkConfig, requested_profile: str | None = None) -> None:
+    def __init__(
+        self,
+        config: FrameworkConfig,
+        requested_profile: str | None = None,
+        *,
+        cli_startup_overrides: dict[str, object] | None = None,
+    ) -> None:
         self.original_config = config
         self.requested_profile = requested_profile
+        self.cli_startup_overrides = cli_startup_overrides
 
     def run(self) -> dict[str, object]:
         enforce_security_bypass_policy(context="research pipeline")
@@ -142,7 +149,10 @@ class ResearchPipeline:
         summary = {
             "config": config_to_flat_dict(config),
             "git_commit": commit,
-            "security_audit": build_security_audit_record(config),
+            "security_audit": build_security_audit_record(
+                config,
+                cli_startup_overrides=self.cli_startup_overrides,
+            ),
             "gpu_profile": gpu_profile_report,
             "preflight": preflight_report,
             "vram": vram_report,
@@ -222,6 +232,7 @@ def run_pipeline_entrypoint(
     config: FrameworkConfig,
     *,
     requested_profile: str | None = None,
+    cli_startup_overrides: dict[str, object] | None = None,
     show_gpu_profile: bool = False,
     show_training_host: bool = False,
     show_target_hardware: bool = False,
@@ -229,7 +240,11 @@ def run_pipeline_entrypoint(
 ) -> dict[str, object]:
     from adaptive_quant.run_footer import print_pipeline_footer
 
-    summary = ResearchPipeline(config, requested_profile=requested_profile).run()
+    summary = ResearchPipeline(
+        config,
+        requested_profile=requested_profile,
+        cli_startup_overrides=cli_startup_overrides,
+    ).run()
     if show_training_host and config.training_host_label:
         print("Training host:", config.training_host_label)
     if show_target_hardware:

@@ -8,6 +8,7 @@ from adaptive_quant.online_learning import OnlineLearningLoop, build_request_str
 from adaptive_quant.pipeline.report_markdown import fmt_report_num, maybe_report_link, md_code_json
 from adaptive_quant.pipeline.vcs import git_commit_hash
 from adaptive_quant.research_pipeline import maybe_save_final_checkpoint, write_training_history
+from adaptive_quant.security_audit import build_security_audit_record
 from adaptive_quant.security_bypass import enforce_security_bypass_policy
 from adaptive_quant.trainer import build_trainer
 
@@ -16,6 +17,7 @@ def run_online_pipeline(
     config: FrameworkConfig,
     *,
     request_count: int | None = None,
+    cli_startup_overrides: dict[str, object] | None = None,
 ) -> dict[str, object]:
     summary_path = config.summary_path()
     trainer = build_trainer(config)
@@ -70,6 +72,10 @@ def run_online_pipeline(
     summary = {
         "config": config_to_flat_dict(config),
         "git_commit": git_commit,
+        "security_audit": build_security_audit_record(
+            config,
+            cli_startup_overrides=cli_startup_overrides,
+        ),
         "bootstrap_train": bootstrap_summary,
         "online": online_summary,
         "evaluation": eval_summary,
@@ -91,11 +97,16 @@ def run_online_pipeline_entrypoint(
     config: FrameworkConfig,
     *,
     request_count: int | None = None,
+    cli_startup_overrides: dict[str, object] | None = None,
     footer_mode: str = "full",
 ) -> dict[str, object]:
     from adaptive_quant.run_footer import print_online_footer
 
-    summary = run_online_pipeline(config, request_count=request_count)
+    summary = run_online_pipeline(
+        config,
+        request_count=request_count,
+        cli_startup_overrides=cli_startup_overrides,
+    )
     print_online_footer(config, summary, mode=footer_mode)
     return summary
 

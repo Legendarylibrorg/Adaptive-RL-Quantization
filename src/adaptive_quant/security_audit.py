@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from adaptive_quant.cli.startup_overrides import allow_privileged_overrides_from_env
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.configuration.validation import (
     _HF_ALLOWED_REPOS_ENV,
@@ -15,10 +16,15 @@ from adaptive_quant.configuration.validation import (
 from adaptive_quant.security_bypass import active_security_bypasses
 
 
-def build_security_audit_record(config: FrameworkConfig) -> dict[str, Any]:
+def build_security_audit_record(
+    config: FrameworkConfig,
+    *,
+    cli_startup_overrides: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     record: dict[str, Any] = {
         "backend": config.backend,
         "training_backend": config.training_backend,
+        "privileged_cli_overrides_allowed": allow_privileged_overrides_from_env(),
         "hf_allow_unlisted": hf_allow_unlisted_from_env(),
         "hf_allowed_repos_env_set": bool(os.environ.get(_HF_ALLOWED_REPOS_ENV, "").strip()),
         "hf_repo_allowlist": sorted(
@@ -46,6 +52,8 @@ def build_security_audit_record(config: FrameworkConfig) -> dict[str, Any]:
     if config.router_enabled:
         record["router_routes"] = list(config.router_routes)
         record["router_feature_backend"] = config.router_feature_backend
+    if cli_startup_overrides:
+        record["cli_startup_overrides"] = cli_startup_overrides
     return record
 
 

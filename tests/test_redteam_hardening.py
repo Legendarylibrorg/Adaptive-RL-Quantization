@@ -1144,5 +1144,44 @@ class DockerComposeHardeningTests(unittest.TestCase):
         self.assertIn("nvidia", proc.stderr.lower())
 
 
+class CliStartupOverrideRedTeamTests(unittest.TestCase):
+    def test_privileged_override_allowed_with_explicit_env(self) -> None:
+        import argparse
+
+        from adaptive_quant.cli.common import add_config_override_arguments, apply_config_overrides
+        from adaptive_quant.presets.baseline import CONFIG
+
+        parser = argparse.ArgumentParser()
+        add_config_override_arguments(parser)
+        args = parser.parse_args(["--set", "backend=llama_cpp"])
+
+        with mock.patch.dict(os.environ, {"ADAPTIVE_RL_ALLOW_PRIVILEGED_OVERRIDES": "1"}):
+            cfg = apply_config_overrides(CONFIG, args)
+        self.assertEqual(cfg.backend, "llama_cpp")
+
+    def test_cli_set_rejects_deeply_nested_json(self) -> None:
+        import argparse
+
+        from adaptive_quant.cli.common import add_config_override_arguments
+
+        parser = argparse.ArgumentParser()
+        add_config_override_arguments(parser)
+        inner = 1
+        for _ in range(80):
+            inner = [inner]
+        with self.assertRaises(SystemExit):
+            parser.parse_args(["--set", f"hardware_modes={json.dumps(inner)}"])
+
+    def test_cli_set_rejects_non_ascii_override_keys(self) -> None:
+        import argparse
+
+        from adaptive_quant.cli.common import add_config_override_arguments
+
+        parser = argparse.ArgumentParser()
+        add_config_override_arguments(parser)
+        with self.assertRaises(SystemExit):
+            parser.parse_args(["--set", "trаining_episodes=1"])
+
+
 if __name__ == "__main__":
     unittest.main()

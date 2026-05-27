@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -12,9 +13,11 @@ from adaptive_quant.cli.common import (
     add_config_override_arguments,
     apply_config_overrides,
     load_config_or_fallback,
+    resolve_startup_config,
 )
 from adaptive_quant.presets.baseline import CONFIG as BASELINE_CONFIG
 from adaptive_quant.presets.moe import CONFIG_MOE
+from adaptive_quant.security_audit import build_security_audit_record
 
 
 class CliCommonTests(unittest.TestCase):
@@ -64,6 +67,29 @@ class CliCommonTests(unittest.TestCase):
         with self.assertRaises(SystemExit) as ctx:
             apply_config_overrides(BASELINE_CONFIG, args)
         self.assertIn("Unknown FrameworkConfig key", str(ctx.exception))
+
+    def test_apply_config_overrides_rejects_privileged_backend_without_env(self) -> None:
+        parser = argparse.ArgumentParser()
+        add_config_override_arguments(parser)
+        args = parser.parse_args(["--set", "backend=llama_cpp"])
+        env = os.environ.copy()
+        env.pop("ADAPTIVE_RL_ALLOW_PRIVILEGED_OVERRIDES", None)
+
+        with mock.patch.dict(os.environ, env, clear=True):
+            with self.assertRaises(SystemExit) as ctx:
+                apply_config_overrides(BASELINE_CONFIG, args)
+        self.assertIn("ADAPTIVE_RL_ALLOW_PRIVILEGED_OVERRIDES", str(ctx.exception))
+
+    def test_resolve_startup_config_records_audit_snapshot(self) -> None:
+        parser = argparse.ArgumentParser()
+        add_config_override_arguments(parser)
+        args = parser.parse_args(["--training-episodes", "12"])
+
+        _config, audit = resolve_startup_config(BASELINE_CONFIG, args)
+
+        self.assertEqual(audit, {"training_episodes": 12})
+        record = build_security_audit_record(BASELINE_CONFIG, cli_startup_overrides=audit)
+        self.assertEqual(record["cli_startup_overrides"], {"training_episodes": 12})
 
 
 class ResearchCliTests(unittest.TestCase):
