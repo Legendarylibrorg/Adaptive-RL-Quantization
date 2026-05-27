@@ -24,7 +24,12 @@ import sys
 from collections.abc import Iterable
 from pathlib import Path
 
-from adaptive_quant.cli.common import add_config_file_argument, load_config_or_fallback
+from adaptive_quant.cli.common import (
+    add_config_file_argument,
+    add_config_override_arguments,
+    apply_config_overrides,
+    load_config_or_fallback,
+)
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.configuration.validation import (
     hf_allowed_repos_from_env,
@@ -161,6 +166,7 @@ def main(argv: Iterable[str] | None = None) -> None:
 
     train_parser = sub.add_parser("train", help="Train the route bandit and persist artifacts.")
     add_config_file_argument(train_parser, help_suffix="Otherwise uses config.py defaults.")
+    add_config_override_arguments(train_parser)
     train_parser.add_argument(
         "--iterations",
         type=int,
@@ -198,6 +204,7 @@ def main(argv: Iterable[str] | None = None) -> None:
 
     recommend_parser = sub.add_parser("recommend", help="Print the best route for a context.")
     add_config_file_argument(recommend_parser)
+    add_config_override_arguments(recommend_parser)
     recommend_parser.add_argument(
         "--bandit",
         default=None,
@@ -391,7 +398,7 @@ def _cmd_download(catalog_path: Path, args: argparse.Namespace) -> None:
 def _cmd_train(catalog_path: Path, args: argparse.Namespace) -> None:
     validate_cli_path_argument("catalog", str(catalog_path))
     catalog = _load_catalog(catalog_path)
-    config = _resolve_config(args.config)
+    config = _resolve_config(args)
     if config.backend == "llama_cpp" or args.require_local_models:
         try:
             validate_local_route_models(catalog)
@@ -447,7 +454,7 @@ def _cmd_train(catalog_path: Path, args: argparse.Namespace) -> None:
 
 
 def _cmd_recommend(args: argparse.Namespace) -> None:
-    config = _resolve_config(args.config)
+    config = _resolve_config(args)
     bandit_path = (
         Path(args.bandit)
         if args.bandit is not None
@@ -493,16 +500,17 @@ def _load_catalog(path: Path, *, allow_missing: bool = False) -> RouteCatalog:
     return RouteCatalog.from_file(path)
 
 
-def _resolve_config(config_path: str | None) -> FrameworkConfig:
+def _resolve_config(args: argparse.Namespace) -> FrameworkConfig:
+    config_path = args.config
     if config_path is not None:
-        return load_config_or_fallback(config_path, FrameworkConfig())
+        return apply_config_overrides(load_config_or_fallback(config_path, FrameworkConfig()), args)
     try:
         from adaptive_quant.presets.baseline import CONFIG
     except ImportError:
-        return FrameworkConfig()
+        return apply_config_overrides(FrameworkConfig(), args)
     if isinstance(CONFIG, FrameworkConfig):
-        return CONFIG
-    return FrameworkConfig()
+        return apply_config_overrides(CONFIG, args)
+    return apply_config_overrides(FrameworkConfig(), args)
 
 
 if __name__ == "__main__":

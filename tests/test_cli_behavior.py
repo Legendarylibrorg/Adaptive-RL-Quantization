@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 import tempfile
@@ -7,7 +8,11 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from adaptive_quant.cli.common import load_config_or_fallback
+from adaptive_quant.cli.common import (
+    add_config_override_arguments,
+    apply_config_overrides,
+    load_config_or_fallback,
+)
 from adaptive_quant.presets.baseline import CONFIG as BASELINE_CONFIG
 from adaptive_quant.presets.moe import CONFIG_MOE
 
@@ -28,6 +33,38 @@ class CliCommonTests(unittest.TestCase):
             self.assertEqual(cfg.run_name, "cli_json_override")
             self.assertEqual(cfg.training_episodes, 17)
 
+    def test_apply_config_overrides_accepts_episode_flags_and_set(self) -> None:
+        parser = argparse.ArgumentParser()
+        add_config_override_arguments(parser)
+        args = parser.parse_args(
+            [
+                "--training-episodes",
+                "19",
+                "--set",
+                "evaluation_episodes=7",
+                "--set",
+                "reward_weights.beta_throughput=0.08",
+                "--set",
+                'hardware_modes=["gpu","cpu"]',
+            ]
+        )
+
+        cfg = apply_config_overrides(BASELINE_CONFIG, args)
+
+        self.assertEqual(cfg.training_episodes, 19)
+        self.assertEqual(cfg.evaluation_episodes, 7)
+        self.assertEqual(cfg.reward_weights.beta_throughput, 0.08)
+        self.assertEqual(cfg.hardware_modes, ("gpu", "cpu"))
+
+    def test_apply_config_overrides_rejects_unknown_keys(self) -> None:
+        parser = argparse.ArgumentParser()
+        add_config_override_arguments(parser)
+        args = parser.parse_args(["--set", "training_episode=7"])
+
+        with self.assertRaises(SystemExit) as ctx:
+            apply_config_overrides(BASELINE_CONFIG, args)
+        self.assertIn("Unknown FrameworkConfig key", str(ctx.exception))
+
 
 class ResearchCliTests(unittest.TestCase):
     def test_research_main_invokes_pipeline_with_fallback(self) -> None:
@@ -39,6 +76,26 @@ class ResearchCliTests(unittest.TestCase):
             run_pipeline.assert_called_once()
             passed = run_pipeline.call_args[0][0]
             self.assertEqual(passed.run_name, BASELINE_CONFIG.run_name)
+
+    def test_research_main_applies_startup_episode_overrides(self) -> None:
+        from adaptive_quant.cli import research
+
+        with mock.patch("adaptive_quant.research_pipeline.run_pipeline_entrypoint") as run_pipeline:
+            with mock.patch.object(
+                sys,
+                "argv",
+                [
+                    "adaptive-rl-quant",
+                    "--training-episodes",
+                    "12",
+                    "--evaluation-episodes",
+                    "4",
+                ],
+            ):
+                research.main()
+            passed = run_pipeline.call_args[0][0]
+            self.assertEqual(passed.training_episodes, 12)
+            self.assertEqual(passed.evaluation_episodes, 4)
 
 
 class MoeResearchCliTests(unittest.TestCase):
@@ -82,6 +139,17 @@ class PytorchCliTests(unittest.TestCase):
                 with self.assertRaises(SystemExit) as ctx:
                     pytorch.main()
                 self.assertIn("training_backend", str(ctx.exception))
+
+    def test_pytorch_main_applies_startup_overrides_to_preset(self) -> None:
+        from adaptive_quant.cli import pytorch
+
+        with mock.patch("adaptive_quant.cli.pytorch.run_pipeline_entrypoint") as run_pipeline:
+            pytorch.main(
+                ["--preset", "gpu", "--training-episodes", "33", "--set", "torch_preflight=false"]
+            )
+            passed = run_pipeline.call_args[0][0]
+            self.assertEqual(passed.training_episodes, 33)
+            self.assertFalse(passed.torch_preflight)
 
 
 if __name__ == "__main__":

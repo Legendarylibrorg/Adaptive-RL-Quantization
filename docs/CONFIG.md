@@ -19,6 +19,8 @@ For a **single file** instead of editing Python presets:
    ```bash
    adaptive-rl-quant --config ./my_run.json
    adaptive-rl-quant -c ./my_run.toml
+   adaptive-rl-quant --training-episodes 500 --evaluation-episodes 100
+   adaptive-rl-quant --config ./my_run.json --set training.learning_rate=0.02
    adaptive-rl-quant-pytorch --config ./cuda_run.toml   # replaces --preset entirely
    adaptive-rl-quant-moe --config moe.json
    adaptive-rl-quant-online --config online.toml
@@ -27,7 +29,9 @@ For a **single file** instead of editing Python presets:
 
    Source-checkout equivalents remain `python3 run_research.py`, `python3 run_pytorch.py`, `python3 run_moe_research.py`, `python3 run_online_learning.py`, and `python3 run_calibrate_llama_cpp.py`.
 
-4. **API:** `FrameworkConfig.from_file(path)`, `load_config(path)` (from `adaptive_quant`), or `FrameworkConfig.from_mapping(dict, strict=True)` to reject unknown keys. TOML/JSON files are the **preferred** way to share reproducible runs (version control, CI, no import side effects). Python module presets under `config*.py` remain for local iteration and GPU-specific paths. TOML parsing uses stdlib **`tomllib`** (requires **Python 3.11+** per `pyproject.toml`).
+4. Startup overrides are useful for one-off runs: common episode fields have dedicated flags, and `--set KEY=VALUE` can override any `FrameworkConfig` flat key or dotted section key (for example `torch_batch_episodes=64`, `training.learning_rate=0.02`, or `reward_weights.beta_throughput=0.08`). `VALUE` is parsed as JSON when possible, so booleans and lists use JSON spelling: `--set torch_preflight=false`, `--set hardware_modes='["gpu","cpu"]'`. Overrides are applied after the selected preset or `--config` file.
+
+5. **API:** `FrameworkConfig.from_file(path)`, `load_config(path)` (from `adaptive_quant`), or `FrameworkConfig.from_mapping(dict, strict=True)` to reject unknown keys. TOML/JSON files are the **preferred** way to share reproducible runs (version control, CI, no import side effects). Python module presets under `config*.py` remain for local iteration and GPU-specific paths. TOML parsing uses stdlib **`tomllib`** (requires **Python 3.11+** per `pyproject.toml`).
 
    Untrusted config integers (episode counts, MoE topology, llama.cpp limits, etc.) are capped at load time; see `MAX_*` constants in [`validation.py`](../src/adaptive_quant/configuration/validation.py).
 
