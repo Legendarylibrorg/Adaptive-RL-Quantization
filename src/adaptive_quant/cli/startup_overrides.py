@@ -99,15 +99,13 @@ def parse_override_value(value_text: str) -> Any:
     text = value_text.strip()
     if not text:
         return ""
-    if text[0] in "{[\"0123456789-ntf":
+    if text[0] in '{["0123456789-ntf':
         try:
             return safe_json_loads(text, label="CLI --set value")
         except json.JSONDecodeError:
             pass
     if len(text) > _MAX_OVERRIDE_STRING_CHARS:
-        raise ValueError(
-            f"CLI --set string value exceeds {_MAX_OVERRIDE_STRING_CHARS} characters"
-        )
+        raise ValueError(f"CLI --set string value exceeds {_MAX_OVERRIDE_STRING_CHARS} characters")
     return text
 
 

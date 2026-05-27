@@ -115,5 +115,7 @@ def run_research_pipeline_cli(
     add_config_file_argument(parser, help_suffix=config_help_suffix)
     add_config_override_arguments(parser)
     args = parser.parse_args()
-    config, cli_overrides = resolve_startup_config(load_config_or_fallback(args.config, fallback), args)
+    config, cli_overrides = resolve_startup_config(
+        load_config_or_fallback(args.config, fallback), args
+    )
     run_pipeline_entrypoint(config, cli_startup_overrides=cli_overrides)

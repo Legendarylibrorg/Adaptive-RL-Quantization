@@ -118,6 +118,9 @@ class RunnerScriptCliTests(unittest.TestCase):
         workflow_text = (_REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(
             encoding="utf-8"
         )
+        self.assertIn("precheck:", workflow_text)
+        self.assertIn("scripts/ci_precheck.py", workflow_text)
+        self.assertIn("needs: precheck", workflow_text)
         self.assertIn("pip-audit:", workflow_text)
         self.assertIn("pip_audit", workflow_text)
         self.assertIn("verify_lockfiles.py", workflow_text)
@@ -302,6 +305,28 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, msg=proc.stderr)
         self.assertIn("--skip-tests", proc.stdout)
         self.assertIn("--skip-hash-checks", proc.stdout)
+
+    def test_ci_precheck_python_wrapper_has_help(self) -> None:
+        proc = subprocess.run(
+            [sys.executable, str(_REPO_ROOT / "scripts" / "ci_precheck.py"), "--help"],
+            cwd=str(_REPO_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(proc.returncode, 0, msg=proc.stderr)
+        self.assertIn("--skip-cli-smoke", proc.stdout)
+
+    def test_ci_precheck_passes_locally(self) -> None:
+        proc = subprocess.run(
+            [sys.executable, str(_REPO_ROOT / "scripts" / "ci_precheck.py")],
+            cwd=str(_REPO_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        self.assertEqual(proc.returncode, 0, msg=proc.stderr or proc.stdout)
+        self.assertIn("ci_precheck.py finished successfully", proc.stdout)
 
     def test_secret_scan_python_wrapper_has_help(self) -> None:
         proc = subprocess.run(

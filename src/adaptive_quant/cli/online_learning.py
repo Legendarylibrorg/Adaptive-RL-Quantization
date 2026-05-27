@@ -31,7 +31,9 @@ def main() -> None:
         load_config_or_fallback(args.config, CONFIG_ONLINE),
         args,
     )
-    run_online_pipeline_entrypoint(cfg, request_count=args.requests, cli_startup_overrides=cli_overrides)
+    run_online_pipeline_entrypoint(
+        cfg, request_count=args.requests, cli_startup_overrides=cli_overrides
+    )
 
 
 if __name__ == "__main__":
