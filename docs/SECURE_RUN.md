@@ -134,7 +134,8 @@ Digest-pinned base image and hash-verified pip installs: see [`Dockerfile`](../D
 
 - **`router_feature_backend="hf"`** (`transformers`): load **safetensors** weights only; set a non-empty `router_hf_allowed_models`, pin `router_hf_embedding_revision`, and use `router_hf_local_files_only=true` after caching a vetted snapshot.
 - **Route / CLI downloads**: set `ADAPTIVE_RL_HF_ALLOWED_REPOS=org/model,org/other` (comma-separated) and/or `route_hf_allowed_repos` in config so only vetted Hub repos can be downloaded.
-- **`backend="llama_cpp"`**: **GGUF** files and the **llama.cpp** binary are native artifacts—use builds and files you trust; mount GGUF **read-only**; pin Hub revisions when using `hf download`.
+- **`backend="llama_cpp"`**: **GGUF** files and the **llama.cpp** binary are native artifacts—use builds and files you trust; mount GGUF **read-only**; pin Hub revisions when using `hf download`. In shared or automated environments, set `ADAPTIVE_RL_LLAMA_CPP_BINARY_PREFIXES` to an absolute allowlist of directories containing vetted binaries.
+- **CLI startup overrides**: tuning fields (`--training-episodes`, `--set torch_batch_episodes=64`, and similar) are safe for one-off runs. Backend, llama.cpp, router/HF allowlist, and checkpoint resume changes belong in a reviewed `--config` file unless `ADAPTIVE_RL_ALLOW_PRIVILEGED_OVERRIDES=1` is explicitly set. Set `ADAPTIVE_RL_ABORT_ON_SECURITY_BYPASS=1` in CI to fail fast when bypass env vars are active.
 
 ## Cleanup
 

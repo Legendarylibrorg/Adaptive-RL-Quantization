@@ -80,7 +80,7 @@ Multi-seed: seeds can be `a,b,c` or `0-9`. Reports under `outputs/reports/`.
 
 Fixed horizons and episode counts live in each `config*.py`. For long PyTorch runs, enable `continuous_training` and related fields in [CONFIG.md](CONFIG.md).
 
-Startup overrides are available on research-style entrypoints. Use named flags for common fields (`--training-episodes`, `--evaluation-episodes`, `--benchmark-training-episodes`, `--benchmark-evaluation-episodes`, `--run-name`, `--seed`) and repeat `--set KEY=VALUE` for any other `FrameworkConfig` field. `VALUE` is parsed as JSON when possible, so booleans/lists use JSON spelling such as `--set torch_preflight=false` or `--set hardware_modes='["gpu","cpu"]'`.
+Startup overrides are available on research-style entrypoints. Use named flags for common fields (`--training-episodes`, `--evaluation-episodes`, `--benchmark-training-episodes`, `--benchmark-evaluation-episodes`, `--run-name`, `--seed`) and repeat `--set KEY=VALUE` for tuning fields such as torch batch sizes or reward weights. `VALUE` is parsed with bounded JSON when possible. **Privileged keys** (backend, llama.cpp, router/HF allowlists, checkpoints) require `ADAPTIVE_RL_ALLOW_PRIVILEGED_OVERRIDES=1`; prefer `--config` for those. Summaries record applied overrides under `security_audit.cli_startup_overrides`.
 
 ## What every full run does
 

@@ -9,8 +9,8 @@ from dataclasses import dataclass
 from adaptive_quant.cli.common import (
     add_config_file_argument,
     add_config_override_arguments,
-    apply_config_overrides,
     load_config_or_fallback,
+    resolve_startup_config,
 )
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.presets.gpu import CONFIG_GPU
@@ -66,23 +66,32 @@ def main(argv: Iterable[str] | None = None) -> None:
     )
     args = parser.parse_args(list(argv) if argv is not None else None)
     if args.config is not None:
-        config = apply_config_overrides(load_config_or_fallback(args.config, CONFIG_GPU), args)
+        config, cli_overrides = resolve_startup_config(
+            load_config_or_fallback(args.config, CONFIG_GPU),
+            args,
+        )
         requested = None
         if config.training_backend != "pytorch":
             raise SystemExit(
                 "run_pytorch.py with --config requires training_backend='pytorch' in that file "
                 f"(got {config.training_backend!r})."
             )
-        run_pipeline_entrypoint(config, requested_profile=requested, show_gpu_profile=True)
+        run_pipeline_entrypoint(
+            config,
+            requested_profile=requested,
+            show_gpu_profile=True,
+            cli_startup_overrides=cli_overrides,
+        )
     else:
         preset = presets[args.preset]
-        config = apply_config_overrides(preset.config, args)
+        config, cli_overrides = resolve_startup_config(preset.config, args)
         run_pipeline_entrypoint(
             config,
             requested_profile=preset.requested_profile,
             show_gpu_profile=preset.show_gpu_profile,
             show_training_host=preset.show_training_host,
             show_target_hardware=preset.show_target_hardware,
+            cli_startup_overrides=cli_overrides,
         )
 
 

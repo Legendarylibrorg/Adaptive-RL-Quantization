@@ -27,8 +27,8 @@ from pathlib import Path
 from adaptive_quant.cli.common import (
     add_config_file_argument,
     add_config_override_arguments,
-    apply_config_overrides,
     load_config_or_fallback,
+    resolve_startup_config,
 )
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.configuration.validation import (
@@ -503,14 +503,16 @@ def _load_catalog(path: Path, *, allow_missing: bool = False) -> RouteCatalog:
 def _resolve_config(args: argparse.Namespace) -> FrameworkConfig:
     config_path = args.config
     if config_path is not None:
-        return apply_config_overrides(load_config_or_fallback(config_path, FrameworkConfig()), args)
-    try:
-        from adaptive_quant.presets.baseline import CONFIG
-    except ImportError:
-        return apply_config_overrides(FrameworkConfig(), args)
-    if isinstance(CONFIG, FrameworkConfig):
-        return apply_config_overrides(CONFIG, args)
-    return apply_config_overrides(FrameworkConfig(), args)
+        base = load_config_or_fallback(config_path, FrameworkConfig())
+    else:
+        try:
+            from adaptive_quant.presets.baseline import CONFIG
+        except ImportError:
+            base = FrameworkConfig()
+        else:
+            base = CONFIG if isinstance(CONFIG, FrameworkConfig) else FrameworkConfig()
+    resolved, _audit = resolve_startup_config(base, args)
+    return resolved
 
 
 if __name__ == "__main__":
