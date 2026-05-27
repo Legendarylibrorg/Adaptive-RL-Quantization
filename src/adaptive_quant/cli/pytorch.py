@@ -6,7 +6,12 @@ import argparse
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from adaptive_quant.cli.common import add_config_file_argument, load_config_or_fallback
+from adaptive_quant.cli.common import (
+    add_config_file_argument,
+    add_config_override_arguments,
+    apply_config_overrides,
+    load_config_or_fallback,
+)
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.presets.gpu import CONFIG_GPU
 from adaptive_quant.presets.rtx3090 import CONFIG_3090
@@ -49,6 +54,7 @@ def main(argv: Iterable[str] | None = None) -> None:
         epilog="If --config is set, it replaces --preset entirely.",
     )
     add_config_file_argument(parser)
+    add_config_override_arguments(parser)
     parser.add_argument(
         "--preset",
         choices=sorted(presets.keys()),
@@ -60,7 +66,7 @@ def main(argv: Iterable[str] | None = None) -> None:
     )
     args = parser.parse_args(list(argv) if argv is not None else None)
     if args.config is not None:
-        config = load_config_or_fallback(args.config, CONFIG_GPU)
+        config = apply_config_overrides(load_config_or_fallback(args.config, CONFIG_GPU), args)
         requested = None
         if config.training_backend != "pytorch":
             raise SystemExit(
@@ -70,8 +76,9 @@ def main(argv: Iterable[str] | None = None) -> None:
         run_pipeline_entrypoint(config, requested_profile=requested, show_gpu_profile=True)
     else:
         preset = presets[args.preset]
+        config = apply_config_overrides(preset.config, args)
         run_pipeline_entrypoint(
-            preset.config,
+            config,
             requested_profile=preset.requested_profile,
             show_gpu_profile=preset.show_gpu_profile,
             show_training_host=preset.show_training_host,

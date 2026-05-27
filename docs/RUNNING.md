@@ -19,6 +19,7 @@ Artifacts and API: [USAGE.md](USAGE.md).
 | Goal | Command |
 | --- | --- |
 | Main offline run (simulator, no PyTorch) | `adaptive-rl-quant` |
+| Short one-off episode override | `adaptive-rl-quant --training-episodes 500 --evaluation-episodes 100` |
 | Short reproducible E2E (tune episodes / seed in JSON) | `adaptive-rl-quant --config config.e2e_smoke.json` |
 | … with your own file | `adaptive-rl-quant --config path.json` or `-c path.toml` |
 | MoE preset | `adaptive-rl-quant-moe` |
@@ -42,6 +43,8 @@ Artifacts and API: [USAGE.md](USAGE.md).
 ```bash
 adaptive-rl-quant
 adaptive-rl-quant --config ./my_settings.json
+adaptive-rl-quant --training-episodes 500 --evaluation-episodes 100 --run-name quick_ablation
+adaptive-rl-quant --set training.learning_rate=0.02 --set reward_weights.beta_throughput=0.08
 adaptive-rl-quant-moe
 adaptive-rl-quant-pytorch --preset gpu
 adaptive-rl-quant-pytorch --preset 3090
@@ -76,6 +79,8 @@ Before committing (whitespace, syntax, tests): `python3 scripts/pre_commit_check
 Multi-seed: seeds can be `a,b,c` or `0-9`. Reports under `outputs/reports/`.
 
 Fixed horizons and episode counts live in each `config*.py`. For long PyTorch runs, enable `continuous_training` and related fields in [CONFIG.md](CONFIG.md).
+
+Startup overrides are available on research-style entrypoints. Use named flags for common fields (`--training-episodes`, `--evaluation-episodes`, `--benchmark-training-episodes`, `--benchmark-evaluation-episodes`, `--run-name`, `--seed`) and repeat `--set KEY=VALUE` for any other `FrameworkConfig` field. `VALUE` is parsed as JSON when possible, so booleans/lists use JSON spelling such as `--set torch_preflight=false` or `--set hardware_modes='["gpu","cpu"]'`.
 
 ## What every full run does
 
