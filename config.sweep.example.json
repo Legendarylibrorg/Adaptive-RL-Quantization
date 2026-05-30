@@ -1,0 +1,11 @@
+{
+  "base_config": "config.e2e_smoke.json",
+  "run_name": "lr_sweep_smoke",
+  "seed": 13,
+  "objective": "evaluation.mean_reward",
+  "direction": "maximize",
+  "grid": {
+    "learning_rate": [0.02, 0.035],
+    "reward_weights.beta_throughput": [0.04, 0.08]
+  }
+}

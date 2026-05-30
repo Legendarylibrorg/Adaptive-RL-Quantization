@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import unittest
 
-from adaptive_quant.cli.multiseed import (
+from adaptive_quant.cli.multiseed import _parse_seeds
+from adaptive_quant.experiment_aggregate import (
     AggregateStat,
-    _aggregate_numeric_maps,
-    _default_key_filter,
-    _parse_seeds,
+    aggregate_numeric_maps,
+    default_key_filter,
 )
 
 
@@ -31,7 +31,7 @@ class AggregateNumericMapsTests(unittest.TestCase):
             {"evaluation.mean_reward": 1.0, "benchmarks.gap": 0.1},
             {"evaluation.mean_reward": 3.0, "benchmarks.gap": 0.3},
         ]
-        aggregated = _aggregate_numeric_maps(maps)
+        aggregated = aggregate_numeric_maps(maps)
         reward = aggregated["evaluation.mean_reward"]
         self.assertEqual(reward.n, 2)
         self.assertAlmostEqual(reward.mean, 2.0, places=6)
@@ -45,7 +45,7 @@ class AggregateNumericMapsTests(unittest.TestCase):
             {"metric": float("nan")},
             {"metric": 3.0},
         ]
-        aggregated = _aggregate_numeric_maps(maps)
+        aggregated = aggregate_numeric_maps(maps)
         stat = aggregated["metric"]
         self.assertEqual(stat.n, 2)
         self.assertAlmostEqual(stat.mean, 2.0, places=6)
@@ -78,16 +78,16 @@ class AggregateNumericMapsTests(unittest.TestCase):
 
 class DefaultKeyFilterTests(unittest.TestCase):
     def test_filters_config_prefix(self) -> None:
-        self.assertFalse(_default_key_filter("config.training_episodes"))
+        self.assertFalse(default_key_filter("config.training_episodes"))
 
     def test_keeps_gap_and_mean_reward_keys(self) -> None:
         self.assertTrue(
-            _default_key_filter("benchmarks.single_vs_multi.generalization_gap_improvement")
+            default_key_filter("benchmarks.single_vs_multi.generalization_gap_improvement")
         )
-        self.assertTrue(_default_key_filter("evaluation.mean_reward"))
+        self.assertTrue(default_key_filter("evaluation.mean_reward"))
 
     def test_delta_suffix_allowed(self) -> None:
-        self.assertTrue(_default_key_filter("benchmarks.static_vs_dynamic.quality_variance_delta"))
+        self.assertTrue(default_key_filter("benchmarks.static_vs_dynamic.quality_variance_delta"))
 
 
 if __name__ == "__main__":

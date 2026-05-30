@@ -1,119 +1,23 @@
 from __future__ import annotations
 
 import argparse
-import math
 from collections.abc import Iterable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 from typing import Any
 
+from adaptive_quant.experiment_aggregate import (
+    AggregateStat,
+    aggregate_numeric_maps,
+    default_key_filter,
+    flatten_numeric,
+)
 from adaptive_quant.logging_utils import md_table, write_json, write_text_file
 from adaptive_quant.math_utils import fmt_float
-from adaptive_quant.paper_bundle import aggregate_values, create_multiseed_paper_bundle
+from adaptive_quant.paper_bundle import create_multiseed_paper_bundle
 from adaptive_quant.pipeline.vcs import git_commit_hash
 from adaptive_quant.presets.baseline import CONFIG as CONFIG_DENSE
 from adaptive_quant.presets.moe import CONFIG_MOE
 from adaptive_quant.research_pipeline import run_pipeline_entrypoint
-
-
-@dataclass(frozen=True)
-class AggregateStat:
-    mean: float
-    std: float
-    n: int
-    stderr: float = 0.0
-    ci95_low: float = 0.0
-    ci95_high: float = 0.0
-    effect_size_vs_zero: float = 0.0
-
-    def to_dict(self) -> dict[str, float | int]:
-        return {
-            "mean": self.mean,
-            "std": self.std,
-            "n": self.n,
-            "stderr": self.stderr,
-            "ci95_low": self.ci95_low,
-            "ci95_high": self.ci95_high,
-            "effect_size_vs_zero": self.effect_size_vs_zero,
-        }
-
-
-def _is_number(value: object) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool)
-
-
-def _flatten_numeric(
-    obj: object,
-    *,
-    prefix: str = "",
-    max_items: int = 10_000,
-) -> dict[str, float]:
-    out: dict[str, float] = {}
-
-    def walk(node: object, path: str) -> None:
-        if len(out) >= max_items:
-            return
-        if _is_number(node):
-            out[path] = float(node)  # type: ignore[arg-type]
-            return
-        if isinstance(node, dict):
-            for k, v in node.items():
-                if not isinstance(k, str):
-                    continue
-                walk(v, f"{path}.{k}" if path else k)
-            return
-        if isinstance(node, (list, tuple)):
-            for i, v in enumerate(node):
-                walk(v, f"{path}[{i}]")
-
-    walk(obj, prefix)
-    return out
-
-
-def _default_key_filter(key: str) -> bool:
-    key_lower = key.lower()
-    if key_lower.startswith("config."):
-        return False
-    if key_lower.endswith("_delta"):
-        return True
-    if "gap" in key_lower:
-        return True
-    for needle in (
-        "mean_reward",
-        "mean_latency_ms",
-        "mean_throughput_tps",
-        "mean_memory_mb",
-        "mean_perplexity",
-        "mean_stability_penalty",
-        "generalization_gap_improvement",
-        "single_policy_gap",
-        "multi_policy_gap",
-    ):
-        if needle in key_lower:
-            return True
-    return False
-
-
-def _aggregate_numeric_maps(maps: list[dict[str, float]]) -> dict[str, AggregateStat]:
-    keys: set[str] = set()
-    for m in maps:
-        keys.update(m.keys())
-
-    aggregated: dict[str, AggregateStat] = {}
-    for key in sorted(keys):
-        values = [m[key] for m in maps if key in m and math.isfinite(m[key])]
-        if not values:
-            continue
-        stats = aggregate_values(values)
-        aggregated[key] = AggregateStat(
-            mean=float(stats["mean"]),
-            std=float(stats["std"]),
-            n=int(stats["n"]),
-            stderr=float(stats["stderr"]),
-            ci95_low=float(stats["ci95_low"]),
-            ci95_high=float(stats["ci95_high"]),
-            effect_size_vs_zero=float(stats["effect_size_vs_zero"]),
-        )
-    return aggregated
 
 
 def _write_multiseed_report(
@@ -168,7 +72,7 @@ def _write_multiseed_report(
             ]
         )
 
-    filtered = {k: v for k, v in aggregated.items() if _default_key_filter(k)}
+    filtered = {k: v for k, v in aggregated.items() if default_key_filter(k)}
     broad_rows: list[list[object]] = [
         [
             k,
@@ -270,10 +174,10 @@ def main(argv: Iterable[str] | None = None) -> None:
         per_seed_summaries.append(summary)
         per_seed_paths.append(config.summary_path())
 
-        numeric = _flatten_numeric(summary)
+        numeric = flatten_numeric(summary)
         per_seed_numeric.append(numeric)
 
-    aggregated = _aggregate_numeric_maps(per_seed_numeric)
+    aggregated = aggregate_numeric_maps(per_seed_numeric)
 
     output_json_path = f"{base_config.benchmark_dir}/{multiseed_run_name}_summary.json"
     output_md_path = f"{base_config.report_dir}/{multiseed_run_name}_report.md"
@@ -293,7 +197,7 @@ def main(argv: Iterable[str] | None = None) -> None:
             "per_seed_summaries": per_seed_paths,
             "report": output_md_path,
         },
-        "aggregates": {k: v.to_dict() for k, v in aggregated.items() if _default_key_filter(k)},
+        "aggregates": {k: v.to_dict() for k, v in aggregated.items() if default_key_filter(k)},
     }
     paper_bundle = create_multiseed_paper_bundle(
         config=base_config,

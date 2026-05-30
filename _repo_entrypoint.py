@@ -15,6 +15,7 @@ _RUN_SCRIPT_MODULES: dict[str, str] = {
     "run_calibrate_llama_cpp.py": "adaptive_quant.cli.calibrate_llama_cpp",
     "run_moe_research.py": "adaptive_quant.cli.moe_research",
     "run_multiseed.py": "adaptive_quant.cli.multiseed",
+    "run_sweep.py": "adaptive_quant.cli.sweep",
     "run_online_learning.py": "adaptive_quant.cli.online_learning",
     "run_pytorch.py": "adaptive_quant.cli.pytorch",
     "run_research.py": "adaptive_quant.cli.research",
