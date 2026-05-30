@@ -38,7 +38,7 @@ python3 -m pip install -e .
 python3 -m unittest discover -s tests -t . -q
 ```
 
-**Without** `pip install -e .`, set `PYTHONPATH=src` (or `src` on `sys.path`) so imports resolve to `src/adaptive_quant` and `src/analysis`. CI always uses the editable install above.
+**Without** `pip install -e .`, run tests with `python3 -m unittest discover -s tests -t . -q` from the repo root — [`tests/__init__.py`](tests/__init__.py) bootstraps `src/` on `sys.path`. Source-checkout runners (`run_*.py`) and `python -m analysis` use the same path setup via [`src/bootstrap.py`](src/bootstrap.py). CI always uses the editable install above.
 
 Optional GPU work: `pip install -e ".[torch]"` or a CUDA-matched PyTorch wheel, then see [docs/INSTALL.md](docs/INSTALL.md).
 

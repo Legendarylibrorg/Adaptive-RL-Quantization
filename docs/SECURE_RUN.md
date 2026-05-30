@@ -68,7 +68,7 @@ bash scripts/docker_secure_preflight.sh --gpu    # also checks NVIDIA container 
 ```bash
 docker compose build
 docker compose run --rm adaptive-rl-quant
-docker compose run --rm adaptive-rl-quant python -m unittest discover -s tests -q
+docker compose run --rm adaptive-rl-quant python -m unittest discover -s tests -t . -q
 ```
 
 Or via Makefile: `make docker-build`, `make docker-test`, `make docker-smoke`.

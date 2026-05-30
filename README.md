@@ -107,7 +107,7 @@ python3 run_research.py --config config.e2e_smoke.json
 
 ### macOS (simulator)
 
-Same as Linux: `./setup.sh` then `.venv/bin/adaptive-rl-quant`. GPU/CUDA training is not the primary target on macOS.
+Same as Linux: `./setup.sh` then `./run`. GPU/CUDA training is not the primary target on macOS.
 
 ### Windows
 

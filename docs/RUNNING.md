@@ -2,23 +2,25 @@
 
 **Platform:** The simulator entrypoints work on **Linux, macOS, and Windows**. Linux and WSL2 are the primary command paths in this guide. On Windows, substitute `py -3.11` or `python` where a `python3` helper command still appears. Run from the **repository root** (where `pyproject.toml` lives; Python presets are under [`src/config.py`](../src/config.py)).
 
-1. Install: `python3 -m pip install -e .`, or run **`python3 scripts/setup_from_clone.py`** once (see [INSTALL.md](INSTALL.md)) — creates a venv, bootstraps `pip` when needed, then runs tests + RL smoke. Editable installs expose console commands such as `adaptive-rl-quant` and `adaptive-rl-quant-pytorch`.
-2. Short reproducible E2E (no Python edits): [**`config.e2e_smoke.json`**](../config.e2e_smoke.json) — `adaptive-rl-quant --config config.e2e_smoke.json`
-3. More examples: [CONFIG.md](CONFIG.md), [`config.example.json`](../config.example.json).
+1. Install: `python3 -m pip install -e .`, or run **`./setup.sh`** / **`python3 scripts/setup_from_clone.py`** once (see [INSTALL.md](INSTALL.md)) — creates a venv, bootstraps `pip` when needed, then runs tests + RL smoke. Editable installs expose console commands such as `adaptive-rl-quant` and `adaptive-rl-quant-pytorch`.
+2. Default full run after setup: **`./run`** or `make run` (uses the venv CLI when present).
+3. Short reproducible E2E (no Python edits): [**`config.e2e_smoke.json`**](../config.e2e_smoke.json) — `adaptive-rl-quant --config config.e2e_smoke.json`
+4. More examples: [CONFIG.md](CONFIG.md), [`config.example.json`](../config.example.json).
 
 Artifacts and API: [USAGE.md](USAGE.md).
 
 ## Command conventions
 
 - Prefer the installed console commands in user-facing workflows: `adaptive-rl-quant`, `adaptive-rl-quant-pytorch`, `adaptive-rl-quant-online`, and friends.
-- Source-checkout equivalents (`python3 run_research.py`, `python3 run_pytorch.py`, and so on) remain available when you want to run directly from the repo tree.
-- Post-hoc analysis: **`python -m analysis <command> ...`** after `pip install -e .` (or `PYTHONPATH=src`) — see [USAGE.md](USAGE.md).
+- After setup, **`./run`** (or `make run`) starts the default simulator pipeline without activating the venv.
+- Source-checkout equivalents (`python3 run_research.py`, `python3 run_pytorch.py`, and so on) work without `pip install -e .` — each shim prepends `src/` via [`_repo_entrypoint.py`](../_repo_entrypoint.py).
+- Post-hoc analysis: **`python -m analysis <command> ...`** after `pip install -e .` or from a source checkout — see [USAGE.md](USAGE.md).
 
 ## Choose an entrypoint
 
 | Goal | Command |
 | --- | --- |
-| Main offline run (simulator, no PyTorch) | `adaptive-rl-quant` |
+| Main offline run (simulator, no PyTorch) | `adaptive-rl-quant` or `./run` after setup |
 | Short one-off episode override | `adaptive-rl-quant --training-episodes 500 --evaluation-episodes 100` |
 | Short reproducible E2E (tune episodes / seed in JSON) | `adaptive-rl-quant --config config.e2e_smoke.json` |
 | … with your own file | `adaptive-rl-quant --config path.json` or `-c path.toml` |

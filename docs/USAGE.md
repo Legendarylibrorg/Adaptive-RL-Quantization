@@ -11,9 +11,9 @@ Install and system packages: [INSTALL.md](INSTALL.md). Command reference: [RUNNI
 
 ## Basics
 
-1. `python3 -m pip install -e .`
-2. `python3 -m unittest discover -s tests -q`
-3. `adaptive-rl-quant` or `adaptive-rl-quant --config my.json`
+1. `python3 -m pip install -e .` (or `./setup.sh` for venv + tests + smoke)
+2. `python3 -m unittest discover -s tests -t . -q` (works from a source checkout without install — see [CONTRIBUTING.md](../CONTRIBUTING.md))
+3. `adaptive-rl-quant`, `./run`, or `adaptive-rl-quant --config my.json`
 
 Cross-platform shortcuts: `python3 scripts/setup_from_clone.py` and `python3 scripts/pre_commit_check.py` on Unix-like hosts; on Windows use `py -3.11` or `python`.
 
@@ -54,7 +54,7 @@ For `adaptive-rl-quant-online` (or `run_online_learning.py` from a source checko
 
 ## Re-run analysis (no training)
 
-From repo root (after `pip install -e .`, or with `PYTHONPATH=src`), pass **command**, **log or history path**, then **output dir**:
+From repo root (after `pip install -e .`, or from a source checkout via `run_*.py` / `python -m analysis`), pass **command**, **log or history path**, then **output dir**:
 
 ```bash
 python -m analysis hardware_generalization path/to/*_multi_hw.jsonl out/
