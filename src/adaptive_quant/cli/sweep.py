@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Iterable
 from dataclasses import asdict
-from typing import Any
+from typing import Any, cast
 
 from adaptive_quant.cli.common import (
     add_config_file_argument,
@@ -27,6 +27,7 @@ from adaptive_quant.presets.baseline import CONFIG as CONFIG_DENSE
 from adaptive_quant.research_pipeline import run_pipeline_entrypoint
 from adaptive_quant.sweep import (
     DEFAULT_OBJECTIVE,
+    SweepDirection,
     SweepSpec,
     SweepTrialPlan,
     SweepTrialResult,
@@ -37,12 +38,7 @@ from adaptive_quant.sweep import (
 )
 
 
-def _resolve_base_config(args: argparse.Namespace) -> FrameworkConfig:
-    if args.sweep_config:
-        spec, file_base = load_sweep_file(args.sweep_config)
-        args._sweep_spec = spec  # type: ignore[attr-defined]
-        if file_base is not None:
-            return file_base
+def _default_base_config(args: argparse.Namespace) -> FrameworkConfig:
     if args.config:
         return load_config_or_fallback(args.config, CONFIG_DENSE)
     if args.preset:
@@ -50,10 +46,7 @@ def _resolve_base_config(args: argparse.Namespace) -> FrameworkConfig:
     return CONFIG_DENSE
 
 
-def _resolve_sweep_spec(args: argparse.Namespace) -> SweepSpec:
-    if hasattr(args, "_sweep_spec"):
-        return args._sweep_spec  # type: ignore[attr-defined]
-
+def _build_cli_sweep_spec(args: argparse.Namespace) -> SweepSpec:
     grid: dict[str, tuple[Any, ...]] = {}
     for raw in args.vary or ():
         try:
@@ -62,13 +55,17 @@ def _resolve_sweep_spec(args: argparse.Namespace) -> SweepSpec:
             raise SystemExit(str(exc)) from exc
         grid[key] = values
 
-    direction = args.direction.strip().lower()
-    if direction not in {"maximize", "minimize"}:
+    direction_raw = args.direction.strip().lower()
+    if direction_raw == "maximize":
+        direction: SweepDirection = "maximize"
+    elif direction_raw == "minimize":
+        direction = "minimize"
+    else:
         raise SystemExit("direction must be 'maximize' or 'minimize'")
 
     return SweepSpec(
         objective=args.objective,
-        direction=direction,  # type: ignore[arg-type]
+        direction=direction,
         seed=args.seed,
         grid=grid or None,
         trials=None,
@@ -76,9 +73,20 @@ def _resolve_sweep_spec(args: argparse.Namespace) -> SweepSpec:
     )
 
 
+def _resolve_sweep_inputs(args: argparse.Namespace) -> tuple[FrameworkConfig, SweepSpec]:
+    if args.sweep_config:
+        spec, file_base = load_sweep_file(args.sweep_config)
+        base_config = file_base if file_base is not None else _default_base_config(args)
+        return base_config, spec
+    return _default_base_config(args), _build_cli_sweep_spec(args)
+
+
 def _apply_trial_overrides(base_config: FrameworkConfig, plan: SweepTrialPlan) -> FrameworkConfig:
     enforce_privileged_override_policy(plan.overrides)
-    return apply_startup_overrides(base_config, plan.overrides)
+    return cast(
+        FrameworkConfig,
+        apply_startup_overrides(base_config, plan.overrides),
+    )
 
 
 def _write_sweep_report(
@@ -192,8 +200,7 @@ def main(argv: Iterable[str] | None = None) -> None:
     )
     args = parser.parse_args(list(argv) if argv is not None else None)
 
-    base_config = _resolve_base_config(args)
-    spec = _resolve_sweep_spec(args)
+    base_config, spec = _resolve_sweep_inputs(args)
 
     if args.episodes is not None:
         base_config = apply_short_run_episodes(base_config, args.episodes)
