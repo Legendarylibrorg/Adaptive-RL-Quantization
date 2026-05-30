@@ -43,7 +43,7 @@ help:
 	@echo "  make install-torch    + PyTorch extra (CUDA wheel still your job)"
 	@echo ""
 	@echo "[Experiments — simulator / stdlib trainer]"
-	@echo "  make run              full run: run_research.py (config.py)"
+	@echo "  make run              full run: ./run or run_research.py (config.py)"
 	@echo "  make reproduce        CI-equivalent smoke: config.e2e_smoke.json (alias: make smoke)"
 	@echo "  make run-config       RESEARCH_CONFIG=path.json|toml (required)"
 	@echo "  make moe              run_moe_research.py (MoE benchmarks)"
@@ -103,7 +103,7 @@ install-torch:
 # --- Experiments ---
 
 run:
-	$(PY) run_research.py
+	@if [ -x ./run ]; then ./run; else $(PY) run_research.py; fi
 
 reproduce:
 	$(PY) run_research.py --config config.e2e_smoke.json
@@ -164,10 +164,10 @@ route-help:
 # --- Quality ---
 
 test:
-	$(PY) -m unittest discover -s tests -v
+	$(PY) -m unittest discover -s tests -t . -v
 
 test-quiet:
-	$(PY) -m unittest discover -s tests -q
+	$(PY) -m unittest discover -s tests -t . -q
 
 secret-scan:
 	$(PY) scripts/secret_scan.py
@@ -195,7 +195,7 @@ docker-build: docker-preflight
 	docker compose build
 
 docker-test: docker-build
-	docker compose run --rm adaptive-rl-quant python -m unittest discover -s tests -q
+	docker compose run --rm adaptive-rl-quant python -m unittest discover -s tests -t . -q
 
 docker-smoke: docker-build
 	docker compose run --rm adaptive-rl-quant
@@ -221,7 +221,7 @@ docker-gpu-pytorch: docker-gpu-preflight docker-gpu-build
 	$(COMPOSE_GPU) run --rm adaptive-rl-quant adaptive-rl-quant-pytorch --preset gpu
 
 docker-gpu-test: docker-gpu-build
-	$(COMPOSE_GPU) run --rm adaptive-rl-quant python -m unittest discover -s tests -q
+	$(COMPOSE_GPU) run --rm adaptive-rl-quant python -m unittest discover -s tests -t . -q
 
 # --- Maintenance ---
 

@@ -25,8 +25,9 @@ The code is intentionally split into a small number of layers so experiments sta
 - `run_sweep.py`: hyperparameter grid search and trial ranking
 - `run_calibrate_llama_cpp.py`: simulator calibration from local `llama.cpp` measurements
 - `run_route_learning.py`: GGUF route catalog and contextual bandit workflow
+- `run_replay.py`: hash-chained JSONL replay / audit verification
 
-Root `run_*.py` files prepend `src/` on `sys.path` and delegate to `adaptive_quant.cli`; installed commands call the same modules directly.
+Root `run_*.py` files prepend `src/` on `sys.path` and delegate to `adaptive_quant.cli`; installed commands call the same modules directly. From repo root, `./run` (or `make run`) starts the default simulator pipeline without activating a venv when `.venv` exists.
 
 Installed console commands map onto those wrappers:
 
@@ -38,6 +39,8 @@ Installed console commands map onto those wrappers:
 - `adaptive-rl-quant-sweep`
 - `adaptive-rl-quant-calibrate`
 - `adaptive-rl-quant-route`
+- `adaptive-rl-quant-replay`
+- `adaptive-rl-quant-analyze` / `python -m analysis`
 
 ## 2. Configuration layer
 
@@ -75,7 +78,8 @@ The key architecture rule here is: **different backends share the same `Framewor
 - `src/adaptive_quant/research_pipeline.py`: full offline pipeline orchestration
 - `src/adaptive_quant/experiment_aggregate.py`: shared numeric flattening/aggregation for multiseed and sweep
 - `src/adaptive_quant/sweep.py`: hyperparameter grid expansion, trial naming, ranking
-- `src/adaptive_quant/pipeline/`: VCS stamp, benchmark warnings, training-history/checkpoint writers (`artifacts.py`), analysis runner, Markdown report
+- `src/adaptive_quant/pipeline/`: VCS stamp, benchmark warnings, Markdown report helpers
+- `src/adaptive_quant/research_pipeline.py`: training-history writers, analysis runner, full offline orchestration
 - `src/adaptive_quant/run_footer.py`: consistent CLI summaries
 
 ### Routing modules (do not conflate)

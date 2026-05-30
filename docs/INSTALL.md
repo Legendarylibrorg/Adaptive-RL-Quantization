@@ -57,15 +57,13 @@ On Windows: `setup.bat`, or `py -3.11 scripts/setup_from_clone.py`, or `python s
 
 This creates **`.venv`**, upgrades **`pip`** (using `ensurepip` first and falling back to `get-pip.py` only if needed), runs **`pip install -e .`**, **`unittest`**, and a **short reproducible end-to-end RL run** (train → eval → benchmarks → analysis) via **`config.e2e_smoke.json`**. Install, tests, and smoke use the venv interpreter directly (no reliance on activating the venv first). Edit that JSON to tune episode counts, `seed`, and `run_name` without touching Python.
 
-On Linux/macOS, `bash scripts/setup_from_clone.sh` remains available as a thin wrapper around the same Python entrypoint.
-
 Override paths if needed:
 
 ```bash
 python3 scripts/setup_from_clone.py --venv-dir .venv --config config.e2e_smoke.json
 ```
 
-**Quality gate (contributors):** run **`python3 scripts/pre_commit_check.py`** from the repo root before pushing (see **[CONTRIBUTING.md](../CONTRIBUTING.md)**). On Linux/macOS, `bash scripts/pre_commit_check.sh` remains a wrapper around the same Python implementation. On Windows use `py -3.11 scripts/pre_commit_check.py` or `python scripts/pre_commit_check.py`.
+**Quality gate (contributors):** run **`python3 scripts/pre_commit_check.py`** from the repo root before pushing (see **[CONTRIBUTING.md](../CONTRIBUTING.md)**). On Windows use `py -3.11 scripts/pre_commit_check.py` or `python scripts/pre_commit_check.py`.
 
 ## Get the code
 
@@ -282,7 +280,7 @@ For a one-command 4090 validation and run:
 bash scripts/run_4090_pipeline.sh
 ```
 
-If **`.venv`** already exists (for example after **`setup_from_clone.sh`**), the script picks **`.venv/bin/python`** automatically unless you set **`PYTHON_BIN`**. Override: `PYTHON_BIN=/usr/bin/python3 bash scripts/run_4090_pipeline.sh`.
+If **`.venv`** already exists (for example after **`./setup.sh`**), the script picks **`.venv/bin/python`** automatically unless you set **`PYTHON_BIN`**. Override: `PYTHON_BIN=/usr/bin/python3 bash scripts/run_4090_pipeline.sh`.
 
 ## 4. llama.cpp setup
 
