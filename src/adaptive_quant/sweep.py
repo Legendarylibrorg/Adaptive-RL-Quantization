@@ -66,7 +66,7 @@ def parse_value_list(raw: str) -> list[Any]:
 
 def parse_vary_argument(raw: str) -> tuple[str, tuple[Any, ...]]:
     if "=" not in raw:
-        raise ValueError(f'Expected KEY=val1,val2,... got {raw!r}')
+        raise ValueError(f"Expected KEY=val1,val2,... got {raw!r}")
     raw_key, values_text = raw.split("=", 1)
     key = normalize_override_key(raw_key)
     values = parse_value_list(values_text)
