@@ -6,6 +6,7 @@ from dataclasses import asdict
 from typing import Any
 
 from adaptive_quant.cli.common import add_config_file_argument, load_config_or_fallback
+from adaptive_quant.cli.presets import apply_short_run_episodes, select_dense_moe_preset
 from adaptive_quant.cli.startup_overrides import apply_startup_overrides, enforce_privileged_override_policy
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.experiment_aggregate import extract_metric
@@ -14,7 +15,6 @@ from adaptive_quant.math_utils import fmt_float
 from adaptive_quant.paper_bundle import create_multiseed_paper_bundle
 from adaptive_quant.pipeline.vcs import git_commit_hash
 from adaptive_quant.presets.baseline import CONFIG as CONFIG_DENSE
-from adaptive_quant.presets.moe import CONFIG_MOE
 from adaptive_quant.research_pipeline import run_pipeline_entrypoint
 from adaptive_quant.sweep import (
     DEFAULT_OBJECTIVE,
@@ -28,14 +28,6 @@ from adaptive_quant.sweep import (
 )
 
 
-def _select_preset(name: str) -> FrameworkConfig:
-    if name == "dense":
-        return CONFIG_DENSE
-    if name == "moe":
-        return CONFIG_MOE
-    raise SystemExit(f"Unknown preset: {name!r} (expected 'dense' or 'moe')")
-
-
 def _resolve_base_config(args: argparse.Namespace) -> FrameworkConfig:
     if args.sweep_config:
         spec, file_base = load_sweep_file(args.sweep_config)
@@ -45,7 +37,7 @@ def _resolve_base_config(args: argparse.Namespace) -> FrameworkConfig:
     if args.config:
         return load_config_or_fallback(args.config, CONFIG_DENSE)
     if args.preset:
-        return _select_preset(args.preset)
+        return select_dense_moe_preset(args.preset)
     return CONFIG_DENSE
 
 
@@ -195,11 +187,7 @@ def main(argv: Iterable[str] | None = None) -> None:
     spec = _resolve_sweep_spec(args)
 
     if args.episodes is not None:
-        base_config = base_config.clone(
-            training_episodes=args.episodes,
-            evaluation_episodes=max(1, args.episodes // 4),
-            continuous_training=False,
-        )
+        base_config = apply_short_run_episodes(base_config, args.episodes)
 
     seed = spec.seed if spec.seed is not None else args.seed
     if seed is not None:

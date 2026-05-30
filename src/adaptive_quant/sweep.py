@@ -14,7 +14,6 @@ from adaptive_quant.cli.startup_overrides import (
     parse_override_value,
 )
 from adaptive_quant.configuration import FrameworkConfig
-from adaptive_quant.experiment_aggregate import extract_metric
 from adaptive_quant.logging_utils import safe_json_loads
 
 SweepDirection = Literal["maximize", "minimize"]
@@ -26,6 +25,7 @@ SWEEP_META_KEYS = frozenset(
         "trials",
         "objective",
         "direction",
+        "seed",
     }
 )
 
@@ -211,21 +211,23 @@ def load_sweep_file(path: str | Path) -> tuple[SweepSpec, FrameworkConfig | None
         raise FileNotFoundError(f"Sweep file not found: {raw_path}")
     payload = _parse_sweep_file(raw_path)
 
-    base_config_path = payload.pop("base_config", None)
+    meta = {key: payload.pop(key) for key in list(payload) if key in SWEEP_META_KEYS}
+
+    base_config_path = meta.get("base_config")
     if base_config_path is not None and not isinstance(base_config_path, str):
         raise TypeError("base_config must be a string path")
 
-    objective = str(payload.pop("objective", DEFAULT_OBJECTIVE))
-    direction_raw = str(payload.pop("direction", "maximize")).strip().lower()
+    objective = str(meta.get("objective", DEFAULT_OBJECTIVE))
+    direction_raw = str(meta.get("direction", "maximize")).strip().lower()
     if direction_raw not in {"maximize", "minimize"}:
         raise ValueError("direction must be 'maximize' or 'minimize'")
     direction: SweepDirection = direction_raw  # type: ignore[assignment]
 
-    seed_raw = payload.pop("seed", None)
+    seed_raw = meta.get("seed")
     seed = int(seed_raw) if seed_raw is not None else None
 
-    grid_raw = payload.pop("grid", None)
-    trials_raw = payload.pop("trials", None)
+    grid_raw = meta.get("grid")
+    trials_raw = meta.get("trials")
     grid = _coerce_grid(grid_raw) if grid_raw is not None else None
     trials = _coerce_trials(trials_raw) if trials_raw is not None else None
 
@@ -246,21 +248,15 @@ def load_sweep_file(path: str | Path) -> tuple[SweepSpec, FrameworkConfig | None
     return spec, base_config
 
 
-def objective_for_result(result: SweepTrialResult, objective: str) -> float | None:
-    if result.objective_value is not None:
-        return result.objective_value
-    return extract_metric(result.summary, objective)
-
-
 __all__ = [
     "DEFAULT_OBJECTIVE",
+    "SWEEP_META_KEYS",
     "SweepDirection",
     "SweepSpec",
     "SweepTrialPlan",
     "SweepTrialResult",
     "build_trial_plans",
     "load_sweep_file",
-    "objective_for_result",
     "parse_vary_argument",
     "rank_trials",
     "trial_run_suffix",

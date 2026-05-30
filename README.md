@@ -28,7 +28,7 @@ flowchart LR
 
 **Default learner (stdlib):** `Trainer` + `UniversalQuantizationPolicy` — **categorical** mode head, **Gaussian** heads for continuous knobs, **value baseline**, **one-step / contextual-bandit-friendly** **REINFORCE-style** updates (fast, deterministic when configured, auditable).
 
-**Optional learners:** `torch_trainer` + neural `torch_policy` on **CUDA** with **PPO**, **VPG**, or **AWR**; **online** continual adaptation (`adaptive-rl-quant-online`); **multi-seed** aggregation; **in-run routing** (`routing.py`) when `router_enabled` picks among configured backends/model ids; **GGUF route catalogs** (`adaptive-rl-quant-route`) use a contextual **UCB1** bandit per hardware/domain/complexity bucket ([docs/ROUTES.md](docs/ROUTES.md)).
+**Optional learners:** `torch_trainer` + neural `torch_policy` on **CUDA** with **PPO**, **VPG**, or **AWR**; **online** continual adaptation (`adaptive-rl-quant-online`); **multi-seed** aggregation; **hyperparameter sweep** (`adaptive-rl-quant-sweep`); **in-run routing** (`routing.py`) when `router_enabled` picks among configured backends/model ids; **GGUF route catalogs** (`adaptive-rl-quant-route`) use a contextual **UCB1** bandit per hardware/domain/complexity bucket ([docs/ROUTES.md](docs/ROUTES.md)).
 
 **What you can stress-test**
 
@@ -65,7 +65,7 @@ flowchart LR
 | **llama.cpp grounded** | Same + built **llama.cpp** binary and GGUF path in config (`backend="llama_cpp"`) |
 | **PyTorch / CUDA** | Same repo + **CUDA-enabled PyTorch** on **Linux + NVIDIA** (`pip install -e ".[torch]"`, `adaptive-rl-quant-pytorch`) |
 
-**Installed entrypoints (thin `run_*.py` shims at repo root match these):** `adaptive-rl-quant` (default simulator), `adaptive-rl-quant-moe`, `adaptive-rl-quant-pytorch`, `adaptive-rl-quant-online`, `adaptive-rl-quant-multiseed`, `adaptive-rl-quant-calibrate`, `adaptive-rl-quant-route`, `adaptive-rl-quant-replay`, `adaptive-rl-quant-analyze`.
+**Installed entrypoints (thin `run_*.py` shims at repo root match these):** `adaptive-rl-quant` (default simulator), `adaptive-rl-quant-moe`, `adaptive-rl-quant-pytorch`, `adaptive-rl-quant-online`, `adaptive-rl-quant-multiseed`, `adaptive-rl-quant-sweep`, `adaptive-rl-quant-calibrate`, `adaptive-rl-quant-route`, `adaptive-rl-quant-replay`, `adaptive-rl-quant-analyze`.
 
 **Artifacts:** one layout under **`outputs/`** — `logs/` (JSONL), `benchmarks/`, `analysis/<run_name>/`, `checkpoints/`, `reports/`, `paper_bundles/` — regardless of backend ([Outputs](#outputs)).
 
@@ -152,10 +152,11 @@ Artifacts land under **`outputs/`** (see [Outputs](#outputs) below).
 | `src/config.py` | Python experiment presets (`CONFIG`, `CONFIG_GPU`, …; also `adaptive_quant.presets` after `pip install -e .`) |
 | `config.example.json` | Example **JSON** config (`preset` + overrides) |
 | `config.e2e_smoke.json` | **Short reproducible RL run** (train+eval+benchmarks+analysis) for CI and quick tuning |
+| `config.sweep.example.json` | Example **hyperparameter sweep** grid (`base_config` + `grid` + objective) |
 | `config.example.pytorch.toml` | Example **TOML** for `run_pytorch.py --config` (needs CUDA PyTorch) |
 | `run_*.py` (repo root) | Thin shims (prepend `src/` to `sys.path`) matching the installed console commands |
 | `setup.sh`, `setup.bat` | **One-command bootstrap** from repo root (venv + install + tests + smoke) |
-| `Makefile` | **Research** targets: `make help` — `setup` / `run` / `reproduce` (`smoke`) / `multiseed` / `pytorch`; quality: `lint` / `format` / `check` (Ruff needs `pip install -e ".[dev]"`) |
+| `Makefile` | **Research** targets: `make help` — `setup` / `run` / `reproduce` (`smoke`) / `multiseed` / `sweep` / `pytorch`; quality: `lint` / `format` / `check` (Ruff needs `pip install -e ".[dev]"`) |
 | `scripts/` | Cross-platform **`setup_from_clone.py`**, **`pre_commit_check.py`**, **`secret_scan.py`** plus Unix wrappers (`*.sh`), **`run_4090_pipeline.sh`**, **`_resolve_venv_python.sh`** |
 | `requirements/ci.txt` + `security/dependency_hashes.json` | Pinned CI bootstrap dependencies plus the separate sha256 manifest used to render a `--require-hashes` install file |
 | `src/analysis/` | Post-hoc analyzers (`python -m analysis`) |
@@ -209,6 +210,7 @@ Programmatically: `FrameworkConfig.from_file("path.json")`, `load_config()` from
 | RTX 4090 preset | `adaptive-rl-quant-pytorch --preset 4090` |
 | 4090 checks + unittest + run | `bash scripts/run_4090_pipeline.sh` |
 | Multi-seed aggregation | `adaptive-rl-quant-multiseed --preset dense --seeds 13,17,23` |
+| Hyperparameter sweep | `adaptive-rl-quant-sweep --sweep-config config.sweep.example.json` |
 | Calibrate simulator from llama.cpp | `adaptive-rl-quant-calibrate` (binary + model in config) |
 | GGUF route catalog + contextual bandit | `adaptive-rl-quant-route --catalog outputs/routes/catalog.json seed` |
 | Online / continual experiment | `adaptive-rl-quant-online` |
@@ -224,6 +226,7 @@ adaptive-rl-quant --help
 adaptive-rl-quant-online --help
 adaptive-rl-quant-pytorch --help
 adaptive-rl-quant-multiseed --help
+adaptive-rl-quant-sweep --help
 adaptive-rl-quant-calibrate --help
 adaptive-rl-quant-route --help
 adaptive-rl-quant-replay --help

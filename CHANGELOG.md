@@ -30,7 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `hardware.detect_cuda_device()` for shared CUDA name/VRAM probing.
 - Analysis warnings when JSONL logs are missing or empty after phase filter.
 - Analysis unit tests (`tests/test_analysis_analyzers.py`) and optional real llama.cpp integration test (`ADAPTIVE_RL_RUN_LLAMA_CPP=1`).
-- Unit tests for multiseed aggregation (`tests/test_multiseed_aggregation.py`), online guardrails (`tests/test_guardrails.py`), and torch trainer helpers (`tests/test_torch_trainer.py`).
+- Unit tests for multiseed aggregation (`tests/test_multiseed_aggregation.py`), hyperparameter sweep (`tests/test_sweep.py`, `tests/test_experiment_aggregate.py`), online guardrails (`tests/test_guardrails.py`), and torch trainer helpers (`tests/test_torch_trainer.py`).
+- `adaptive-rl-quant-sweep` console entry (`adaptive_quant.cli.sweep:main`) with grid search via `--vary` or [`config.sweep.example.json`](../config.sweep.example.json); shared aggregation helpers in `experiment_aggregate.py`.
 - Direct unit coverage for reward math, features, backends (quality/simulator), pipeline helpers (`analysis_runner`, `report_markdown`, `pipeline/artifacts`), consolidated `config` exports, and CLI wiring (`tests/test_reward.py`, `test_features.py`, `test_backends_unit.py`, `test_pipeline_unit.py`, `test_presets_and_shims.py`, `test_cli_behavior.py`). `pre_commit_check.py` unittest step uses `PYTHONPATH=src` (matches mypy/CI editable install).
 - CI job `torch-cpu-smoke` (Ubuntu 3.12, hash-pinned `requirements/pytorch-cpu.txt`) runs torch trainer unit smoke without the full matrix.
 - CI coverage gate (72% floor on `adaptive_quant`).

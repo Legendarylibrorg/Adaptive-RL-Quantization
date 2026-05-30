@@ -37,7 +37,7 @@
 Initial public release.
 
 - Simulator-first RL quantization research loop (`adaptive-rl-quant` and related CLIs).
-- Optional PyTorch/CUDA training, MoE, online loop, multiseed runs, and llama.cpp calibration.
+- Optional PyTorch/CUDA training, MoE, online loop, multiseed runs, hyperparameter sweeps, and llama.cpp calibration.
 - JSON/TOML `FrameworkConfig` loading, hash-verified CI bootstrap, and dependency review on pull requests.
 
 **Full history:** [CHANGELOG.md](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/blob/v0.1.0/CHANGELOG.md)

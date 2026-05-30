@@ -209,7 +209,7 @@ Install the package (editable):
 python3 -m pip install -e .
 ```
 
-This exposes installable console commands such as `adaptive-rl-quant`, `adaptive-rl-quant-pytorch`, `adaptive-rl-quant-online`, and `adaptive-rl-quant-multiseed`.
+This exposes installable console commands such as `adaptive-rl-quant`, `adaptive-rl-quant-pytorch`, `adaptive-rl-quant-online`, `adaptive-rl-quant-multiseed`, and `adaptive-rl-quant-sweep`.
 
 This is enough for:
 
