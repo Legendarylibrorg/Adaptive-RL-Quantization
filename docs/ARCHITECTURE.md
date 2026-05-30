@@ -125,7 +125,7 @@ For strong experimental hygiene, prefer this order:
 3. move to a dedicated JSON/TOML config or a copied Python preset
 4. use `FrameworkConfig.reproducible_research(...)` or the `reproducible` preset when you need deterministic scheduling
 5. validate with `adaptive-rl-quant-multiseed` before making comparative claims
-6. tune hyperparameters with `adaptive-rl-quant-sweep` when comparing learning rates, reward weights, or torch batch settings
+6. tune hyperparameters with `adaptive-rl-quant-sweep` when comparing learning rates, reward weights, or torch batch settings ([SWEEP.md](SWEEP.md))
 7. keep generated summaries, reports, and config files together in version control or your experiment log
 
 ## Linux-first and WSL2

@@ -279,6 +279,7 @@ Paths are driven by `run_name` and directory fields in config.
 | [docs/GPU_PROFILES.md](docs/GPU_PROFILES.md) | VRAM / preset table |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | CUDA / preflight |
 | [docs/ONLINE.md](docs/ONLINE.md) | Online loop |
+| [docs/SWEEP.md](docs/SWEEP.md) | Hyperparameter sweep grids, objectives, and artifacts |
 | [docs/ROUTES.md](docs/ROUTES.md) | GGUF route catalogs and contextual route bandits |
 | [docs/LOCAL_RESEARCH.md](docs/LOCAL_RESEARCH.md) | Local `llama.cpp` evidence and paper bundles |
 | [docs/PAPER.md](docs/PAPER.md) | Research summary |

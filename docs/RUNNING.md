@@ -85,7 +85,7 @@ Before committing (whitespace, syntax, tests): `python3 scripts/pre_commit_check
 
 Multi-seed: seeds can be `a,b,c` or `0-9`. Reports under `outputs/reports/` as `<run_name>_multiseed_report.md`.
 
-Hyperparameter sweep: pass a sweep file (`--sweep-config`) or repeat `--vary KEY=val1,val2` for a cartesian grid. Each trial runs the full research pipeline with unique `run_name` suffixes; results are ranked by `--objective` (default `evaluation.mean_reward`) and written to `outputs/benchmarks/<run_name>_sweep_summary.json` and `outputs/reports/<run_name>_sweep_report.md`. See [`config.sweep.example.json`](../config.sweep.example.json). Quick smoke: `make sweep-smoke`.
+Hyperparameter sweep: pass a sweep file (`--sweep-config`) or repeat `--vary KEY=val1,val2` for a cartesian grid. Each trial runs the full research pipeline with unique `run_name` suffixes; results are ranked by `--objective` (default `evaluation.mean_reward`) and written to `outputs/benchmarks/<run_name>_sweep_summary.json` and `outputs/reports/<run_name>_sweep_report.md`. Quick smoke: `make sweep-smoke`. Full guide: **[SWEEP.md](SWEEP.md)**.
 
 Fixed horizons and episode counts live in each `config*.py`. For long PyTorch runs, enable `continuous_training` and related fields in [CONFIG.md](CONFIG.md).
 
