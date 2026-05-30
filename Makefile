@@ -4,7 +4,7 @@
 .PHONY: help
 .PHONY: setup setup-quick
 .PHONY: install install-dev install-torch
-.PHONY: run reproduce smoke run-config moe multiseed multiseed-smoke
+.PHONY: run reproduce smoke run-config moe multiseed multiseed-smoke sweep sweep-smoke
 .PHONY: pytorch 3090 4090 4090-universal
 .PHONY: online calibrate route-help
 .PHONY: test test-quiet lint format check secret-scan doctor
@@ -49,6 +49,8 @@ help:
 	@echo "  make moe              run_moe_research.py (MoE benchmarks)"
 	@echo "  make multiseed        MULTISEED_PRESET=dense|moe MULTISEED_SEEDS=..."
 	@echo "  make multiseed-smoke  two seeds, low episodes (quick sanity)"
+	@echo "  make sweep            SWEEP_CONFIG=config.sweep.example.json (override as needed)"
+	@echo "  make sweep-smoke      two learning rates, low episodes (quick sanity)"
 	@echo ""
 	@echo "[CUDA — install torch first: make install-torch]"
 	@echo "  make pytorch          PYTORCH_PRESET=gpu (default) | 3090 | 4090 | 4090-universal"
@@ -124,6 +126,15 @@ multiseed:
 
 multiseed-smoke:
 	$(PY) run_multiseed.py --preset dense --seeds 7,11 --episodes 24
+
+SWEEP_CONFIG ?= config.sweep.example.json
+
+sweep:
+	$(PY) run_sweep.py --sweep-config "$(SWEEP_CONFIG)"
+
+sweep-smoke:
+	$(PY) run_sweep.py --config config.e2e_smoke.json --run-name test_sweep \
+		--vary learning_rate=0.02,0.035 --episodes 24 --quiet
 
 # --- CUDA ---
 

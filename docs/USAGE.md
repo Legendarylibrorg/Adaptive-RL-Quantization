@@ -46,6 +46,8 @@ Or `ResearchPipeline(cfg).run()`, `FrameworkConfig.from_file`, `FrameworkConfig.
 
 Everything lands under `outputs/`: `logs/`, `benchmarks/` (summaries + optional `*_preflight.json` + `*_recommendation.json` + online detail JSON), `analysis/<run_name>/`, `checkpoints/`, `reports/`. Names follow `run_name` and path fields in config.
 
+Multi-seed runs write `<run_name>_multiseed_summary.json` and `<run_name>_multiseed_report.md`. Hyperparameter sweeps write `<run_name>_sweep_summary.json` (leaderboard + per-trial metadata) and `<run_name>_sweep_report.md`, with one full pipeline summary per trial at `<base_run_name>_trialNNN_*_summary.json`. See [RUNNING.md](RUNNING.md) and [`config.sweep.example.json`](../config.sweep.example.json).
+
 The recommendation artifact records detected host hardware, the target hardware class used for scoring, adaptive-policy performance on that target, and the best fixed quant candidate discovered from deterministic RL rollouts.
 
 For `adaptive-rl-quant-online` (or `run_online_learning.py` from a source checkout), you also get `*_online_telemetry.jsonl`, `*_online_replay.jsonl`, `*_online_summary.json`, a standard `*_summary.json`, bootstrap `*_training_history.json`, and a Markdown report under `reports/`.

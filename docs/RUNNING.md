@@ -31,6 +31,8 @@ Artifacts and API: [USAGE.md](USAGE.md).
 | Linux 4090 checks + run | `bash scripts/run_4090_pipeline.sh` |
 | 4090 host, universal-policy naming | `adaptive-rl-quant-pytorch --preset 4090-universal` |
 | Multi-seed (`dense` or `moe`) | `adaptive-rl-quant-multiseed --preset dense --seeds 13,17,23,29,31` |
+| Hyperparameter sweep | `adaptive-rl-quant-sweep --sweep-config config.sweep.example.json` |
+| Hyperparameter sweep (CLI grid) | `adaptive-rl-quant-sweep --config config.e2e_smoke.json --vary learning_rate=0.02,0.035` |
 | Calibrate simulator from llama.cpp | `adaptive-rl-quant-calibrate` |
 | Calibrate + custom base config | `adaptive-rl-quant-calibrate --config my_base.json` |
 | GGUF route catalog + contextual bandit | `adaptive-rl-quant-route --catalog outputs/routes/catalog.json seed` |
@@ -51,6 +53,8 @@ adaptive-rl-quant-pytorch --preset 3090
 adaptive-rl-quant-pytorch --config ./gpu_settings.toml
 adaptive-rl-quant-online --config ./online.toml
 adaptive-rl-quant-multiseed --preset moe --seeds 13,17,23
+adaptive-rl-quant-sweep --sweep-config config.sweep.example.json
+adaptive-rl-quant-sweep --preset dense --vary learning_rate=0.02,0.035 --episodes 48
 adaptive-rl-quant-calibrate --config ./paths_only.json
 adaptive-rl-quant-route --catalog outputs/routes/catalog.json --help
 adaptive-rl-quant --help
@@ -70,13 +74,16 @@ python3 run_pytorch.py --preset gpu
 python3 run_pytorch.py --preset 3090
 python3 run_online_learning.py --config ./online.toml
 python3 run_multiseed.py --preset moe --seeds 13,17,23
+python3 run_sweep.py --sweep-config config.sweep.example.json
 python3 run_calibrate_llama_cpp.py --config ./paths_only.json
 python3 run_route_learning.py --catalog outputs/routes/catalog.json --help
 ```
 
 Before committing (whitespace, syntax, tests): `python3 scripts/pre_commit_check.py` on Unix-like hosts; on Windows use `py -3.11 scripts/pre_commit_check.py` or `python scripts/pre_commit_check.py`. On Linux/macOS, `bash scripts/pre_commit_check.sh` is a wrapper around the same Python implementation.
 
-Multi-seed: seeds can be `a,b,c` or `0-9`. Reports under `outputs/reports/`.
+Multi-seed: seeds can be `a,b,c` or `0-9`. Reports under `outputs/reports/` as `<run_name>_multiseed_report.md`.
+
+Hyperparameter sweep: pass a sweep file (`--sweep-config`) or repeat `--vary KEY=val1,val2` for a cartesian grid. Each trial runs the full research pipeline with unique `run_name` suffixes; results are ranked by `--objective` (default `evaluation.mean_reward`) and written to `outputs/benchmarks/<run_name>_sweep_summary.json` and `outputs/reports/<run_name>_sweep_report.md`. See [`config.sweep.example.json`](../config.sweep.example.json). Quick smoke: `make sweep-smoke`.
 
 Fixed horizons and episode counts live in each `config*.py`. For long PyTorch runs, enable `continuous_training` and related fields in [CONFIG.md](CONFIG.md).
 
@@ -89,6 +96,8 @@ Startup overrides are available on research-style entrypoints. Use named flags f
 - **`adaptive-rl-quant-pytorch`** (via [`run_pytorch.py`](../run_pytorch.py)): CUDA preflight first (when enabled), then the same pipeline with a smaller benchmark budget than training.
 - **`adaptive-rl-quant-moe`** (via [`run_moe_research.py`](../run_moe_research.py)): MoE benchmarks and extra MoE analysis.
 - **`adaptive-rl-quant-online`** (via [`run_online_learning.py`](../run_online_learning.py)): offline warm-start, then simulated serving + replay + rollback with the same summary/report/checkpoint pattern as other entrypoints.
+- **`adaptive-rl-quant-multiseed`** (via [`run_multiseed.py`](../run_multiseed.py)): repeated full pipelines across seeds with mean/std aggregates.
+- **`adaptive-rl-quant-sweep`** (via [`run_sweep.py`](../run_sweep.py)): cartesian hyperparameter grids or explicit trial lists, ranked by a pipeline objective metric.
 - **`adaptive-rl-quant-route`** (via [`run_route_learning.py`](../run_route_learning.py)): manages GGUF route catalogs and trains a contextual bandit over route choices. See [ROUTES.md](ROUTES.md) and [LOCAL_RESEARCH.md](LOCAL_RESEARCH.md).
 
 ## Outputs

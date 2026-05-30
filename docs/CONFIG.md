@@ -311,3 +311,44 @@ Increase benchmark fidelity:
 - raise `benchmark_training_episodes`
 - raise `benchmark_evaluation_episodes`
 - switch `backend` to `llama_cpp`
+
+## Hyperparameter sweep files
+
+For systematic tuning, use **`adaptive-rl-quant-sweep`** with either repeated `--vary KEY=val1,val2` flags or a dedicated sweep JSON/TOML file. Copy [`config.sweep.example.json`](../config.sweep.example.json):
+
+```json
+{
+  "base_config": "config.e2e_smoke.json",
+  "run_name": "lr_sweep_smoke",
+  "seed": 13,
+  "objective": "evaluation.mean_reward",
+  "direction": "maximize",
+  "grid": {
+    "learning_rate": [0.02, 0.035],
+    "reward_weights.beta_throughput": [0.04, 0.08]
+  }
+}
+```
+
+Sweep-specific top-level keys (not part of `FrameworkConfig`):
+
+| Key | Role |
+| --- | --- |
+| `base_config` | Optional path to a base JSON/TOML config (merged before grid trials) |
+| `grid` | Cartesian product of parameter lists (same keys as `--set` / flat config fields) |
+| `trials` | Alternative to `grid`: explicit list of override mappings (mutually exclusive with `grid`) |
+| `objective` | Dotted metric path used to rank trials (default `evaluation.mean_reward`) |
+| `direction` | `maximize` or `minimize` |
+| `seed` | Fixed seed applied to every trial unless overridden per trial |
+
+Any remaining top-level keys after extracting sweep metadata are merged as base-config overrides (same rules as a normal config file, including optional `preset`).
+
+CLI example without a sweep file:
+
+```bash
+adaptive-rl-quant-sweep --config config.e2e_smoke.json \
+  --vary learning_rate=0.02,0.035 \
+  --objective evaluation.mean_reward
+```
+
+See [RUNNING.md](RUNNING.md) for Makefile shortcuts (`make sweep`, `make sweep-smoke`).

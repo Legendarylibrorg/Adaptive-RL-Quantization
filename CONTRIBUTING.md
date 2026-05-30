@@ -49,7 +49,7 @@ Optional GPU work: `pip install -e ".[torch]"` or a CUDA-matched PyTorch wheel, 
 For a tighter loop on your machine:
 
 1. `pip install -e ".[dev]"` — installs **[Ruff](https://docs.astral.sh/ruff/)** for lint + format (`pyproject.toml` → `[project.optional-dependencies] dev`).
-2. **`make help`** on Linux/macOS — see [Makefile](Makefile): quality (`lint`, `format`, `check` = Ruff + `pre_commit_check.py`); experiments (`run`, `reproduce` / `smoke`, `multiseed`, `pytorch`, …). On Windows, use the Python scripts under `scripts/`.
+2. **`make help`** on Linux/macOS — see [Makefile](Makefile): quality (`lint`, `format`, `check` = Ruff + `pre_commit_check.py`); experiments (`run`, `reproduce` / `smoke`, `multiseed`, `sweep`, `pytorch`, …). On Windows, use the Python scripts under `scripts/`.
 3. [.vscode/extensions.json](.vscode/extensions.json) recommends the Python and Ruff extensions; [.editorconfig](.editorconfig) keeps basic spacing consistent.
 
 CI installs hash-pinned dev tools from [`requirements/dev.txt`](requirements/dev.txt) (see [`requirements/README.md`](requirements/README.md)); locally, `pip install -e ".[dev]"` is still fine for Ruff and mypy. Mypy covers configuration, logging, easy_config, backends, `route_pipeline`, CLI, and `torch_trainer` (see `scripts/pre_commit_check.py`).

@@ -22,6 +22,7 @@ The code is intentionally split into a small number of layers so experiments sta
 - `run_moe_research.py`: MoE-focused preset and benchmarks
 - `run_online_learning.py`: online adaptation pipeline
 - `run_multiseed.py`: repeated runs and aggregation
+- `run_sweep.py`: hyperparameter grid search and trial ranking
 - `run_calibrate_llama_cpp.py`: simulator calibration from local `llama.cpp` measurements
 - `run_route_learning.py`: GGUF route catalog and contextual bandit workflow
 
@@ -34,6 +35,7 @@ Installed console commands map onto those wrappers:
 - `adaptive-rl-quant-moe`
 - `adaptive-rl-quant-online`
 - `adaptive-rl-quant-multiseed`
+- `adaptive-rl-quant-sweep`
 - `adaptive-rl-quant-calibrate`
 - `adaptive-rl-quant-route`
 
@@ -71,6 +73,8 @@ The key architecture rule here is: **different backends share the same `Framewor
 
 - `src/analysis/`: post-hoc analysis (`analyzers.py`, shared `log_records.py`, `python -m analysis` CLI)
 - `src/adaptive_quant/research_pipeline.py`: full offline pipeline orchestration
+- `src/adaptive_quant/experiment_aggregate.py`: shared numeric flattening/aggregation for multiseed and sweep
+- `src/adaptive_quant/sweep.py`: hyperparameter grid expansion, trial naming, ranking
 - `src/adaptive_quant/pipeline/`: VCS stamp, benchmark warnings, training-history/checkpoint writers (`artifacts.py`), analysis runner, Markdown report
 - `src/adaptive_quant/run_footer.py`: consistent CLI summaries
 
@@ -112,7 +116,8 @@ For strong experimental hygiene, prefer this order:
 3. move to a dedicated JSON/TOML config or a copied Python preset
 4. use `FrameworkConfig.reproducible_research(...)` or the `reproducible` preset when you need deterministic scheduling
 5. validate with `adaptive-rl-quant-multiseed` before making comparative claims
-6. keep generated summaries, reports, and config files together in version control or your experiment log
+6. tune hyperparameters with `adaptive-rl-quant-sweep` when comparing learning rates, reward weights, or torch batch settings
+7. keep generated summaries, reports, and config files together in version control or your experiment log
 
 ## Linux-first and WSL2
 
