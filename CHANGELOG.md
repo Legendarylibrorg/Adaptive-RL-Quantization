@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- [`docs/SWEEP.md`](docs/SWEEP.md): hyperparameter sweep guide (grid vs trials, objectives, artifacts, Makefile shortcuts).
 - Root `./run` script and shared [`src/bootstrap.py`](src/bootstrap.py) for source-checkout path setup; [`tests/__init__.py`](tests/__init__.py) so `unittest discover -s tests -t .` works without an editable install.
 
 ### Changed

@@ -204,7 +204,7 @@ adaptive-rl-quant-sweep --config config.e2e_smoke.json \
   --vary reward_weights.beta_throughput=0.04,0.08
 ```
 
-Those write `outputs/benchmarks/<run_name>_sweep_summary.json`, `outputs/reports/<run_name>_sweep_report.md`, and per-trial summaries under `outputs/benchmarks/<run_name>_trialNNN_*_summary.json`.
+Those write `outputs/benchmarks/<run_name>_sweep_summary.json`, `outputs/reports/<run_name>_sweep_report.md`, and per-trial summaries under `outputs/benchmarks/<run_name>_trialNNN_*_summary.json`. See [docs/SWEEP.md](SWEEP.md) for sweep file format, objectives, and Makefile shortcuts.
 
 To anchor the offline harness to real measurements, you can calibrate simulator coefficients against real `llama.cpp` runs:
 

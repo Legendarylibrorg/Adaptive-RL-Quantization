@@ -351,4 +351,4 @@ adaptive-rl-quant-sweep --config config.e2e_smoke.json \
   --objective evaluation.mean_reward
 ```
 
-See [RUNNING.md](RUNNING.md) for Makefile shortcuts (`make sweep`, `make sweep-smoke`).
+See [RUNNING.md](RUNNING.md) for Makefile shortcuts (`make sweep`, `make sweep-smoke`). Full guide: **[SWEEP.md](SWEEP.md)**.
