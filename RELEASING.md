@@ -6,7 +6,7 @@
 2. **Python ≥ 3.11** — from repo root, with a venv:
    - `python3 -m pip install -e ".[dev]"`
    - `ruff check adaptive_quant analysis tests scripts "run_*.py" "config*.py"`
-   - `python3 -m unittest discover -s tests -q`
+   - `python3 -m unittest discover -s tests -t . -q`
 3. **Optional smoke** — `python3 run_research.py --config config.e2e_smoke.json` (matches CI’s last step).
 4. **Version files** — for `vX.Y.Z`, keep these aligned:
    - [`pyproject.toml`](pyproject.toml) → `version = "X.Y.Z"`

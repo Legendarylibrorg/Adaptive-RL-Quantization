@@ -419,7 +419,7 @@ bash scripts/run_4090_pipeline.sh
 Tests:
 
 ```bash
-python3 -m unittest discover -s tests -v
+python3 -m unittest discover -s tests -t . -v
 ```
 
 ### Appendix B. Main Implementation Files

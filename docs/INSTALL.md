@@ -24,10 +24,10 @@ Follow the sections below in order on a fresh machine: **get the code** → **pl
 After cloning the repo:
 
 ```bash
-./setup.sh && .venv/bin/adaptive-rl-quant
+./setup.sh && ./run
 ```
 
-`./setup.sh` already runs tests and a short smoke (`config.e2e_smoke.json`). The second command starts a **full** simulator run. You do not need to activate the venv first.
+`./setup.sh` already runs tests and a short smoke (`config.e2e_smoke.json`). `./run` starts a **full** simulator run (uses `.venv/bin/adaptive-rl-quant` when the venv exists). You do not need to activate the venv first.
 
 **Install only (no tests, no smoke):** `./setup.sh --quick`
 
@@ -213,7 +213,7 @@ This is enough for:
 
 - `adaptive-rl-quant`
 - `adaptive-rl-quant --config config.e2e_smoke.json`
-- `python3 -m unittest discover -s tests -v`
+- `python3 -m unittest discover -s tests -t . -v`
 
 ## 2. Simulator-only setup
 
@@ -223,7 +223,7 @@ Recommended verification:
 
 ```bash
 adaptive-rl-quant
-python3 -m unittest discover -s tests -v
+python3 -m unittest discover -s tests -t . -v
 ```
 
 ## 3. GPU setup

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Root `./run` script and shared [`src/bootstrap.py`](src/bootstrap.py) for source-checkout path setup; [`tests/__init__.py`](tests/__init__.py) so `unittest discover -s tests -t .` works without an editable install.
+
+### Changed
+
+- Slim `run_*.py` shims; removed redundant Unix shell wrappers around `setup_from_clone.py`, `pre_commit_check.py`, and `secret_scan.py` (use the Python scripts directly).
+- CI, Makefile, and docs now use `python3 -m unittest discover -s tests -t .` consistently.
+
 ### Security
 
 - Hash-pin CI dev tools (including `pip-audit`), and PyTorch CPU smoke via `pip-compile` lockfiles (`requirements/dev.txt`, `pytorch-cpu.txt`); `verify_lockfiles.py` enforces inline hashes; scheduled weekly `pip-audit` on main; bootstrap `setup_from_clone.py` uses `--require-hashes` for setuptools.
@@ -32,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Analysis unit tests (`tests/test_analysis_analyzers.py`) and optional real llama.cpp integration test (`ADAPTIVE_RL_RUN_LLAMA_CPP=1`).
 - Unit tests for multiseed aggregation (`tests/test_multiseed_aggregation.py`), hyperparameter sweep (`tests/test_sweep.py`, `tests/test_experiment_aggregate.py`), online guardrails (`tests/test_guardrails.py`), and torch trainer helpers (`tests/test_torch_trainer.py`).
 - `adaptive-rl-quant-sweep` console entry (`adaptive_quant.cli.sweep:main`) with grid search via `--vary` or [`config.sweep.example.json`](../config.sweep.example.json); shared aggregation helpers in `experiment_aggregate.py`.
-- Direct unit coverage for reward math, features, backends (quality/simulator), pipeline helpers (`analysis_runner`, `report_markdown`, `pipeline/artifacts`), consolidated `config` exports, and CLI wiring (`tests/test_reward.py`, `test_features.py`, `test_backends_unit.py`, `test_pipeline_unit.py`, `test_presets_and_shims.py`, `test_cli_behavior.py`). `pre_commit_check.py` unittest step uses `PYTHONPATH=src` (matches mypy/CI editable install).
+- Direct unit coverage for reward math, features, backends (quality/simulator), pipeline helpers (`report_markdown`, `research_pipeline`), consolidated `config` exports, and CLI wiring (`tests/test_reward.py`, `test_features.py`, `test_backends_unit.py`, `test_pipeline_unit.py`, `test_presets_and_shims.py`, `test_cli_behavior.py`). `pre_commit_check.py` unittest step uses `discover -s tests -t .` (matches CI editable install).
 - CI job `torch-cpu-smoke` (Ubuntu 3.12, hash-pinned `requirements/pytorch-cpu.txt`) runs torch trainer unit smoke without the full matrix.
 - CI coverage gate (72% floor on `adaptive_quant`).
 - Secure-run tooling: `docs/SECURE_RUN.md` tiers (VM → Docker → NVIDIA), `scripts/docker_secure_preflight.sh`, `scripts/docker_gpu_device_probe.py`, `config.docker.gpu_smoke.json`, Makefile `docker-gpu-verify` (local/VM use; not run in CI).

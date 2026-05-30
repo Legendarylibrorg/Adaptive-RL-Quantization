@@ -29,6 +29,11 @@ The code is intentionally split into a small number of layers so experiments sta
 
 Root `run_*.py` files prepend `src/` on `sys.path` and delegate to `adaptive_quant.cli`; installed commands call the same modules directly. From repo root, `./run` (or `make run`) starts the default simulator pipeline without activating a venv when `.venv` exists.
 
+Path bootstrap for source checkouts:
+
+- [`src/bootstrap.py`](../src/bootstrap.py): shared `ensure_repo_paths()` used by [`_repo_entrypoint.py`](../_repo_entrypoint.py) and [`src/analysis/__main__.py`](../src/analysis/__main__.py)
+- [`tests/__init__.py`](../tests/__init__.py): lets `python3 -m unittest discover -s tests -t .` run without `pip install -e .`
+
 Installed console commands map onto those wrappers:
 
 - `adaptive-rl-quant`

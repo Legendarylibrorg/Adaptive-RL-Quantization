@@ -19,7 +19,7 @@
 
 - [ ] `python3 scripts/pre_commit_check.py`
 - [ ] `python3 scripts/verify_hashes.py`
-- [ ] `python3 -m unittest discover -s tests`
+- [ ] `python3 -m unittest discover -s tests -t . -q`
 - [ ] E2E / manual run (describe):
 
 ## Risk / rollout
