@@ -209,7 +209,10 @@ def main(argv: list[str] | None = None) -> int:
     ran_smoke = not args.skip_smoke
 
     if ran_tests:
-        run([str(venv_python), "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-q"], cwd=root)
+        run(
+            [str(venv_python), "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-q"],
+            cwd=root,
+        )
     if ran_smoke:
         if not config_path.is_file():
             raise SystemExit(f"Smoke config not found: {config_path}")
