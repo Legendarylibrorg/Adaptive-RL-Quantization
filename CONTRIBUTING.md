@@ -35,7 +35,7 @@ From the repository root:
 python3 -m venv .venv
 source .venv/bin/activate   # or .venv\Scripts\activate on Windows
 python3 -m pip install -e .
-python3 -m unittest discover -s tests -q
+python3 -m unittest discover -s tests -t . -q
 ```
 
 **Without** `pip install -e .`, set `PYTHONPATH=src` (or `src` on `sys.path`) so imports resolve to `src/adaptive_quant` and `src/analysis`. CI always uses the editable install above.
