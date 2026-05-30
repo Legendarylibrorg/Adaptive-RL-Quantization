@@ -213,9 +213,10 @@ def load_sweep_file(path: str | Path) -> tuple[SweepSpec, FrameworkConfig | None
 
     meta = {key: payload.pop(key) for key in list(payload) if key in SWEEP_META_KEYS}
 
-    base_config_path = meta.get("base_config")
-    if base_config_path is not None and not isinstance(base_config_path, str):
+    base_config_raw = meta.get("base_config")
+    if base_config_raw is not None and not isinstance(base_config_raw, str):
         raise TypeError("base_config must be a string path")
+    base_config_path: str | None = base_config_raw
 
     objective = str(meta.get("objective", DEFAULT_OBJECTIVE))
     direction_raw = str(meta.get("direction", "maximize")).strip().lower()
