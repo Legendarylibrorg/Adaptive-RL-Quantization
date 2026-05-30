@@ -174,7 +174,6 @@ Artifacts land under **`outputs/`** (see [Outputs](#outputs) below).
 | `CODE_OF_CONDUCT.md` | Short rules for issues and pull requests |
 | `SECURITY.md` | Vulnerability reporting (private disclosure, scope, SLAs, safe harbor) |
 | `SUPPORT.md` | Where to ask for help and how to file a useful bug |
-| `.well-known/security.txt` | Machine-readable disclosure metadata (RFC 9116) |
 | `.github/workflows/` | CI (Linux on Python 3.11/3.12/3.13; macOS and Windows on 3.12; E2E smoke) |
 | `.github/ISSUE_TEMPLATE/` | Bug report and feature issue forms |
 | `.github/PULL_REQUEST_TEMPLATE.md` | Default PR checklist |
@@ -260,7 +259,7 @@ Paths are driven by `run_name` and directory fields in config.
 
 ## Security
 
-- **Report vulnerabilities** privately via [GitHub Security Advisories](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/security/advisories/new); details in [SECURITY.md](SECURITY.md) and [`.well-known/security.txt`](.well-known/security.txt).
+- **Report vulnerabilities** privately via [GitHub Security Advisories](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/security/advisories/new); details in [SECURITY.md](SECURITY.md) 
 - **Stronger isolation (recommended for untrusted artifacts):** **disposable Linux VM → hardened Docker** (optional **NVIDIA GPU inside the VM** via passthrough + container runtime). Convenience host venv is lower assurance — see **[docs/SECURE_RUN.md](docs/SECURE_RUN.md)**; locally use `make docker-preflight`, `make docker-gpu-verify` (GPU VM).
 - **Secrets / checkpoints / CI hashes:** do not commit `.env` or keys; treat third-party **`.pt`** checkpoints as untrusted (loaders use **`weights_only=True`** where supported); CI installs bootstrap deps with **`pip --require-hashes`** after [scripts/verify_hashes.py](scripts/verify_hashes.py). Secret scan: **`scripts/secret_scan.py`** via **`pre_commit_check.py`**.
 
