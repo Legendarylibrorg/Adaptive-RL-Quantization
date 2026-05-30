@@ -176,7 +176,7 @@ def main(argv: list[str] | None = None) -> int:
         env = dict(os.environ)
         env["PYTHONPATH"] = str(root / "src") + os.pathsep + env.get("PYTHONPATH", "")
         subprocess.run(
-            [python_bin, "-m", "unittest", "discover", "-s", "tests", "-q"],
+            [python_bin, "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-q"],
             cwd=str(root),
             env=env,
             check=True,

@@ -35,7 +35,7 @@ if "4090" not in device_name.lower():
 PY
 
 if [[ "${RUN_TESTS}" == "1" ]]; then
-  "${PYTHON_BIN}" -m unittest discover -s tests -v
+  "${PYTHON_BIN}" -m unittest discover -s tests -t . -v
 fi
 
 "${PYTHON_BIN}" "${ROOT_DIR}/run_pytorch.py" --preset 4090

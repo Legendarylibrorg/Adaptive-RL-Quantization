@@ -86,15 +86,21 @@ Further detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/PAPER.md](
 ```bash
 git clone https://github.com/Legendarylibrorg/Adaptive-RL-Quantization.git
 cd Adaptive-RL-Quantization
-./setup.sh && .venv/bin/adaptive-rl-quant
+./setup.sh && ./run
 ```
 
-`./setup.sh` creates `.venv`, installs the package, runs tests, and runs a short end-to-end smoke (`config.e2e_smoke.json`). The last line runs a **full** simulator experiment. No need to `activate` the venv or rerun smoke.
+`./setup.sh` creates `.venv`, installs the package, runs tests, and runs a short end-to-end smoke (`config.e2e_smoke.json`). `./run` starts a **full** simulator experiment (uses `.venv/bin/adaptive-rl-quant` when present). No need to `activate` the venv or rerun smoke.
+
+**No install yet?** From a source checkout you can still smoke-test immediately:
+
+```bash
+python3 run_research.py --config config.e2e_smoke.json
+```
 
 | Linux option | Command |
 | --- | --- |
 | Install only (no tests/smoke) | `./setup.sh --quick` |
-| After setup, without venv paths | `source .venv/bin/activate` then `adaptive-rl-quant` |
+| After setup, without venv paths | `source .venv/bin/activate` then `adaptive-rl-quant` or `./run` |
 | Makefile (uses `.venv` when present) | `make run` |
 | CI-equivalent smoke | `make reproduce` or `adaptive-rl-quant --config config.e2e_smoke.json` |
 | CUDA / PyTorch (after setup) | see [GPU and platform notes](#gpu-and-platform-notes) below |
@@ -154,10 +160,11 @@ Artifacts land under **`outputs/`** (see [Outputs](#outputs) below).
 | `config.e2e_smoke.json` | **Short reproducible RL run** (train+eval+benchmarks+analysis) for CI and quick tuning |
 | `config.sweep.example.json` | Example **hyperparameter sweep** grid (`base_config` + `grid` + objective) |
 | `config.example.pytorch.toml` | Example **TOML** for `run_pytorch.py --config` (needs CUDA PyTorch) |
+| `run` (repo root) | One-command default run after setup (`./run`; uses venv CLI when present) |
 | `run_*.py` (repo root) | Thin shims (prepend `src/` to `sys.path`) matching the installed console commands |
 | `setup.sh`, `setup.bat` | **One-command bootstrap** from repo root (venv + install + tests + smoke) |
 | `Makefile` | **Research** targets: `make help` — `setup` / `run` / `reproduce` (`smoke`) / `multiseed` / `sweep` / `pytorch`; quality: `lint` / `format` / `check` (Ruff needs `pip install -e ".[dev]"`) |
-| `scripts/` | Cross-platform **`setup_from_clone.py`**, **`pre_commit_check.py`**, **`secret_scan.py`** plus Unix wrappers (`*.sh`), **`run_4090_pipeline.sh`**, **`_resolve_venv_python.sh`** |
+| `scripts/` | Cross-platform **`setup_from_clone.py`**, **`pre_commit_check.py`**, **`secret_scan.py`**, **`run_4090_pipeline.sh`**, **`_resolve_venv_python.sh`** |
 | `requirements/ci.txt` + `security/dependency_hashes.json` | Pinned CI bootstrap dependencies plus the separate sha256 manifest used to render a `--require-hashes` install file |
 | `src/analysis/` | Post-hoc analyzers (`python -m analysis`) |
 | `docs/` | Install, running, config reference, troubleshooting |
@@ -230,7 +237,7 @@ adaptive-rl-quant-sweep --help
 adaptive-rl-quant-calibrate --help
 adaptive-rl-quant-route --help
 adaptive-rl-quant-replay --help
-python3 -m unittest discover -s tests -q
+python3 -m unittest discover -s tests -t . -q
 ```
 
 ---

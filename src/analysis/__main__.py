@@ -6,12 +6,12 @@ import sys
 from pathlib import Path
 
 _SRC = Path(__file__).resolve().parent.parent
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
 
+from bootstrap import ensure_repo_paths
 
-def _ensure_src_on_path() -> None:
-    root = str(_SRC)
-    if root not in sys.path:
-        sys.path.insert(0, root)
+ensure_repo_paths(_SRC.parent)
 
 
 def _usage(commands: frozenset[str]) -> str:
@@ -23,7 +23,6 @@ def _usage(commands: frozenset[str]) -> str:
 
 
 def main() -> None:
-    _ensure_src_on_path()
     from analysis.analyzers import CLI_COMMANDS, run_cli
 
     if len(sys.argv) < 2 or sys.argv[1] in {"-h", "--help"}:

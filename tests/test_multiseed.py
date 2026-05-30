@@ -8,7 +8,7 @@ from pathlib import Path
 class MultiSeedRunnerTests(unittest.TestCase):
     def test_multiseed_runner_writes_outputs(self) -> None:
         # Import inside the test so this remains a normal stdlib unittest.
-        from run_multiseed import main
+        from adaptive_quant.cli.multiseed import main
 
         # Two seeds, low episode budget so default `unittest discover` stays quick (see scripts/setup_from_clone.py).
         main(

@@ -100,6 +100,8 @@ known-first-party = ["adaptive_quant", "analysis"]
 [tool.ruff.lint.per-file-ignores]
 # Repo-root runners insert src/ on sys.path before importing adaptive_quant.
 "run_*.py" = ["E402"]
+"_repo_entrypoint.py" = ["E402"]
+"src/analysis/__main__.py" = ["E402"]
 
 [tool.coverage.run]
 source = ["adaptive_quant", "analysis"]

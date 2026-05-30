@@ -7,7 +7,7 @@ from pathlib import Path
 
 class SweepRunnerTests(unittest.TestCase):
     def test_sweep_runner_writes_outputs(self) -> None:
-        from run_sweep import main
+        from adaptive_quant.cli.sweep import main
 
         main(
             [

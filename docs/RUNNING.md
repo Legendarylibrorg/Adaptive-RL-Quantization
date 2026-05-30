@@ -60,7 +60,7 @@ adaptive-rl-quant-route --catalog outputs/routes/catalog.json --help
 adaptive-rl-quant --help
 adaptive-rl-quant-online --help
 adaptive-rl-quant-pytorch --help
-python3 -m unittest discover -s tests -v
+python3 -m unittest discover -s tests -t . -v
 ```
 
 Source checkouts can still call `python3 run_*.py` directly; the installed console commands are the public interface to prefer in user-facing docs.
@@ -79,7 +79,7 @@ python3 run_calibrate_llama_cpp.py --config ./paths_only.json
 python3 run_route_learning.py --catalog outputs/routes/catalog.json --help
 ```
 
-Before committing (whitespace, syntax, tests): `python3 scripts/pre_commit_check.py` on Unix-like hosts; on Windows use `py -3.11 scripts/pre_commit_check.py` or `python scripts/pre_commit_check.py`. On Linux/macOS, `bash scripts/pre_commit_check.sh` is a wrapper around the same Python implementation.
+Before committing (whitespace, syntax, tests): `python3 scripts/pre_commit_check.py` on Unix-like hosts; on Windows use `py -3.11 scripts/pre_commit_check.py` or `python scripts/pre_commit_check.py`.
 
 Multi-seed: seeds can be `a,b,c` or `0-9`. Reports under `outputs/reports/` as `<run_name>_multiseed_report.md`.
 
