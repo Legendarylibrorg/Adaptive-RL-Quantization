@@ -4,8 +4,10 @@ import argparse
 import math
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 
+from adaptive_quant.analysis_utils import flatten_numeric
 from adaptive_quant.logging_utils import md_table, write_json, write_text_file
 from adaptive_quant.math_utils import fmt_float
 from adaptive_quant.paper_bundle import aggregate_values, create_multiseed_paper_bundle
@@ -35,38 +37,6 @@ class AggregateStat:
             "ci95_high": self.ci95_high,
             "effect_size_vs_zero": self.effect_size_vs_zero,
         }
-
-
-def _is_number(value: object) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool)
-
-
-def _flatten_numeric(
-    obj: object,
-    *,
-    prefix: str = "",
-    max_items: int = 10_000,
-) -> dict[str, float]:
-    out: dict[str, float] = {}
-
-    def walk(node: object, path: str) -> None:
-        if len(out) >= max_items:
-            return
-        if _is_number(node):
-            out[path] = float(node)  # type: ignore[arg-type]
-            return
-        if isinstance(node, dict):
-            for k, v in node.items():
-                if not isinstance(k, str):
-                    continue
-                walk(v, f"{path}.{k}" if path else k)
-            return
-        if isinstance(node, (list, tuple)):
-            for i, v in enumerate(node):
-                walk(v, f"{path}[{i}]")
-
-    walk(obj, prefix)
-    return out
 
 
 def _default_key_filter(key: str) -> bool:
@@ -243,6 +213,11 @@ def main(argv: Iterable[str] | None = None) -> None:
     parser.add_argument(
         "--quiet", action="store_true", help="Suppress end-of-run CLI banners (e.g. unit tests)."
     )
+    parser.add_argument(
+        "--outputs-dir",
+        default=None,
+        help="Override output root for all per-seed and aggregate artifacts.",
+    )
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     seeds = _parse_seeds(args.seeds)
@@ -250,6 +225,16 @@ def main(argv: Iterable[str] | None = None) -> None:
         raise SystemExit("No seeds provided.")
 
     base_config = _select_preset(args.preset)
+    if args.outputs_dir:
+        output_root = Path(args.outputs_dir)
+        base_config = base_config.clone(
+            outputs_dir=str(output_root),
+            log_dir=str(output_root / "logs"),
+            benchmark_dir=str(output_root / "benchmarks"),
+            analysis_dir=str(output_root / "analysis"),
+            checkpoint_dir=str(output_root / "checkpoints"),
+            report_dir=str(output_root / "reports"),
+        )
     if args.episodes is not None:
         base_config = base_config.clone(
             training_episodes=args.episodes,
@@ -270,7 +255,7 @@ def main(argv: Iterable[str] | None = None) -> None:
         per_seed_summaries.append(summary)
         per_seed_paths.append(config.summary_path())
 
-        numeric = _flatten_numeric(summary)
+        numeric = flatten_numeric(summary, max_items=10_000)
         per_seed_numeric.append(numeric)
 
     aggregated = _aggregate_numeric_maps(per_seed_numeric)

@@ -200,6 +200,82 @@ class RouteBanditTests(unittest.TestCase):
             bandit.recommend(context).route.route_id,
         )
 
+    def test_bandit_state_rejects_non_finite_stats(self) -> None:
+        catalog = RouteCatalog(
+            routes=[ModelRoute(route_id="r1", repo_id="org/repo", quant_label="Q4_K_M")]
+        )
+        state = {
+            "version": 1,
+            "ucb_c": 1.0,
+            "prior_weight": 4.0,
+            "warmup_pulls": 1,
+            "seed": 3,
+            "total_pulls": 1,
+            "global": {
+                "r1": {
+                    "pulls": 1,
+                    "mean_reward": float("nan"),
+                    "m2": 0.0,
+                    "last_reward": 0.0,
+                }
+            },
+            "buckets": {
+                "gpu|qa|mid": {
+                    "r1": {
+                        "pulls": 1,
+                        "mean_reward": 0.0,
+                        "m2": 0.0,
+                        "last_reward": 0.0,
+                    }
+                }
+            },
+        }
+        with self.assertRaises(ValueError):
+            RouteBandit(catalog=catalog).load_state_dict(state)
+
+    def test_bandit_state_rejects_unknown_route_ids(self) -> None:
+        catalog = RouteCatalog(
+            routes=[ModelRoute(route_id="r1", repo_id="org/repo", quant_label="Q4_K_M")]
+        )
+        state = {
+            "version": 1,
+            "ucb_c": 1.0,
+            "prior_weight": 4.0,
+            "warmup_pulls": 1,
+            "seed": 3,
+            "total_pulls": 0,
+            "global": {"unknown": {"pulls": 0, "mean_reward": 0.0, "m2": 0.0, "last_reward": 0.0}},
+            "buckets": {},
+        }
+        with self.assertRaises(ValueError):
+            RouteBandit(catalog=catalog).load_state_dict(state)
+
+    def test_bandit_state_rejects_inconsistent_pull_counts(self) -> None:
+        catalog = RouteCatalog(
+            routes=[ModelRoute(route_id="r1", repo_id="org/repo", quant_label="Q4_K_M")]
+        )
+        state = {
+            "version": 1,
+            "ucb_c": 1.0,
+            "prior_weight": 4.0,
+            "warmup_pulls": 1,
+            "seed": 3,
+            "total_pulls": 2,
+            "global": {"r1": {"pulls": 1, "mean_reward": 0.0, "m2": 0.0, "last_reward": 0.0}},
+            "buckets": {
+                "gpu|qa|mid": {
+                    "r1": {
+                        "pulls": 1,
+                        "mean_reward": 0.0,
+                        "m2": 0.0,
+                        "last_reward": 0.0,
+                    }
+                }
+            },
+        }
+        with self.assertRaises(ValueError):
+            RouteBandit(catalog=catalog).load_state_dict(state)
+
     def test_route_context_normalizes_unknown_domain(self) -> None:
         ctx = RouteContext.from_features(
             hardware="gpu",

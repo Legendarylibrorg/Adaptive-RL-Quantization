@@ -5,8 +5,11 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
+
+from adaptive_quant.logging_utils import to_jsonable
 
 INTEGRITY_FIELD = "integrity_sha256"
 _SKIP_ENV = "ADAPTIVE_RL_SKIP_CHECKPOINT_INTEGRITY"
@@ -38,14 +41,29 @@ def sha256_file(path: str | Path) -> str:
     return digest.hexdigest()
 
 
-def canonical_json_bytes(payload: dict[str, Any]) -> bytes:
-    body = {key: value for key, value in payload.items() if key != INTEGRITY_FIELD}
-    return json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+def canonical_json_bytes(
+    payload: Any,
+    *,
+    exclude_keys: Iterable[str] = (INTEGRITY_FIELD,),
+) -> bytes:
+    excluded = set(exclude_keys)
+    safe = to_jsonable(payload)
+    if isinstance(safe, Mapping):
+        safe = {key: value for key, value in safe.items() if key not in excluded}
+    return json.dumps(safe, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def sha256_canonical(
+    payload: Any,
+    *,
+    exclude_keys: Iterable[str] = (INTEGRITY_FIELD,),
+) -> str:
+    return _sha256_bytes(canonical_json_bytes(payload, exclude_keys=exclude_keys))
 
 
 def attach_dict_integrity(payload: dict[str, Any]) -> dict[str, Any]:
     stamped = dict(payload)
-    stamped[INTEGRITY_FIELD] = _sha256_bytes(canonical_json_bytes(stamped))
+    stamped[INTEGRITY_FIELD] = sha256_canonical(stamped)
     return stamped
 
 
@@ -60,7 +78,7 @@ def verify_dict_integrity(payload: dict[str, Any], *, label: str) -> None:
                 f"integrity tag (set {_REQUIRE_ENV}=0 or unset to allow legacy sidecars)."
             )
         return
-    actual = _sha256_bytes(canonical_json_bytes(payload))
+    actual = sha256_canonical(payload)
     if str(expected) != actual:
         raise ValueError(
             f"{label}: checkpoint integrity mismatch (expected {expected!r}, computed {actual!r}). "
@@ -70,7 +88,7 @@ def verify_dict_integrity(payload: dict[str, Any], *, label: str) -> None:
 
 def attach_torch_sidecar_integrity(meta: dict[str, Any], pt_path: str | Path) -> dict[str, Any]:
     stamped = dict(meta)
-    meta_digest = _sha256_bytes(canonical_json_bytes(stamped))
+    meta_digest = sha256_canonical(stamped)
     tensor_digest = sha256_file(pt_path)
     combined = f"{meta_digest}:{tensor_digest}".encode()
     stamped[INTEGRITY_FIELD] = _sha256_bytes(combined)
@@ -90,7 +108,7 @@ def verify_torch_sidecar_integrity(
                 f"integrity tag (set {_REQUIRE_ENV}=0 or unset to allow legacy sidecars)."
             )
         return
-    meta_digest = _sha256_bytes(canonical_json_bytes(meta))
+    meta_digest = sha256_canonical(meta)
     tensor_digest = sha256_file(pt_path)
     combined = f"{meta_digest}:{tensor_digest}".encode()
     actual = _sha256_bytes(combined)
@@ -107,6 +125,7 @@ __all__ = [
     "attach_torch_sidecar_integrity",
     "canonical_json_bytes",
     "require_checkpoint_integrity_verification",
+    "sha256_canonical",
     "sha256_file",
     "skip_checkpoint_integrity_verification",
     "verify_dict_integrity",

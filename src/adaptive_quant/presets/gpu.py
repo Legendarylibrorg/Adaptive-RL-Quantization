@@ -1,4 +1,5 @@
 from adaptive_quant.presets.baseline import CONFIG
+from adaptive_quant.gpu_profiles import GPU_PROFILES
 
 CONFIG_GPU = CONFIG.clone(
     training_backend="pytorch",
@@ -39,31 +40,38 @@ CONFIG_GPU = CONFIG.clone(
 def make_rtx_torch_preset(
     *,
     training_host_label: str,
-    benchmark_training_episodes: int,
-    benchmark_evaluation_episodes: int,
     run_name: str,
     torch_gpu_profile: str,
-    torch_hidden_dim: int,
-    torch_mlp_depth: int,
-    torch_batch_episodes: int,
-    torch_minibatch_size: int,
-    torch_update_epochs: int,
-    torch_entropy_coef: float,
-    torch_preflight_batch_size: int,
-    torch_preflight_min_free_memory_gb: float,
+    benchmark_training_episodes: int | None = None,
+    benchmark_evaluation_episodes: int | None = None,
+    torch_hidden_dim: int | None = None,
+    torch_mlp_depth: int | None = None,
+    torch_batch_episodes: int | None = None,
+    torch_minibatch_size: int | None = None,
+    torch_update_epochs: int | None = None,
+    torch_entropy_coef: float | None = None,
+    torch_preflight_batch_size: int | None = None,
+    torch_preflight_min_free_memory_gb: float | None = None,
 ):
+    profile_overrides = dict(GPU_PROFILES[torch_gpu_profile].overrides)
+    explicit_overrides = {
+        "benchmark_training_episodes": benchmark_training_episodes,
+        "benchmark_evaluation_episodes": benchmark_evaluation_episodes,
+        "torch_hidden_dim": torch_hidden_dim,
+        "torch_mlp_depth": torch_mlp_depth,
+        "torch_batch_episodes": torch_batch_episodes,
+        "torch_minibatch_size": torch_minibatch_size,
+        "torch_update_epochs": torch_update_epochs,
+        "torch_entropy_coef": torch_entropy_coef,
+        "torch_preflight_batch_size": torch_preflight_batch_size,
+        "torch_preflight_min_free_memory_gb": torch_preflight_min_free_memory_gb,
+    }
+    profile_overrides.update(
+        {key: value for key, value in explicit_overrides.items() if value is not None}
+    )
     return CONFIG_GPU.clone(
         training_host_label=training_host_label,
-        benchmark_training_episodes=benchmark_training_episodes,
-        benchmark_evaluation_episodes=benchmark_evaluation_episodes,
         run_name=run_name,
         torch_gpu_profile=torch_gpu_profile,
-        torch_hidden_dim=torch_hidden_dim,
-        torch_mlp_depth=torch_mlp_depth,
-        torch_batch_episodes=torch_batch_episodes,
-        torch_minibatch_size=torch_minibatch_size,
-        torch_update_epochs=torch_update_epochs,
-        torch_entropy_coef=torch_entropy_coef,
-        torch_preflight_batch_size=torch_preflight_batch_size,
-        torch_preflight_min_free_memory_gb=torch_preflight_min_free_memory_gb,
+        **profile_overrides,
     )

@@ -71,7 +71,7 @@ The key architecture rule here is: **different backends share the same `Framewor
 
 - `src/analysis/`: post-hoc analysis (`analyzers.py`, shared `log_records.py`, `python -m analysis` CLI)
 - `src/adaptive_quant/research_pipeline.py`: full offline pipeline orchestration
-- `src/adaptive_quant/pipeline/`: VCS stamp, benchmark warnings, training-history/checkpoint writers (`artifacts.py`), analysis runner, Markdown report
+- `src/adaptive_quant/pipeline/`: VCS stamp, benchmark warnings, analysis runner, and Markdown report helpers; training history/checkpoint writers live in `research_pipeline.py`
 - `src/adaptive_quant/run_footer.py`: consistent CLI summaries
 
 ### Routing modules (do not conflate)

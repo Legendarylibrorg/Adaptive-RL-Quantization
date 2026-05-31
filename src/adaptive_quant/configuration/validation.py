@@ -5,7 +5,8 @@ import re
 import unicodedata
 from pathlib import Path
 
-_RUN_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+_SAFE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+_RUN_NAME_RE = _SAFE_ID_RE
 _HF_REVISION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
 # Hub repo ids: ``org/name`` (preferred) or a single legacy segment (e.g. ``gpt2``).
 _HF_REPO_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}/[A-Za-z0-9][A-Za-z0-9._-]{0,95}$")
@@ -73,44 +74,28 @@ def validate_backend(name: str) -> None:
     )
 
 
+def _validate_choice(field_name: str, value: str, allowed: frozenset[str]) -> None:
+    if not isinstance(value, str):
+        raise TypeError(f"{field_name} must be a string")
+    key = value.strip().lower()
+    if key not in allowed:
+        raise ValueError(f"{field_name} must be one of {sorted(allowed)}, got {value!r}")
+
+
 def validate_env_sampling_mode(name: str) -> None:
-    if not isinstance(name, str):
-        raise TypeError("env_sampling_mode must be a string")
-    key = name.strip().lower()
-    if key not in _ENV_SAMPLING_MODES:
-        raise ValueError(
-            f"env_sampling_mode must be one of {sorted(_ENV_SAMPLING_MODES)}, got {name!r}"
-        )
+    _validate_choice("env_sampling_mode", name, _ENV_SAMPLING_MODES)
 
 
 def validate_rl_train_policy_mode(name: str) -> None:
-    if not isinstance(name, str):
-        raise TypeError("rl_train_policy_mode must be a string")
-    key = name.strip().lower()
-    if key not in _RL_TRAIN_POLICY_MODES:
-        raise ValueError(
-            f"rl_train_policy_mode must be one of {sorted(_RL_TRAIN_POLICY_MODES)}, got {name!r}"
-        )
+    _validate_choice("rl_train_policy_mode", name, _RL_TRAIN_POLICY_MODES)
 
 
 def validate_stability_probe_sampling(name: str) -> None:
-    if not isinstance(name, str):
-        raise TypeError("stability_probe_sampling must be a string")
-    key = name.strip().lower()
-    if key not in _STABILITY_PROBE_SAMPLING:
-        raise ValueError(
-            f"stability_probe_sampling must be one of {sorted(_STABILITY_PROBE_SAMPLING)}, got {name!r}"
-        )
+    _validate_choice("stability_probe_sampling", name, _STABILITY_PROBE_SAMPLING)
 
 
 def validate_torch_policy_algorithm(name: str) -> None:
-    if not isinstance(name, str):
-        raise TypeError("torch_policy_algorithm must be a string")
-    key = name.strip().lower()
-    if key not in _TORCH_POLICY_ALGORITHMS:
-        raise ValueError(
-            f"torch_policy_algorithm must be one of {sorted(_TORCH_POLICY_ALGORITHMS)}, got {name!r}"
-        )
+    _validate_choice("torch_policy_algorithm", name, _TORCH_POLICY_ALGORITHMS)
 
 
 def validate_positive_int(name: str, value: int) -> None:
@@ -188,6 +173,14 @@ def validate_run_name(run_name: str) -> None:
         )
 
 
+def validate_safe_identifier(field_name: str, value: str) -> None:
+    if not isinstance(value, str) or not _SAFE_ID_RE.match(value):
+        raise ValueError(
+            f"Invalid {field_name} {value!r}: expected "
+            "/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/."
+        )
+
+
 def path_has_parent_reference(path: str) -> bool:
     return ".." in Path(path).parts
 
@@ -226,29 +219,24 @@ def sanitize_user_text(text: str) -> str:
 
 
 def validate_router_task_text(text: str) -> str:
+    return _validate_bounded_user_text("task_text", text, max_chars=MAX_ROUTER_TASK_TEXT_CHARS)
+
+
+def _validate_bounded_user_text(field_name: str, text: str, *, max_chars: int) -> str:
     if not isinstance(text, str):
-        raise TypeError("task_text must be a string")
+        raise TypeError(f"{field_name} must be a string")
     if "\x00" in text:
-        raise ValueError("task_text must not contain NUL bytes")
+        raise ValueError(f"{field_name} must not contain NUL bytes")
     sanitized = sanitize_user_text(text)
-    if len(sanitized) > MAX_ROUTER_TASK_TEXT_CHARS:
+    if len(sanitized) > max_chars:
         raise ValueError(
-            f"task_text exceeds {MAX_ROUTER_TASK_TEXT_CHARS} characters ({len(sanitized)} given)"
+            f"{field_name} exceeds {max_chars} characters ({len(sanitized)} given)"
         )
     return sanitized
 
 
 def validate_online_prompt_text(text: str) -> str:
-    if not isinstance(text, str):
-        raise TypeError("prompt_text must be a string")
-    if "\x00" in text:
-        raise ValueError("prompt_text must not contain NUL bytes")
-    sanitized = sanitize_user_text(text)
-    if len(sanitized) > MAX_ONLINE_PROMPT_TEXT_CHARS:
-        raise ValueError(
-            f"prompt_text exceeds {MAX_ONLINE_PROMPT_TEXT_CHARS} characters ({len(sanitized)} given)"
-        )
-    return sanitized
+    return _validate_bounded_user_text("prompt_text", text, max_chars=MAX_ONLINE_PROMPT_TEXT_CHARS)
 
 
 def validate_llama_cpp_binary_allowlist(resolved_binary: str) -> None:

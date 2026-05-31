@@ -16,7 +16,6 @@ ranking, so small absolute errors do not bias the learned ordering.
 
 from __future__ import annotations
 
-import re
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field, fields, replace
 from pathlib import Path
@@ -27,6 +26,7 @@ from adaptive_quant.configuration.validation import (
     validate_hf_model_id,
     validate_hf_revision,
     validate_optional_filesystem_path,
+    validate_safe_identifier,
 )
 from adaptive_quant.logging_utils import read_json, write_json
 
@@ -71,9 +71,6 @@ QUANT_BITS: dict[str, float] = {
 
 # Acceptable hardware affinity labels — used as soft hints for the bandit.
 _HARDWARE_HINTS: frozenset[str] = frozenset({"gpu", "cpu", "low_resource", "any"})
-
-_ROUTE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
-
 
 @dataclass(frozen=True)
 class QuantSpec:
@@ -120,10 +117,7 @@ class ModelRoute:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        if not isinstance(self.route_id, str) or not _ROUTE_ID_RE.match(self.route_id):
-            raise ValueError(
-                f"Invalid route_id {self.route_id!r}: expected /^[A-Za-z0-9][A-Za-z0-9._-]{{0,127}}$/."
-            )
+        validate_safe_identifier("route_id", self.route_id)
         if self.local_path is not None:
             validate_optional_filesystem_path("local_path", self.local_path)
         validate_hf_model_id("repo_id", self.repo_id, require_hub_namespace=True)
