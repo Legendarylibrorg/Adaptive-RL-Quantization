@@ -10,12 +10,19 @@ The source-checkout equivalent is `python3 run_sweep.py`.
 | --- | --- |
 | Same config, different random seeds (variance / confidence) | `adaptive-rl-quant-multiseed` |
 | Different hyperparameters (learning rate, reward weights, torch batch sizes, …) | `adaptive-rl-quant-sweep` |
+| Different hyperparameters **with** seed variance per setting | `adaptive-rl-quant-sweep --seeds 13,17,23` or `"seeds"` in a sweep file |
 
-Multiseed repeats one setting; sweep compares **different settings** under the same base config.
+Multiseed repeats one setting; sweep compares **different settings** under the same base config. Use sweep `seeds` when you need both hyperparameter search and per-setting variance.
 
 ## Main commands
 
 ```bash
+# Preview a grid before launching (no pipeline runs)
+adaptive-rl-quant-sweep --sweep-config config.sweep.example.json --dry-run
+
+# Resume an interrupted sweep (skip trials whose summary JSON already exists)
+adaptive-rl-quant-sweep --sweep-config config.sweep.example.json --resume
+
 # Sweep file (recommended for reproducible grids)
 adaptive-rl-quant-sweep --sweep-config config.sweep.example.json
 
@@ -85,6 +92,7 @@ These keys are **not** part of `FrameworkConfig`. They are stripped before build
 | `objective` | Dotted metric path used to rank trials (default `evaluation.mean_reward`) |
 | `direction` | `maximize` or `minimize` |
 | `seed` | Fixed seed applied to every trial unless overridden per trial |
+| `seeds` | List of seeds — each grid/trial setting runs once per seed; ranking uses the mean objective |
 
 Any **remaining** top-level keys after extracting sweep metadata are merged as base-config overrides (same rules as a normal config file, including optional `preset`).
 
@@ -119,6 +127,10 @@ Use `trials` when you want hand-picked combinations instead of a full grid:
 | `--direction maximize\|minimize` | Ranking direction (default `maximize`) |
 | `--run-name NAME` | Base run name for artifacts (defaults to base config `run_name`) |
 | `--seed N` | Fixed seed for every trial (overridden by sweep file `seed` when set) |
+| `--seeds LIST` | Repeat each trial setting across seeds (`"a,b,c"` or `"a-b"`) and rank by mean objective |
+| `--outputs-dir PATH` | Redirect all trial and aggregate artifacts under a custom output root |
+| `--dry-run` | Print the trial plan (counts, run names, overrides) and exit without running |
+| `--resume` | Skip pipeline runs when the trial summary JSON already exists |
 | `--episodes N` | Override `training_episodes` for every trial (useful for smoke tests) |
 | `--quiet` | Suppress end-of-run CLI banners |
 
@@ -151,6 +163,7 @@ For base run name `my_sweep`:
 | --- | --- |
 | Sweep aggregate JSON | `outputs/benchmarks/my_sweep_sweep_summary.json` |
 | Leaderboard report | `outputs/reports/my_sweep_sweep_report.md` |
+| Leaderboard CSV | `outputs/reports/my_sweep_sweep_leaderboard.csv` |
 | Paper bundle | `outputs/paper_bundles/my_sweep_sweep/` |
 | Per-trial summary | `outputs/benchmarks/my_sweep_trialNNN_<suffix>_summary.json` |
 | Per-trial report | `outputs/reports/my_sweep_trialNNN_<suffix>_report.md` |

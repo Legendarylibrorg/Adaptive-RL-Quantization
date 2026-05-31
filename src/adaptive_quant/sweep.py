@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import itertools
+import math
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,6 +16,7 @@ from adaptive_quant.cli.startup_overrides import (
 )
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import safe_json_loads
+from adaptive_quant.paper_bundle import aggregate_values
 
 SweepDirection = Literal["maximize", "minimize"]
 
@@ -26,6 +28,7 @@ SWEEP_META_KEYS = frozenset(
         "objective",
         "direction",
         "seed",
+        "seeds",
     }
 )
 
@@ -37,6 +40,7 @@ class SweepSpec:
     objective: str = DEFAULT_OBJECTIVE
     direction: SweepDirection = "maximize"
     seed: int | None = None
+    seeds: tuple[int, ...] | None = None
     grid: dict[str, tuple[Any, ...]] | None = None
     trials: tuple[dict[str, Any], ...] | None = None
     base_config_path: str | None = None
@@ -50,11 +54,96 @@ class SweepTrialPlan:
 
 
 @dataclass(frozen=True)
+class SweepSeedResult:
+    seed: int
+    summary: dict[str, Any]
+    summary_path: str
+    objective_value: float | None
+    skipped: bool = False
+
+
+@dataclass(frozen=True)
 class SweepTrialResult:
     plan: SweepTrialPlan
     summary: dict[str, Any]
     summary_path: str
     objective_value: float | None
+    objective_std: float | None = None
+    objective_n: int = 1
+    seed_results: tuple[SweepSeedResult, ...] = ()
+    runs_skipped: int = 0
+
+
+def parse_seed_list(raw: str) -> list[int]:
+    text = raw.strip()
+    if not text:
+        return []
+    if "-" in text and "," not in text:
+        left, right = text.split("-", 1)
+        start = int(left.strip())
+        end = int(right.strip())
+        if end < start:
+            start, end = end, start
+        return list(range(start, end + 1))
+    return [int(part.strip()) for part in text.split(",") if part.strip()]
+
+
+def aggregate_objective_values(
+    values: list[float | None],
+) -> tuple[float | None, float | None, int]:
+    finite = [float(value) for value in values if value is not None and math.isfinite(value)]
+    if not finite:
+        return None, None, 0
+    if len(finite) == 1:
+        return finite[0], 0.0, 1
+    stats = aggregate_values(finite)
+    return float(stats["mean"]), float(stats["std"]), int(stats["n"])
+
+
+def trial_run_name(
+    base_run_name: str,
+    plan: SweepTrialPlan,
+    *,
+    seed: int | None = None,
+) -> str:
+    name = f"{base_run_name}_trial{plan.trial_id:03d}_{plan.run_name_suffix}"
+    if seed is not None:
+        return f"{name}_seed{seed}"
+    return name
+
+
+def format_sweep_plan_preview(
+    *,
+    base_run_name: str,
+    plans: list[SweepTrialPlan],
+    seeds: list[int] | None,
+    objective: str,
+    direction: str,
+) -> str:
+    seed_label = ", ".join(str(seed) for seed in seeds) if seeds else "(single run per setting)"
+    runs_per_plan = len(seeds) if seeds else 1
+    lines = [
+        f"Sweep plan: {len(plans)} trial setting(s) × {runs_per_plan} run(s) = "
+        f"{len(plans) * runs_per_plan} pipeline execution(s)",
+        f"objective: {objective} ({direction})",
+        f"seeds: {seed_label}",
+        "",
+        "trial_id  run_name_suffix              overrides",
+        "--------  ---------------------------  ---------",
+    ]
+    for plan in plans:
+        override_bits = ", ".join(
+            f"{key}={value!r}" for key, value in sorted(plan.overrides.items())
+        )
+        lines.append(
+            f"{plan.trial_id:8d}  {plan.run_name_suffix:<27}  {override_bits or '(defaults)'}"
+        )
+        if seeds:
+            for seed in seeds:
+                lines.append(f"          → {trial_run_name(base_run_name, plan, seed=seed)}")
+        else:
+            lines.append(f"          → {trial_run_name(base_run_name, plan)}")
+    return "\n".join(lines)
 
 
 def parse_value_list(raw: str) -> list[Any]:
@@ -205,6 +294,18 @@ def _coerce_trials(raw: object) -> tuple[dict[str, Any], ...]:
     return tuple(trials)
 
 
+def _coerce_seeds(raw: object) -> tuple[int, ...]:
+    if isinstance(raw, str):
+        seeds = parse_seed_list(raw)
+    elif isinstance(raw, (list, tuple)):
+        seeds = [int(value) for value in raw]
+    else:
+        raise TypeError("seeds must be a comma/range string or a list of integers")
+    if not seeds:
+        raise ValueError("seeds must contain at least one integer")
+    return tuple(seeds)
+
+
 def load_sweep_file(path: str | Path) -> tuple[SweepSpec, FrameworkConfig | None]:
     raw_path = Path(path)
     if not raw_path.is_file():
@@ -227,6 +328,9 @@ def load_sweep_file(path: str | Path) -> tuple[SweepSpec, FrameworkConfig | None
     seed_raw = meta.get("seed")
     seed = int(seed_raw) if seed_raw is not None else None
 
+    seeds_raw = meta.get("seeds")
+    seeds = _coerce_seeds(seeds_raw) if seeds_raw is not None else None
+
     grid_raw = meta.get("grid")
     trials_raw = meta.get("trials")
     grid = _coerce_grid(grid_raw) if grid_raw is not None else None
@@ -242,6 +346,7 @@ def load_sweep_file(path: str | Path) -> tuple[SweepSpec, FrameworkConfig | None
         objective=objective,
         direction=direction,
         seed=seed,
+        seeds=seeds,
         grid=grid,
         trials=trials,
         base_config_path=base_config_path,
@@ -253,12 +358,17 @@ __all__ = [
     "DEFAULT_OBJECTIVE",
     "SWEEP_META_KEYS",
     "SweepDirection",
+    "SweepSeedResult",
     "SweepSpec",
     "SweepTrialPlan",
     "SweepTrialResult",
+    "aggregate_objective_values",
     "build_trial_plans",
+    "format_sweep_plan_preview",
     "load_sweep_file",
+    "parse_seed_list",
     "parse_vary_argument",
     "rank_trials",
+    "trial_run_name",
     "trial_run_suffix",
 ]
