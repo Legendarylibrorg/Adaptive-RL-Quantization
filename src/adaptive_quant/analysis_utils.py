@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import html
+import math
+from collections.abc import Mapping
 from pathlib import Path
 
 from adaptive_quant.configuration.validation import validate_cli_path_argument
@@ -32,6 +34,41 @@ def grouped_mean(
         if isinstance(current, (int, float)):
             buckets.setdefault(group, []).append(float(current))
     return {group: mean(values) for group, values in buckets.items()}
+
+
+def flatten_numeric(
+    obj: object,
+    *,
+    prefix: str = "",
+    max_items: int = 20_000,
+    skip_bools: bool = True,
+) -> dict[str, float]:
+    out: dict[str, float] = {}
+
+    def walk(node: object, path: str) -> None:
+        if len(out) >= max_items:
+            return
+        if isinstance(node, bool):
+            if skip_bools:
+                return
+            out[path] = float(node)
+            return
+        if isinstance(node, (int, float)):
+            value = float(node)
+            if math.isfinite(value):
+                out[path] = value
+            return
+        if isinstance(node, Mapping):
+            for key, value in node.items():
+                if isinstance(key, str):
+                    walk(value, f"{path}.{key}" if path else key)
+            return
+        if isinstance(node, (list, tuple)):
+            for index, value in enumerate(node):
+                walk(value, f"{path}[{index}]")
+
+    walk(obj, prefix)
+    return out
 
 
 def _svg_canvas(

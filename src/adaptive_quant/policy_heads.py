@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import math
 import random
 
 from adaptive_quant.math_utils import (
     argmax,
     clamp,
     dot,
+    finite_float,
     gaussian_sample,
     sample_categorical,
     softmax,
@@ -37,11 +37,18 @@ class CategoricalHead:
         ]
 
     def sample(
-        self, state_vector: list[float], rng: random.Random, deterministic: bool = False
+        self,
+        state_vector: list[float],
+        rng: random.Random,
+        deterministic: bool = False,
+        *,
+        epsilon: float = 0.0,
     ) -> tuple[int, list[float]]:
         probabilities = softmax(self.logits(state_vector))
         if deterministic:
             return argmax(probabilities), probabilities
+        if epsilon > 0.0 and rng.random() < float(epsilon):
+            return rng.randrange(len(probabilities)), probabilities
         return sample_categorical(probabilities, rng), probabilities
 
     def update(
@@ -110,8 +117,12 @@ class GaussianHead:
 
 
 class ValueHead:
-    def __init__(self, input_dim: int, rng: random.Random) -> None:
-        self.weights = [rng.uniform(-0.05, 0.05) for _ in range(input_dim)]
+    def __init__(self, input_dim: int, rng: random.Random, *, zero_init: bool = False) -> None:
+        self.weights = (
+            [0.0 for _ in range(input_dim)]
+            if zero_init
+            else [rng.uniform(-0.05, 0.05) for _ in range(input_dim)]
+        )
         self.bias = 0.0
 
     def predict(self, state_vector: list[float]) -> float:
@@ -215,14 +226,7 @@ def _finite_float(value: object, *, label: str) -> float:
     poison values into policy weights and silently break training downstream;
     untrusted checkpoints can therefore use this to wedge a session.
     """
-    if isinstance(value, bool):
-        raise TypeError(f"{label} must be numeric, got bool")
-    if not isinstance(value, (int, float)):
-        raise TypeError(f"{label} must be numeric, got {type(value).__name__}")
-    f = float(value)
-    if not math.isfinite(f):
-        raise ValueError(f"{label} must be finite, got {f!r}")
-    return f
+    return finite_float(value, label=label)
 
 
 def _restore_categorical_head(head: CategoricalHead, payload: object) -> None:

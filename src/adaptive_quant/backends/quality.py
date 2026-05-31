@@ -20,10 +20,10 @@ class ExternalQualityScores:
 
     @classmethod
     def from_config(cls, config: FrameworkConfig) -> ExternalQualityScores | None:
-        path = getattr(config, "external_quality_path", None)
+        path = config.external_quality_path
         if not path:
             return None
-        metric = str(getattr(config, "external_quality_metric", "perplexity") or "perplexity")
+        metric = str(config.external_quality_metric or "perplexity")
         source = Path(path)
         if not source.is_file():
             raise FileNotFoundError(f"External quality file not found: {source}")

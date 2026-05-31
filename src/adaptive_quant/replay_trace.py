@@ -10,11 +10,13 @@ from typing import Any
 from adaptive_quant.checkpoint_integrity import (
     INTEGRITY_FIELD,
     attach_dict_integrity,
+    sha256_canonical,
     verify_dict_integrity,
 )
 from adaptive_quant.configuration import FrameworkConfig, config_to_flat_dict
 from adaptive_quant.environment import AdaptiveQuantizationEnv
 from adaptive_quant.logging_utils import load_jsonl, read_json, to_jsonable, write_json
+from adaptive_quant.math_utils import finite_float
 from adaptive_quant.trainer_utils import feedback_vector, zero_previous_action
 from adaptive_quant.types import QuantizationDecision, QuantMode
 
@@ -48,14 +50,6 @@ _CONFIG_FINGERPRINT_EXCLUDE = frozenset(
 )
 
 _INTEGRITY_META_KEYS = frozenset({"_integrity_hash", "_integrity_prev", INTEGRITY_FIELD})
-
-
-def sha256_canonical(payload: Any) -> str:
-    import json
-
-    safe = to_jsonable(payload)
-    body = json.dumps(safe, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(body.encode("utf-8")).hexdigest()
 
 
 def _require_simulator_replay(config: FrameworkConfig) -> None:
@@ -153,26 +147,75 @@ def chain_step_hash(previous_chain: str, step_hash: str) -> str:
     return hashlib.sha256(f"{previous_chain}:{step_hash}".encode()).hexdigest()
 
 
+def _optional_int(payload: Mapping[str, Any], key: str) -> int | None:
+    value = payload.get(key)
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"decision.{key} must be an integer or null")
+    return int(value)
+
+
+def _int_list(payload: Mapping[str, Any], key: str) -> list[int]:
+    value = payload.get(key) or []
+    if not isinstance(value, list):
+        raise TypeError(f"decision.{key} must be a list")
+    out: list[int] = []
+    for index, item in enumerate(value):
+        if isinstance(item, bool) or not isinstance(item, int):
+            raise TypeError(f"decision.{key}[{index}] must be an integer")
+        out.append(int(item))
+    return out
+
+
+def _float_list(payload: Mapping[str, Any], key: str) -> list[float]:
+    value = payload.get(key) or []
+    if not isinstance(value, list):
+        raise TypeError(f"decision.{key} must be a list")
+    return [
+        finite_float(item, label=f"decision.{key}[{index}]") for index, item in enumerate(value)
+    ]
+
+
+def _str_list(payload: Mapping[str, Any], key: str) -> list[str]:
+    value = payload.get(key) or []
+    if not isinstance(value, list):
+        raise TypeError(f"decision.{key} must be a list")
+    out: list[str] = []
+    for index, item in enumerate(value):
+        if not isinstance(item, str):
+            raise TypeError(f"decision.{key}[{index}] must be a string")
+        out.append(item)
+    return out
+
+
 def decision_from_logged(payload: Mapping[str, Any]) -> QuantizationDecision:
     if not isinstance(payload, Mapping):
         raise TypeError("decision payload must be a mapping")
     mode_raw = payload.get("mode")
     if mode_raw is None:
         raise ValueError("decision payload missing mode")
+    metadata = payload.get("metadata") or {}
+    if not isinstance(metadata, Mapping):
+        raise TypeError("decision.metadata must be a mapping")
     return QuantizationDecision(
         mode=QuantMode(str(mode_raw)),
-        base_bit_width=payload.get("base_bit_width"),
-        group_bit_widths=list(payload.get("group_bit_widths") or []),
-        layer_bit_widths=list(payload.get("layer_bit_widths") or []),
-        scale_factor=float(payload.get("scale_factor", 1.0)),
-        clipping_range=float(payload.get("clipping_range", 1.0)),
-        precision_level=float(payload.get("precision_level", 0.5)),
-        effective_layer_bits=list(payload.get("effective_layer_bits") or []),
-        moe_variant_indices=list(payload.get("moe_variant_indices") or []),
-        moe_variant_names=list(payload.get("moe_variant_names") or []),
+        base_bit_width=_optional_int(payload, "base_bit_width"),
+        group_bit_widths=_int_list(payload, "group_bit_widths"),
+        layer_bit_widths=_int_list(payload, "layer_bit_widths"),
+        scale_factor=finite_float(payload.get("scale_factor", 1.0), label="decision.scale_factor"),
+        clipping_range=finite_float(
+            payload.get("clipping_range", 1.0), label="decision.clipping_range"
+        ),
+        precision_level=finite_float(
+            payload.get("precision_level", 0.5), label="decision.precision_level"
+        ),
+        effective_layer_bits=_float_list(payload, "effective_layer_bits"),
+        moe_variant_indices=_int_list(payload, "moe_variant_indices"),
+        moe_variant_names=_str_list(payload, "moe_variant_names"),
         fallback_applied=bool(payload.get("fallback_applied", False)),
         unstable=bool(payload.get("unstable", False)),
-        metadata=dict(payload.get("metadata") or {}),
+        metadata=dict(metadata),
     )
 
 

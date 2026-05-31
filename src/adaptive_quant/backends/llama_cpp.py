@@ -168,12 +168,10 @@ def require_llama_cpp_paths(
     *,
     model_override: object | None = None,
 ) -> tuple[str, str]:
-    binary = getattr(config, "llama_cpp_binary", None)
+    binary = config.llama_cpp_binary
     if model_override is not None and not isinstance(model_override, str):
         raise TypeError("llama_cpp_model_path override must be a string path")
-    model = (
-        model_override if model_override is not None else getattr(config, "llama_cpp_model", None)
-    )
+    model = model_override if model_override is not None else config.llama_cpp_model
     if not binary or not model:
         raise FileNotFoundError("llama.cpp backend requires both a binary path and a model path.")
     validate_runtime_filesystem_path("llama_cpp_binary", str(binary))
@@ -201,7 +199,7 @@ class LlamaCppBackend:
         self._simulator = SimulatorBackend(config)
         self.external_quality = ExternalQualityScores.from_config(config)
         self._cache: OrderedDict[str, dict[str, float]] | None = None
-        if bool(getattr(config, "llama_cpp_cache_enabled", False)):
+        if bool(config.llama_cpp_cache_enabled):
             self._cache = OrderedDict()
 
     def evaluate(self, state: EpisodeState, decision: QuantizationDecision) -> BackendMetricDict:

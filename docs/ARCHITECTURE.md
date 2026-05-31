@@ -80,11 +80,10 @@ The key architecture rule here is: **different backends share the same `Framewor
 ## 4. Analysis and reporting
 
 - `src/analysis/`: post-hoc analysis (`analyzers.py`, shared `log_records.py`, `python -m analysis` CLI)
-- `src/adaptive_quant/research_pipeline.py`: full offline pipeline orchestration
+- `src/adaptive_quant/research_pipeline.py`: full offline pipeline orchestration; training-history/checkpoint writers live here
 - `src/adaptive_quant/experiment_aggregate.py`: shared numeric flattening/aggregation for multiseed and sweep
 - `src/adaptive_quant/sweep.py`: hyperparameter grid expansion, trial naming, ranking
-- `src/adaptive_quant/pipeline/`: VCS stamp, benchmark warnings, Markdown report helpers
-- `src/adaptive_quant/research_pipeline.py`: training-history writers, analysis runner, full offline orchestration
+- `src/adaptive_quant/pipeline/`: VCS stamp, benchmark warnings, analysis runner, and Markdown report helpers
 - `src/adaptive_quant/run_footer.py`: consistent CLI summaries
 
 ### Routing modules (do not conflate)

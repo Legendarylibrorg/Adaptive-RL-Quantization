@@ -27,12 +27,13 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from adaptive_quant.features import COMPLEXITY_ROUTE_THRESHOLDS, complexity_bucket
-from adaptive_quant.math_utils import argmax
+from adaptive_quant.math_utils import argmax, finite_float, non_negative_int
 from adaptive_quant.model_routes import ModelRoute, RouteCatalog
 from adaptive_quant.types import HardwareType
 
 _COMPLEXITY_BINS = ("low", "mid", "high")
 _DOMAIN_OTHER = "other"
+_MAX_BANDIT_PULLS = 1_000_000_000
 
 
 @dataclass
@@ -85,11 +86,12 @@ class _ArmStats:
     last_reward: float = 0.0
 
     def update(self, reward: float) -> None:
+        reward = finite_float(reward, label="reward")
         self.pulls += 1
         delta = reward - self.mean_reward
         self.mean_reward += delta / self.pulls
         self.m2 += delta * (reward - self.mean_reward)
-        self.last_reward = float(reward)
+        self.last_reward = reward
 
     @property
     def variance(self) -> float:
@@ -110,12 +112,22 @@ class _ArmStats:
         }
 
     @classmethod
-    def from_dict(cls, payload: dict[str, Any]) -> "_ArmStats":
+    def from_dict(cls, payload: dict[str, Any], *, label: str = "arm") -> "_ArmStats":
+        if not isinstance(payload, dict):
+            raise TypeError(f"{label} stats must be a dict")
+        pulls = non_negative_int(
+            payload.get("pulls", 0), label=f"{label}.pulls", maximum=_MAX_BANDIT_PULLS
+        )
+        mean_reward = finite_float(payload.get("mean_reward", 0.0), label=f"{label}.mean_reward")
+        m2 = finite_float(payload.get("m2", 0.0), label=f"{label}.m2")
+        last_reward = finite_float(payload.get("last_reward", 0.0), label=f"{label}.last_reward")
+        if m2 < 0.0:
+            raise ValueError(f"{label}.m2 must be >= 0, got {m2!r}")
         return cls(
-            pulls=int(payload.get("pulls", 0)),
-            mean_reward=float(payload.get("mean_reward", 0.0)),
-            m2=float(payload.get("m2", 0.0)),
-            last_reward=float(payload.get("last_reward", 0.0)),
+            pulls=pulls,
+            mean_reward=mean_reward,
+            m2=m2,
+            last_reward=last_reward,
         )
 
 
@@ -276,26 +288,81 @@ class RouteBandit:
         }
 
     def load_state_dict(self, state: dict[str, Any]) -> None:
+        if not isinstance(state, dict):
+            raise TypeError("RouteBandit state_dict must be a dict")
         if int(state.get("version", 0)) != 1:
             raise ValueError("Unsupported RouteBandit state_dict version")
-        self.ucb_c = float(state.get("ucb_c", self.ucb_c))
-        self.prior_weight = float(state.get("prior_weight", self.prior_weight))
-        self.warmup_pulls = int(state.get("warmup_pulls", self.warmup_pulls))
-        self.seed = int(state.get("seed", self.seed))
+        self.ucb_c = finite_float(state.get("ucb_c", self.ucb_c), label="ucb_c")
+        self.prior_weight = finite_float(
+            state.get("prior_weight", self.prior_weight), label="prior_weight"
+        )
+        self.warmup_pulls = non_negative_int(
+            state.get("warmup_pulls", self.warmup_pulls),
+            label="warmup_pulls",
+            maximum=_MAX_BANDIT_PULLS,
+        )
+        self.seed = non_negative_int(state.get("seed", self.seed), label="seed")
+        if self.ucb_c <= 0.0:
+            raise ValueError("ucb_c must be > 0")
+        if self.prior_weight < 0.0:
+            raise ValueError("prior_weight must be >= 0")
         self._rng = random.Random(self.seed)
-        self._total_pulls = int(state.get("total_pulls", 0))
+        self._total_pulls = non_negative_int(
+            state.get("total_pulls", 0), label="total_pulls", maximum=_MAX_BANDIT_PULLS
+        )
+        catalog_ids = {route.route_id for route in self.catalog}
+        raw_global = state.get("global", {})
+        if not isinstance(raw_global, dict):
+            raise TypeError("global bandit stats must be a dict")
+        if not all(isinstance(arm_id, str) for arm_id in raw_global):
+            raise TypeError("global bandit route ids must be strings")
+        unknown_global = set(raw_global) - catalog_ids
+        if unknown_global:
+            raise ValueError(
+                f"RouteBandit state references unknown route ids: {sorted(unknown_global)}"
+            )
         self._global = {
-            arm_id: _ArmStats.from_dict(payload)
-            for arm_id, payload in dict(state.get("global", {})).items()
+            arm_id: _ArmStats.from_dict(payload, label=f"global[{arm_id}]")
+            for arm_id, payload in raw_global.items()
         }
         for route in self.catalog:
             self._global.setdefault(route.route_id, _ArmStats())
-        self._buckets = {
-            bucket_key: {
-                arm_id: _ArmStats.from_dict(arm_payload) for arm_id, arm_payload in arms.items()
+        raw_buckets = state.get("buckets", {})
+        if not isinstance(raw_buckets, dict):
+            raise TypeError("bucket bandit stats must be a dict")
+        buckets: dict[str, dict[str, _ArmStats]] = {}
+        for bucket_key, arms in raw_buckets.items():
+            if not isinstance(bucket_key, str):
+                raise TypeError("bucket keys must be strings")
+            if not isinstance(arms, dict):
+                raise TypeError(f"bucket {bucket_key!r} stats must be a dict")
+            if not all(isinstance(arm_id, str) for arm_id in arms):
+                raise TypeError(f"bucket {bucket_key!r} route ids must be strings")
+            unknown_bucket = set(arms) - catalog_ids
+            if unknown_bucket:
+                raise ValueError(
+                    f"RouteBandit bucket {bucket_key!r} references unknown route ids: "
+                    f"{sorted(unknown_bucket)}"
+                )
+            buckets[bucket_key] = {
+                arm_id: _ArmStats.from_dict(arm_payload, label=f"buckets[{bucket_key}][{arm_id}]")
+                for arm_id, arm_payload in arms.items()
             }
-            for bucket_key, arms in dict(state.get("buckets", {})).items()
-        }
+        self._buckets = buckets
+        global_pulls = sum(stats.pulls for stats in self._global.values())
+        bucket_pulls = sum(
+            stats.pulls for arms in self._buckets.values() for stats in arms.values()
+        )
+        if global_pulls != bucket_pulls:
+            raise ValueError(
+                "RouteBandit state pull counts are inconsistent: "
+                f"global={global_pulls}, buckets={bucket_pulls}"
+            )
+        if self._total_pulls != global_pulls:
+            raise ValueError(
+                "RouteBandit total_pulls does not match arm stats: "
+                f"total={self._total_pulls}, arm_pulls={global_pulls}"
+            )
 
     def report(self) -> dict[str, Any]:
         """Human-friendly telemetry: top routes per bucket plus global means."""

@@ -14,6 +14,7 @@ from adaptive_quant.replay_trace import (
     build_manifest_steps,
     chain_step_hash,
     config_fingerprint,
+    decision_from_logged,
     finalize_replay_artifacts,
     load_replay_manifest,
     replay_from_manifest_file,
@@ -186,6 +187,29 @@ class ReplayTraceTests(unittest.TestCase):
         step_hash = step_fingerprint(record)
         self.assertEqual(steps[0]["step_sha256"], step_hash)
         self.assertEqual(steps[0]["chain_sha256"], chain_step_hash("", step_hash))
+
+    def test_decision_from_logged_rejects_non_finite_values(self) -> None:
+        payload = {
+            "mode": "learned",
+            "scale_factor": float("nan"),
+            "clipping_range": 1.0,
+            "precision_level": 0.5,
+        }
+        with self.assertRaises(ValueError):
+            decision_from_logged(payload)
+
+    def test_decision_from_logged_rejects_malformed_lists(self) -> None:
+        payload = {
+            "mode": "discrete",
+            "base_bit_width": 4,
+            "group_bit_widths": [4, "bad"],
+        }
+        with self.assertRaises(TypeError):
+            decision_from_logged(payload)
+
+    def test_decision_from_logged_rejects_unknown_mode(self) -> None:
+        with self.assertRaises(ValueError):
+            decision_from_logged({"mode": "not-a-mode", "base_bit_width": 4})
 
 
 if __name__ == "__main__":

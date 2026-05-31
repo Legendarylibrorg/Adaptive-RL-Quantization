@@ -24,7 +24,8 @@ from adaptive_quant.configuration.validation import (
     validate_router_task_text,
     validate_runtime_filesystem_path,
 )
-from adaptive_quant.math_utils import argmax, dot, sample_categorical, softmax
+from adaptive_quant.math_utils import finite_float
+from adaptive_quant.policy_heads import CategoricalHead, ValueHead
 
 
 def _router_hf_pretrained_kwargs(config: FrameworkConfig) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -113,70 +114,6 @@ class RouterTrace:
     value_prediction: float
 
 
-class _CategoricalHead:
-    def __init__(self, input_dim: int, output_dim: int, rng: random.Random) -> None:
-        scale = 0.08
-        self.weights = [
-            [rng.uniform(-scale, scale) for _ in range(input_dim)] for _ in range(output_dim)
-        ]
-        self.bias = [0.0] * output_dim
-
-    def logits(self, feature_vector: list[float]) -> list[float]:
-        return [
-            dot(row, feature_vector) + b for row, b in zip(self.weights, self.bias, strict=True)
-        ]
-
-    def sample(
-        self,
-        feature_vector: list[float],
-        rng: random.Random,
-        *,
-        deterministic: bool = False,
-        epsilon: float = 0.0,
-    ) -> tuple[int, list[float]]:
-        """Sample an arm. With probability ``epsilon``, pick **uniformly** among arms (not ε-greedy vs current π)."""
-        probabilities = softmax(self.logits(feature_vector))
-        if deterministic:
-            return argmax(probabilities), probabilities
-        if epsilon > 0.0 and rng.random() < float(epsilon):
-            return rng.randrange(len(probabilities)), probabilities
-        return sample_categorical(probabilities, rng), probabilities
-
-    def update(
-        self,
-        feature_vector: list[float],
-        selected_index: int,
-        probabilities: list[float],
-        advantage: float,
-        learning_rate: float,
-    ) -> None:
-        for row_index, row in enumerate(self.weights):
-            coefficient = (
-                (1.0 if row_index == selected_index else 0.0) - probabilities[row_index]
-            ) * advantage
-            for column_index, value in enumerate(feature_vector):
-                row[column_index] += learning_rate * coefficient * value
-            self.bias[row_index] += learning_rate * coefficient
-
-
-class _ValueHead:
-    def __init__(self, input_dim: int, rng: random.Random) -> None:
-        # Start at 0 so early advantages reflect observed rewards (more stable than random init).
-        del rng
-        self.weights = [0.0 for _ in range(input_dim)]
-        self.bias = 0.0
-
-    def predict(self, feature_vector: list[float]) -> float:
-        return dot(self.weights, feature_vector) + self.bias
-
-    def update(self, feature_vector: list[float], target: float, learning_rate: float) -> None:
-        prediction = self.predict(feature_vector)
-        error = target - prediction
-        for index, value in enumerate(feature_vector):
-            self.weights[index] += learning_rate * error * value
-        self.bias += learning_rate * error
-
-
 def _stable_l2_normalize(vector: list[float]) -> list[float]:
     norm2 = sum(v * v for v in vector)
     if norm2 <= 0.0:
@@ -201,10 +138,7 @@ def _hash_features(text: str, *, dim: int) -> list[float]:
 
 
 def _finite(value: float, *, label: str) -> float:
-    v = float(value)
-    if not math.isfinite(v):
-        raise ValueError(f"{label} must be finite, got {value!r}")
-    return v
+    return finite_float(value, label=label)
 
 
 class EfficientTaskRouter:
@@ -237,8 +171,9 @@ class EfficientTaskRouter:
                 f"Unsupported router_feature_backend: {self.config.router_feature_backend!r}"
             )
 
-        self.policy_head = _CategoricalHead(self.feature_dim, len(self.routes), self.rng)
-        self.value_head = _ValueHead(self.feature_dim, self.rng)
+        self.policy_head = CategoricalHead(self.feature_dim, len(self.routes), self.rng)
+        # Start at 0 so early advantages reflect observed rewards (more stable than random init).
+        self.value_head = ValueHead(self.feature_dim, self.rng, zero_init=True)
 
     @property
     def feature_dim(self) -> int:

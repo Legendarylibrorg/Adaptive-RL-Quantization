@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Iterable
 from dataclasses import asdict
+from pathlib import Path
 from typing import Any
 
 from adaptive_quant.cli.presets import apply_short_run_episodes, select_dense_moe_preset
@@ -138,6 +139,11 @@ def main(argv: Iterable[str] | None = None) -> None:
     parser.add_argument(
         "--quiet", action="store_true", help="Suppress end-of-run CLI banners (e.g. unit tests)."
     )
+    parser.add_argument(
+        "--outputs-dir",
+        default=None,
+        help="Override output root for all per-seed and aggregate artifacts.",
+    )
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     seeds = _parse_seeds(args.seeds)
@@ -145,6 +151,16 @@ def main(argv: Iterable[str] | None = None) -> None:
         raise SystemExit("No seeds provided.")
 
     base_config = select_dense_moe_preset(args.preset)
+    if args.outputs_dir:
+        output_root = Path(args.outputs_dir)
+        base_config = base_config.clone(
+            outputs_dir=str(output_root),
+            log_dir=str(output_root / "logs"),
+            benchmark_dir=str(output_root / "benchmarks"),
+            analysis_dir=str(output_root / "analysis"),
+            checkpoint_dir=str(output_root / "checkpoints"),
+            report_dir=str(output_root / "reports"),
+        )
     if args.episodes is not None:
         base_config = apply_short_run_episodes(base_config, args.episodes)
     base_run_name = str(args.run_name or base_config.run_name)

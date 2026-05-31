@@ -71,6 +71,54 @@ class GuardrailsTests(unittest.TestCase):
             )
         )
 
+    def test_rejects_latency_violation(self) -> None:
+        config = _minimal_config()
+        self.assertFalse(
+            passes_online_guardrails(
+                config=config,
+                candidate_reward=1.0,
+                baseline_reward=0.5,
+                candidate_latency_ms=16.0,
+                baseline_latency_ms=12.0,
+                candidate_memory_mb=100.0,
+                baseline_memory_mb=110.0,
+                candidate_perplexity=1.0,
+                baseline_perplexity=1.2,
+            )
+        )
+
+    def test_rejects_memory_violation(self) -> None:
+        config = _minimal_config()
+        self.assertFalse(
+            passes_online_guardrails(
+                config=config,
+                candidate_reward=1.0,
+                baseline_reward=0.5,
+                candidate_latency_ms=10.0,
+                baseline_latency_ms=12.0,
+                candidate_memory_mb=140.0,
+                baseline_memory_mb=110.0,
+                candidate_perplexity=1.0,
+                baseline_perplexity=1.2,
+            )
+        )
+
+    def test_rejects_perplexity_violation(self) -> None:
+        config = _minimal_config()
+        self.assertFalse(
+            passes_online_guardrails(
+                config=config,
+                candidate_reward=1.0,
+                baseline_reward=0.5,
+                candidate_latency_ms=10.0,
+                baseline_latency_ms=12.0,
+                candidate_memory_mb=100.0,
+                baseline_memory_mb=110.0,
+                candidate_perplexity=1.8,
+                baseline_perplexity=1.2,
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

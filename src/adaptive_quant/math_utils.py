@@ -142,3 +142,26 @@ def format_display(value: object, *, style: str = "report", digits: int = 2) -> 
             return "nan"
         return f"{value:.{digits}f}"
     return str(value)
+
+
+def finite_float(value: object, *, label: str) -> float:
+    if isinstance(value, bool):
+        raise TypeError(f"{label} must be numeric, got bool")
+    if not isinstance(value, (int, float)):
+        raise TypeError(f"{label} must be numeric, got {type(value).__name__}")
+    result = float(value)
+    if not math.isfinite(result):
+        raise ValueError(f"{label} must be finite, got {result!r}")
+    return result
+
+
+def non_negative_int(value: object, *, label: str, maximum: int | None = None) -> int:
+    if isinstance(value, bool):
+        raise TypeError(f"{label} must be an integer, got bool")
+    if not isinstance(value, int):
+        raise TypeError(f"{label} must be an integer, got {type(value).__name__}")
+    if value < 0:
+        raise ValueError(f"{label} must be >= 0, got {value!r}")
+    if maximum is not None and value > maximum:
+        raise ValueError(f"{label} must be <= {maximum}, got {value!r}")
+    return int(value)

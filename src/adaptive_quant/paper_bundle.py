@@ -9,6 +9,8 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from adaptive_quant.analysis_utils import flatten_numeric
+from adaptive_quant.checkpoint_integrity import sha256_canonical
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import load_jsonl, write_json, write_text_file
 from adaptive_quant.math_utils import sample_std
@@ -27,7 +29,7 @@ def create_pipeline_paper_bundle(
     bundle_dir = paper_bundle_dir(config)
     bundle_dir.mkdir(parents=True, exist_ok=True)
 
-    metrics = _flatten_numeric(summary)
+    metrics = flatten_numeric(summary)
     selected_metrics = _select_metrics(metrics, config=config)
     metric_rows = [{"metric": key, "value": value} for key, value in selected_metrics.items()]
 
@@ -194,30 +196,6 @@ def aggregate_values(values: Sequence[float]) -> dict[str, float | int]:
     }
 
 
-def _flatten_numeric(obj: object, *, prefix: str = "", max_items: int = 20_000) -> dict[str, float]:
-    out: dict[str, float] = {}
-
-    def walk(node: object, path: str) -> None:
-        if len(out) >= max_items:
-            return
-        if isinstance(node, bool):
-            return
-        if isinstance(node, (int, float)) and math.isfinite(float(node)):
-            out[path] = float(node)
-            return
-        if isinstance(node, Mapping):
-            for key, value in node.items():
-                if isinstance(key, str):
-                    walk(value, f"{path}.{key}" if path else key)
-            return
-        if isinstance(node, (list, tuple)):
-            for index, value in enumerate(node):
-                walk(value, f"{path}[{index}]")
-
-    walk(obj, prefix)
-    return out
-
-
 def _select_metrics(metrics: Mapping[str, float], *, config: FrameworkConfig) -> dict[str, float]:
     """
     Pick a small set of high-signal metrics for `metrics_summary.*`.
@@ -255,9 +233,9 @@ def _manifest(
     *, config: FrameworkConfig, run_name: str, summary: Mapping[str, Any]
 ) -> dict[str, Any]:
     config_dict = summary.get("config") if isinstance(summary.get("config"), Mapping) else {}
-    llama_binary = getattr(config, "llama_cpp_binary", None)
-    llama_model = getattr(config, "llama_cpp_model", None)
-    external_quality_path = getattr(config, "external_quality_path", None)
+    llama_binary = config.llama_cpp_binary
+    llama_model = config.llama_cpp_model
+    external_quality_path = config.external_quality_path
     return {
         "run_name": run_name,
         "created_by": "adaptive-rl-quant",
@@ -265,30 +243,30 @@ def _manifest(
         "platform": platform.platform(),
         "machine": platform.machine(),
         "git_commit": summary.get("git_commit"),
-        "backend": getattr(config, "backend", None),
-        "training_backend": getattr(config, "training_backend", None),
+        "backend": config.backend,
+        "training_backend": config.training_backend,
         "config_digest": _stable_digest(config_dict),
         "llama_cpp": {
             "binary": llama_binary,
             "binary_sha256": _sha256_file(llama_binary),
             "model": llama_model,
             "model_sha256": _sha256_file(llama_model),
-            "generate_tokens": getattr(config, "llama_cpp_generate_tokens", None),
-            "context": getattr(config, "llama_cpp_context", None),
-            "threads": getattr(config, "llama_cpp_threads", None),
+            "generate_tokens": config.llama_cpp_generate_tokens,
+            "context": config.llama_cpp_context,
+            "threads": config.llama_cpp_threads,
         },
         "external_quality": {
             "path": external_quality_path,
             "sha256": _sha256_file(external_quality_path),
-            "metric": getattr(config, "external_quality_metric", None),
+            "metric": config.external_quality_metric,
         },
     }
 
 
 def _metric_sources(config: FrameworkConfig) -> dict[str, str]:
-    has_external_quality = bool(getattr(config, "external_quality_path", None))
+    has_external_quality = bool(config.external_quality_path)
     quality_source = (
-        f"external:{getattr(config, 'external_quality_metric', 'perplexity')}"
+        f"external:{config.external_quality_metric or 'perplexity'}"
         if has_external_quality
         else "simulator"
     )
@@ -318,7 +296,7 @@ def _claims_validation(
 ) -> dict[str, Any]:
     evidence_level = "local_llama_cpp" if config.backend == "llama_cpp" else "simulator"
     warnings: list[str] = []
-    has_external_quality = bool(getattr(config, "external_quality_path", None))
+    has_external_quality = bool(config.external_quality_path)
     if config.backend == "llama_cpp":
         if has_external_quality:
             warnings.append(
@@ -345,9 +323,7 @@ def _claims_validation(
         "evidence_level": evidence_level,
         "deployment_grade": False,
         "external_quality": has_external_quality,
-        "external_quality_metric": getattr(config, "external_quality_metric", None)
-        if has_external_quality
-        else None,
+        "external_quality_metric": config.external_quality_metric if has_external_quality else None,
         "metric_count": len(metrics),
         "has_benchmark_summary": isinstance(summary.get("benchmarks"), Mapping),
         "has_evaluation_summary": isinstance(summary.get("evaluation"), Mapping),
@@ -455,10 +431,7 @@ def _write_csv(path: Path, headers: Sequence[str], rows: Sequence[Mapping[str, A
 
 
 def _stable_digest(obj: object) -> str:
-    import json
-
-    blob = json.dumps(obj, sort_keys=True, default=str).encode("utf-8")
-    return hashlib.sha256(blob).hexdigest()
+    return sha256_canonical(obj)
 
 
 _MAX_DIGEST_FILE_BYTES = 256 << 20
