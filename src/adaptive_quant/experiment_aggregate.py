@@ -98,10 +98,22 @@ def extract_metric(summary: dict[str, Any], objective: str) -> float | None:
     if objective in flat and math.isfinite(flat[objective]):
         return flat[objective]
     suffix = f".{objective}"
-    for key, value in flat.items():
-        if key.endswith(suffix) or key.split(".")[-1] == objective:
-            if math.isfinite(value):
-                return value
+    suffix_matches = [
+        (key, value) for key, value in flat.items() if key.endswith(suffix) and math.isfinite(value)
+    ]
+    if len(suffix_matches) == 1:
+        return suffix_matches[0][1]
+    if len(suffix_matches) > 1:
+        return max(suffix_matches, key=lambda item: len(item[0]))[1]
+    segment_matches = [
+        (key, value)
+        for key, value in flat.items()
+        if key.split(".")[-1] == objective and math.isfinite(value)
+    ]
+    if len(segment_matches) == 1:
+        return segment_matches[0][1]
+    if len(segment_matches) > 1:
+        return max(segment_matches, key=lambda item: len(item[0]))[1]
     return None
 
 

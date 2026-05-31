@@ -99,9 +99,10 @@ def create_multiseed_paper_bundle(
 
     manifest = _manifest(config=config, run_name=run_name, summary=aggregate_payload)
     manifest["metric_sources"] = _metric_sources(config)
-    if "seeds" in aggregate_payload:
+    seeds_raw = aggregate_payload.get("seeds")
+    if seeds_raw is not None:
         manifest["experiment_kind"] = "multiseed"
-        manifest["seeds"] = list(aggregate_payload["seeds"])
+        manifest["seeds"] = list(seeds_raw)
     elif "leaderboard" in aggregate_payload:
         manifest["experiment_kind"] = "sweep"
         manifest["objective"] = aggregate_payload.get("objective")
