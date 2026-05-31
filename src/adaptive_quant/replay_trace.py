@@ -173,8 +173,7 @@ def _float_list(payload: Mapping[str, Any], key: str) -> list[float]:
     if not isinstance(value, list):
         raise TypeError(f"decision.{key} must be a list")
     return [
-        finite_float(item, label=f"decision.{key}[{index}]")
-        for index, item in enumerate(value)
+        finite_float(item, label=f"decision.{key}[{index}]") for index, item in enumerate(value)
     ]
 
 
@@ -204,9 +203,7 @@ def decision_from_logged(payload: Mapping[str, Any]) -> QuantizationDecision:
         base_bit_width=_optional_int(payload, "base_bit_width"),
         group_bit_widths=_int_list(payload, "group_bit_widths"),
         layer_bit_widths=_int_list(payload, "layer_bit_widths"),
-        scale_factor=finite_float(
-            payload.get("scale_factor", 1.0), label="decision.scale_factor"
-        ),
+        scale_factor=finite_float(payload.get("scale_factor", 1.0), label="decision.scale_factor"),
         clipping_range=finite_float(
             payload.get("clipping_range", 1.0), label="decision.clipping_range"
         ),

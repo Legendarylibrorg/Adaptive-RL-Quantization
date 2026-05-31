@@ -176,8 +176,7 @@ def validate_run_name(run_name: str) -> None:
 def validate_safe_identifier(field_name: str, value: str) -> None:
     if not isinstance(value, str) or not _SAFE_ID_RE.match(value):
         raise ValueError(
-            f"Invalid {field_name} {value!r}: expected "
-            "/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/."
+            f"Invalid {field_name} {value!r}: expected /^[A-Za-z0-9][A-Za-z0-9._-]{{0,127}}$/."
         )
 
 
@@ -229,9 +228,7 @@ def _validate_bounded_user_text(field_name: str, text: str, *, max_chars: int) -
         raise ValueError(f"{field_name} must not contain NUL bytes")
     sanitized = sanitize_user_text(text)
     if len(sanitized) > max_chars:
-        raise ValueError(
-            f"{field_name} exceeds {max_chars} characters ({len(sanitized)} given)"
-        )
+        raise ValueError(f"{field_name} exceeds {max_chars} characters ({len(sanitized)} given)")
     return sanitized
 
 

@@ -318,7 +318,9 @@ class RouteBandit:
             raise TypeError("global bandit route ids must be strings")
         unknown_global = set(raw_global) - catalog_ids
         if unknown_global:
-            raise ValueError(f"RouteBandit state references unknown route ids: {sorted(unknown_global)}")
+            raise ValueError(
+                f"RouteBandit state references unknown route ids: {sorted(unknown_global)}"
+            )
         self._global = {
             arm_id: _ArmStats.from_dict(payload, label=f"global[{arm_id}]")
             for arm_id, payload in raw_global.items()
@@ -348,7 +350,9 @@ class RouteBandit:
             }
         self._buckets = buckets
         global_pulls = sum(stats.pulls for stats in self._global.values())
-        bucket_pulls = sum(stats.pulls for arms in self._buckets.values() for stats in arms.values())
+        bucket_pulls = sum(
+            stats.pulls for arms in self._buckets.values() for stats in arms.values()
+        )
         if global_pulls != bucket_pulls:
             raise ValueError(
                 "RouteBandit state pull counts are inconsistent: "

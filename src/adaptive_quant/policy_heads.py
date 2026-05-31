@@ -118,9 +118,11 @@ class GaussianHead:
 
 class ValueHead:
     def __init__(self, input_dim: int, rng: random.Random, *, zero_init: bool = False) -> None:
-        self.weights = [0.0 for _ in range(input_dim)] if zero_init else [
-            rng.uniform(-0.05, 0.05) for _ in range(input_dim)
-        ]
+        self.weights = (
+            [0.0 for _ in range(input_dim)]
+            if zero_init
+            else [rng.uniform(-0.05, 0.05) for _ in range(input_dim)]
+        )
         self.bias = 0.0
 
     def predict(self, state_vector: list[float]) -> float:

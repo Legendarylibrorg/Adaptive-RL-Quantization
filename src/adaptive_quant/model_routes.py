@@ -72,6 +72,7 @@ QUANT_BITS: dict[str, float] = {
 # Acceptable hardware affinity labels — used as soft hints for the bandit.
 _HARDWARE_HINTS: frozenset[str] = frozenset({"gpu", "cpu", "low_resource", "any"})
 
+
 @dataclass(frozen=True)
 class QuantSpec:
     """Description of a quantization label.
