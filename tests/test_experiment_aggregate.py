@@ -15,6 +15,11 @@ class ExperimentAggregateTests(unittest.TestCase):
         summary = {"train": {"mean_reward": 0.1}, "evaluation": {"mean_reward": 0.7}}
         self.assertEqual(extract_metric(summary, "evaluation.mean_reward"), 0.7)
 
+    def test_flatten_numeric_skips_non_finite_values(self) -> None:
+        flat = flatten_numeric({"evaluation": {"mean_reward": float("nan"), "latency_ms": 12.0}})
+        self.assertNotIn("evaluation.mean_reward", flat)
+        self.assertEqual(flat["evaluation.latency_ms"], 12.0)
+
 
 if __name__ == "__main__":
     unittest.main()
