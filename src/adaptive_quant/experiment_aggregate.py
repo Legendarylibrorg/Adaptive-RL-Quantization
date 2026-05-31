@@ -6,6 +6,7 @@ import math
 from dataclasses import dataclass
 from typing import Any
 
+from adaptive_quant.analysis_utils import flatten_numeric as _flatten_numeric
 from adaptive_quant.paper_bundle import aggregate_values
 
 
@@ -41,26 +42,8 @@ def flatten_numeric(
     prefix: str = "",
     max_items: int = 10_000,
 ) -> dict[str, float]:
-    out: dict[str, float] = {}
-
-    def walk(node: object, path: str) -> None:
-        if len(out) >= max_items:
-            return
-        if is_numeric(node):
-            out[path] = float(node)  # type: ignore[arg-type]
-            return
-        if isinstance(node, dict):
-            for k, v in node.items():
-                if not isinstance(k, str):
-                    continue
-                walk(v, f"{path}.{k}" if path else k)
-            return
-        if isinstance(node, (list, tuple)):
-            for i, v in enumerate(node):
-                walk(v, f"{path}[{i}]")
-
-    walk(obj, prefix)
-    return out
+    """Flatten nested numeric fields for multiseed/sweep aggregation (10k key cap)."""
+    return _flatten_numeric(obj, prefix=prefix, max_items=max_items)
 
 
 def default_key_filter(key: str) -> bool:
