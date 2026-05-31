@@ -46,7 +46,7 @@ The bundle includes:
 - `manifest.json`: Python/platform details, config digest, `llama.cpp` binary/model hashes, generation settings, and metric source labels.
 - `metrics_summary.csv` / `metrics_summary.json`: paper-facing scalar metrics.
 - `episodes.csv`: flattened JSONL telemetry when route or episode logs are available.
-- `aggregate_stats.csv` / `aggregate_stats.json`: multi-seed mean, std, standard error, 95% CI, and effect-size-vs-zero fields.
+- `aggregate_stats.csv` / `aggregate_stats.json`: multiseed mean/std (or per-trial objective values for sweep runs) with standard error, 95% CI, and effect-size-vs-zero fields when applicable.
 - `appendix.md`: links to upstream artifacts and a reproducibility checklist.
 - `claims_validation.json` / `claims_validation.md`: explicit evidence-level warnings and deployment-grade status.
 

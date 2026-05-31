@@ -24,10 +24,10 @@ Follow the sections below in order on a fresh machine: **get the code** → **pl
 After cloning the repo:
 
 ```bash
-./setup.sh && .venv/bin/adaptive-rl-quant
+./setup.sh && ./run
 ```
 
-`./setup.sh` already runs tests and a short smoke (`config.e2e_smoke.json`). The second command starts a **full** simulator run. You do not need to activate the venv first.
+`./setup.sh` already runs tests and a short smoke (`config.e2e_smoke.json`). `./run` starts a **full** simulator run (uses `.venv/bin/adaptive-rl-quant` when the venv exists). You do not need to activate the venv first.
 
 **Install only (no tests, no smoke):** `./setup.sh --quick`
 
@@ -57,15 +57,13 @@ On Windows: `setup.bat`, or `py -3.11 scripts/setup_from_clone.py`, or `python s
 
 This creates **`.venv`**, upgrades **`pip`** (using `ensurepip` first and falling back to `get-pip.py` only if needed), runs **`pip install -e .`**, **`unittest`**, and a **short reproducible end-to-end RL run** (train → eval → benchmarks → analysis) via **`config.e2e_smoke.json`**. Install, tests, and smoke use the venv interpreter directly (no reliance on activating the venv first). Edit that JSON to tune episode counts, `seed`, and `run_name` without touching Python.
 
-On Linux/macOS, `bash scripts/setup_from_clone.sh` remains available as a thin wrapper around the same Python entrypoint.
-
 Override paths if needed:
 
 ```bash
 python3 scripts/setup_from_clone.py --venv-dir .venv --config config.e2e_smoke.json
 ```
 
-**Quality gate (contributors):** run **`python3 scripts/pre_commit_check.py`** from the repo root before pushing (see **[CONTRIBUTING.md](../CONTRIBUTING.md)**). On Linux/macOS, `bash scripts/pre_commit_check.sh` remains a wrapper around the same Python implementation. On Windows use `py -3.11 scripts/pre_commit_check.py` or `python scripts/pre_commit_check.py`.
+**Quality gate (contributors):** run **`python3 scripts/pre_commit_check.py`** from the repo root before pushing (see **[CONTRIBUTING.md](../CONTRIBUTING.md)**). On Windows use `py -3.11 scripts/pre_commit_check.py` or `python scripts/pre_commit_check.py`.
 
 ## Get the code
 
@@ -209,13 +207,13 @@ Install the package (editable):
 python3 -m pip install -e .
 ```
 
-This exposes installable console commands such as `adaptive-rl-quant`, `adaptive-rl-quant-pytorch`, `adaptive-rl-quant-online`, and `adaptive-rl-quant-multiseed`.
+This exposes installable console commands such as `adaptive-rl-quant`, `adaptive-rl-quant-pytorch`, `adaptive-rl-quant-online`, `adaptive-rl-quant-multiseed`, and `adaptive-rl-quant-sweep`.
 
 This is enough for:
 
 - `adaptive-rl-quant`
 - `adaptive-rl-quant --config config.e2e_smoke.json`
-- `python3 -m unittest discover -s tests -v`
+- `python3 -m unittest discover -s tests -t . -v`
 
 ## 2. Simulator-only setup
 
@@ -225,7 +223,7 @@ Recommended verification:
 
 ```bash
 adaptive-rl-quant
-python3 -m unittest discover -s tests -v
+python3 -m unittest discover -s tests -t . -v
 ```
 
 ## 3. GPU setup
@@ -282,7 +280,7 @@ For a one-command 4090 validation and run:
 bash scripts/run_4090_pipeline.sh
 ```
 
-If **`.venv`** already exists (for example after **`setup_from_clone.sh`**), the script picks **`.venv/bin/python`** automatically unless you set **`PYTHON_BIN`**. Override: `PYTHON_BIN=/usr/bin/python3 bash scripts/run_4090_pipeline.sh`.
+If **`.venv`** already exists (for example after **`./setup.sh`**), the script picks **`.venv/bin/python`** automatically unless you set **`PYTHON_BIN`**. Override: `PYTHON_BIN=/usr/bin/python3 bash scripts/run_4090_pipeline.sh`.
 
 ## 4. llama.cpp setup
 

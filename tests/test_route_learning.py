@@ -519,7 +519,7 @@ class RouteCliTests(unittest.TestCase):
     def test_cli_seed_and_list(self) -> None:
         from io import StringIO
 
-        from run_route_learning import main as route_main
+        from adaptive_quant.cli.route_learning import main as route_main
 
         with tempfile.TemporaryDirectory() as tmp:
             catalog_path = Path(tmp) / "catalog.json"
@@ -536,7 +536,7 @@ class RouteCliTests(unittest.TestCase):
             self.assertGreater(len(payload["routes"]), 0)
 
     def test_cli_register_accepts_local_path(self) -> None:
-        from run_route_learning import main as route_main
+        from adaptive_quant.cli.route_learning import main as route_main
 
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)

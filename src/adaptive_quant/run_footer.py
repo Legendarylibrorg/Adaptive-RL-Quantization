@@ -98,6 +98,33 @@ def print_pipeline_footer(
     print_cli_block("Run complete", rows)
 
 
+def print_sweep_footer(
+    *,
+    sweep_run_name: str,
+    objective: str,
+    direction: str,
+    trial_count: int,
+    best_trial: object | None,
+    aggregate_json: str,
+    report_md: str,
+) -> None:
+    rows: list[tuple[str, str]] = [
+        ("sweep_run", sweep_run_name),
+        ("objective", f"{objective} ({direction})"),
+        ("trials", str(trial_count)),
+        ("aggregate_json", aggregate_json),
+        ("aggregate_report", report_md),
+    ]
+    if best_trial is not None:
+        plan = getattr(best_trial, "plan", None)
+        objective_value = getattr(best_trial, "objective_value", None)
+        if plan is not None:
+            rows.append(("best_trial", f"#{plan.trial_id} ({plan.run_name_suffix})"))
+        if objective_value is not None:
+            rows.append(("best_objective", format_display(objective_value, style="footer")))
+    print_cli_block("Sweep complete", rows)
+
+
 def print_multiseed_footer(
     *,
     multiseed_run_name: str,
@@ -206,4 +233,5 @@ __all__ = [
     "print_multiseed_footer",
     "print_online_footer",
     "print_pipeline_footer",
+    "print_sweep_footer",
 ]

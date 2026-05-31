@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Default experiment runner: uses the venv CLI when present, else repo-root shim.
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${ROOT}"
+if [[ -x "${ROOT}/.venv/bin/adaptive-rl-quant" ]]; then
+  exec "${ROOT}/.venv/bin/adaptive-rl-quant" "$@"
+fi
+if [[ -x "${ROOT}/.venv/bin/python" ]]; then
+  exec "${ROOT}/.venv/bin/python" "${ROOT}/run_research.py" "$@"
+fi
+exec python3 "${ROOT}/run_research.py" "$@"

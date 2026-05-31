@@ -9,7 +9,7 @@ from pathlib import Path
 class MultiSeedRunnerTests(unittest.TestCase):
     def test_multiseed_runner_writes_outputs(self) -> None:
         # Import inside the test so this remains a normal stdlib unittest.
-        from run_multiseed import main
+        from adaptive_quant.cli.multiseed import main
 
         with tempfile.TemporaryDirectory() as tmpdir:
             outputs_dir = Path(tmpdir) / "outputs"

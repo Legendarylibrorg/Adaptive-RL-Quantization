@@ -194,6 +194,18 @@ adaptive-rl-quant-multiseed --preset moe --seeds 13,17,23
 
 Those write `outputs/reports/<run_name>_multiseed_report.md` plus per-seed reports and figures.
 
+To compare hyperparameter settings (learning rate, reward weights, torch batch sizes, etc.), run a sweep:
+
+```bash
+adaptive-rl-quant-sweep --sweep-config config.sweep.example.json
+# or:
+adaptive-rl-quant-sweep --config config.e2e_smoke.json \
+  --vary learning_rate=0.02,0.035,0.05 \
+  --vary reward_weights.beta_throughput=0.04,0.08
+```
+
+Those write `outputs/benchmarks/<run_name>_sweep_summary.json`, `outputs/reports/<run_name>_sweep_report.md`, and per-trial summaries under `outputs/benchmarks/<run_name>_trialNNN_*_summary.json`. See [docs/SWEEP.md](SWEEP.md) for sweep file format, objectives, and Makefile shortcuts.
+
 To anchor the offline harness to real measurements, you can calibrate simulator coefficients against real `llama.cpp` runs:
 
 ```bash
@@ -407,7 +419,7 @@ bash scripts/run_4090_pipeline.sh
 Tests:
 
 ```bash
-python3 -m unittest discover -s tests -v
+python3 -m unittest discover -s tests -t . -v
 ```
 
 ### Appendix B. Main Implementation Files

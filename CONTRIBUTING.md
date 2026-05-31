@@ -35,10 +35,10 @@ From the repository root:
 python3 -m venv .venv
 source .venv/bin/activate   # or .venv\Scripts\activate on Windows
 python3 -m pip install -e .
-python3 -m unittest discover -s tests -q
+python3 -m unittest discover -s tests -t . -q
 ```
 
-**Without** `pip install -e .`, set `PYTHONPATH=src` (or `src` on `sys.path`) so imports resolve to `src/adaptive_quant` and `src/analysis`. CI always uses the editable install above.
+**Without** `pip install -e .`, run tests with `python3 -m unittest discover -s tests -t . -q` from the repo root — [`tests/__init__.py`](tests/__init__.py) bootstraps `src/` on `sys.path`. Source-checkout runners (`run_*.py`) and `python -m analysis` use the same path setup via [`src/bootstrap.py`](src/bootstrap.py). CI always uses the editable install above.
 
 Optional GPU work: `pip install -e ".[torch]"` or a CUDA-matched PyTorch wheel, then see [docs/INSTALL.md](docs/INSTALL.md).
 
@@ -49,7 +49,7 @@ Optional GPU work: `pip install -e ".[torch]"` or a CUDA-matched PyTorch wheel, 
 For a tighter loop on your machine:
 
 1. `pip install -e ".[dev]"` — installs **[Ruff](https://docs.astral.sh/ruff/)** for lint + format (`pyproject.toml` → `[project.optional-dependencies] dev`).
-2. **`make help`** on Linux/macOS — see [Makefile](Makefile): quality (`lint`, `format`, `check` = Ruff + `pre_commit_check.py`); experiments (`run`, `reproduce` / `smoke`, `multiseed`, `pytorch`, …). On Windows, use the Python scripts under `scripts/`.
+2. **`make help`** on Linux/macOS — see [Makefile](Makefile): quality (`lint`, `format`, `check` = Ruff + `pre_commit_check.py`); experiments (`run`, `reproduce` / `smoke`, `multiseed`, `sweep`, `pytorch`, …). On Windows, use the Python scripts under `scripts/`.
 3. [.vscode/extensions.json](.vscode/extensions.json) recommends the Python and Ruff extensions; [.editorconfig](.editorconfig) keeps basic spacing consistent.
 
 CI installs hash-pinned dev tools from [`requirements/dev.txt`](requirements/dev.txt) (see [`requirements/README.md`](requirements/README.md)); locally, `pip install -e ".[dev]"` is still fine for Ruff and mypy. Mypy covers configuration, logging, easy_config, backends, `route_pipeline`, CLI, and `torch_trainer` (see `scripts/pre_commit_check.py`).

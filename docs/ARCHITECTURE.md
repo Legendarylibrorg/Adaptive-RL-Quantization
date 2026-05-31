@@ -22,10 +22,17 @@ The code is intentionally split into a small number of layers so experiments sta
 - `run_moe_research.py`: MoE-focused preset and benchmarks
 - `run_online_learning.py`: online adaptation pipeline
 - `run_multiseed.py`: repeated runs and aggregation
+- `run_sweep.py`: hyperparameter grid search and trial ranking
 - `run_calibrate_llama_cpp.py`: simulator calibration from local `llama.cpp` measurements
 - `run_route_learning.py`: GGUF route catalog and contextual bandit workflow
+- `run_replay.py`: hash-chained JSONL replay / audit verification
 
-Root `run_*.py` files prepend `src/` on `sys.path` and delegate to `adaptive_quant.cli`; installed commands call the same modules directly.
+Root `run_*.py` files prepend `src/` on `sys.path` and delegate to `adaptive_quant.cli`; installed commands call the same modules directly. From repo root, `./run` (or `make run`) starts the default simulator pipeline without activating a venv when `.venv` exists.
+
+Path bootstrap for source checkouts:
+
+- [`src/bootstrap.py`](../src/bootstrap.py): shared `ensure_repo_paths()` used by [`_repo_entrypoint.py`](../_repo_entrypoint.py) and [`src/analysis/__main__.py`](../src/analysis/__main__.py)
+- [`tests/__init__.py`](../tests/__init__.py): lets `python3 -m unittest discover -s tests -t .` run without `pip install -e .`
 
 Installed console commands map onto those wrappers:
 
@@ -34,8 +41,11 @@ Installed console commands map onto those wrappers:
 - `adaptive-rl-quant-moe`
 - `adaptive-rl-quant-online`
 - `adaptive-rl-quant-multiseed`
+- `adaptive-rl-quant-sweep`
 - `adaptive-rl-quant-calibrate`
 - `adaptive-rl-quant-route`
+- `adaptive-rl-quant-replay`
+- `adaptive-rl-quant-analyze` / `python -m analysis`
 
 ## 2. Configuration layer
 
@@ -70,8 +80,10 @@ The key architecture rule here is: **different backends share the same `Framewor
 ## 4. Analysis and reporting
 
 - `src/analysis/`: post-hoc analysis (`analyzers.py`, shared `log_records.py`, `python -m analysis` CLI)
-- `src/adaptive_quant/research_pipeline.py`: full offline pipeline orchestration
-- `src/adaptive_quant/pipeline/`: VCS stamp, benchmark warnings, analysis runner, and Markdown report helpers; training history/checkpoint writers live in `research_pipeline.py`
+- `src/adaptive_quant/research_pipeline.py`: full offline pipeline orchestration; training-history/checkpoint writers live here
+- `src/adaptive_quant/experiment_aggregate.py`: shared numeric flattening/aggregation for multiseed and sweep
+- `src/adaptive_quant/sweep.py`: hyperparameter grid expansion, trial naming, ranking
+- `src/adaptive_quant/pipeline/`: VCS stamp, benchmark warnings, analysis runner, and Markdown report helpers
 - `src/adaptive_quant/run_footer.py`: consistent CLI summaries
 
 ### Routing modules (do not conflate)
@@ -112,7 +124,8 @@ For strong experimental hygiene, prefer this order:
 3. move to a dedicated JSON/TOML config or a copied Python preset
 4. use `FrameworkConfig.reproducible_research(...)` or the `reproducible` preset when you need deterministic scheduling
 5. validate with `adaptive-rl-quant-multiseed` before making comparative claims
-6. keep generated summaries, reports, and config files together in version control or your experiment log
+6. tune hyperparameters with `adaptive-rl-quant-sweep` when comparing learning rates, reward weights, or torch batch settings ([SWEEP.md](SWEEP.md))
+7. keep generated summaries, reports, and config files together in version control or your experiment log
 
 ## Linux-first and WSL2
 

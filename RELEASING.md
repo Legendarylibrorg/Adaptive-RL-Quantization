@@ -6,7 +6,7 @@
 2. **Python ≥ 3.11** — from repo root, with a venv:
    - `python3 -m pip install -e ".[dev]"`
    - `ruff check adaptive_quant analysis tests scripts "run_*.py" "config*.py"`
-   - `python3 -m unittest discover -s tests -q`
+   - `python3 -m unittest discover -s tests -t . -q`
 3. **Optional smoke** — `python3 run_research.py --config config.e2e_smoke.json` (matches CI’s last step).
 4. **Version files** — for `vX.Y.Z`, keep these aligned:
    - [`pyproject.toml`](pyproject.toml) → `version = "X.Y.Z"`
@@ -37,7 +37,7 @@
 Initial public release.
 
 - Simulator-first RL quantization research loop (`adaptive-rl-quant` and related CLIs).
-- Optional PyTorch/CUDA training, MoE, online loop, multiseed runs, and llama.cpp calibration.
+- Optional PyTorch/CUDA training, MoE, online loop, multiseed runs, hyperparameter sweeps, and llama.cpp calibration.
 - JSON/TOML `FrameworkConfig` loading, hash-verified CI bootstrap, and dependency review on pull requests.
 
 **Full history:** [CHANGELOG.md](https://github.com/Legendarylibrorg/Adaptive-RL-Quantization/blob/v0.1.0/CHANGELOG.md)

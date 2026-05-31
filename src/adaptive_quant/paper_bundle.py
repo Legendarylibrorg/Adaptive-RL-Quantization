@@ -99,7 +99,16 @@ def create_multiseed_paper_bundle(
 
     manifest = _manifest(config=config, run_name=run_name, summary=aggregate_payload)
     manifest["metric_sources"] = _metric_sources(config)
-    manifest["seeds"] = list(aggregate_payload.get("seeds", []))
+    if "seeds" in aggregate_payload:
+        manifest["experiment_kind"] = "multiseed"
+        manifest["seeds"] = list(aggregate_payload["seeds"])
+    elif "leaderboard" in aggregate_payload:
+        manifest["experiment_kind"] = "sweep"
+        manifest["objective"] = aggregate_payload.get("objective")
+        manifest["direction"] = aggregate_payload.get("direction")
+        manifest["trial_count"] = len(aggregate_payload.get("trials", []))
+    else:
+        manifest["experiment_kind"] = "aggregate"
 
     rows = []
     for metric, stat in sorted(aggregate_stats.items()):

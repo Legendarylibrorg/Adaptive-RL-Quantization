@@ -120,7 +120,7 @@ jobs:
       - name: Coverage report (adaptive_quant)
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         run: |
-          python -m coverage run --rcfile pyproject.toml -m unittest discover -s tests -q
+          python -m coverage run --rcfile pyproject.toml -m unittest discover -s tests -t . -q
           python -m coverage report --rcfile pyproject.toml
 
   torch-cpu-smoke:
