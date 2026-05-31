@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 import random
 
 from adaptive_quant.math_utils import (

@@ -6,8 +6,8 @@ import json
 import unittest
 from unittest import mock
 
-from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.cli import replay
+from adaptive_quant.configuration import FrameworkConfig
 
 
 class ReplayCliTests(unittest.TestCase):

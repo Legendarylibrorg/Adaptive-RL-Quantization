@@ -1,5 +1,5 @@
-from adaptive_quant.presets.baseline import CONFIG
 from adaptive_quant.gpu_profiles import GPU_PROFILES
+from adaptive_quant.presets.baseline import CONFIG
 
 CONFIG_GPU = CONFIG.clone(
     training_backend="pytorch",
