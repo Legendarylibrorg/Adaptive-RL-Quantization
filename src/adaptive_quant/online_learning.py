@@ -316,7 +316,11 @@ class OnlineLearningLoop:
             except KeyError:
                 pass
             else:
-                return library_prompt
+                if (
+                    library_prompt.text == request.prompt_text
+                    and library_prompt.domain == request.prompt_domain
+                ):
+                    return library_prompt
 
         prompt_id = request.prompt_id or f"online_{self.request_index:06d}"
         return PromptSample(

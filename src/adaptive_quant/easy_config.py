@@ -8,7 +8,7 @@ from typing import Any
 
 from adaptive_quant.configuration import FrameworkConfig, RewardWeights
 from adaptive_quant.configuration.flat_access import all_flat_config_keys, apply_flat_kwargs
-from adaptive_quant.configuration.sections import NESTED_SECTION_KEYS
+from adaptive_quant.configuration.sections import NESTED_SECTION_KEYS, SECTION_TYPES
 from adaptive_quant.logging_utils import (
     enforce_local_read_limit,
     enforce_safe_parsed_json,
@@ -82,6 +82,7 @@ def config_from_dict(
             bad_rw = set(rw_raw) - _REWARD_FIELD_NAMES
             if bad_rw:
                 raise ValueError(f"Unknown RewardWeights keys: {sorted(bad_rw)}")
+        _validate_nested_sections_strict(nested_raw)
     else:
         bad_fw = set(d) - _FRAMEWORK_FIELD_NAMES
         if bad_fw:
@@ -122,6 +123,19 @@ def config_from_dict(
         apply_flat_kwargs(base_obj, {section_key: section_value})
     base_obj.__post_init__()
     return base_obj
+
+
+def _validate_nested_sections_strict(nested_raw: Mapping[str, Any]) -> None:
+    for section_key, section_value in nested_raw.items():
+        section_type = SECTION_TYPES[section_key]
+        if isinstance(section_value, section_type):
+            continue
+        if not isinstance(section_value, Mapping):
+            raise TypeError(f"{section_key} must be a mapping or {section_type.__name__}")
+        allowed = {f.name for f in fields(section_type)}
+        bad = set(section_value) - allowed
+        if bad:
+            raise ValueError(f"Unknown {section_type.__name__} keys: {sorted(bad)}")
 
 
 def quick_config(**kwargs: Any) -> FrameworkConfig:

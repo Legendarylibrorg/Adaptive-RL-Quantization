@@ -231,6 +231,61 @@ class LlamaCppHardeningTests(unittest.TestCase):
             self.assertEqual(metrics["latency_source"], "llama_cpp")
             self.assertEqual(metrics["perplexity_source"], "simulator")
 
+    def test_llama_cpp_backend_uses_measured_token_count_for_latency(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            binary_path = temp_path / "llama-cli"
+            model_path = temp_path / "model.gguf"
+            binary_path.write_text("#!/bin/sh\n", encoding="utf-8")
+            os.chmod(binary_path, 0o755)
+            model_path.write_text("fake", encoding="utf-8")
+
+            config = FrameworkConfig(
+                backend="llama_cpp",
+                llama_cpp_binary=str(binary_path),
+                llama_cpp_model=str(model_path),
+                llama_cpp_generate_tokens=17,
+                training_episodes=1,
+                evaluation_episodes=1,
+                stability_probe_count=1,
+                outputs_dir=temp_dir,
+                log_dir=f"{temp_dir}/logs",
+                benchmark_dir=f"{temp_dir}/benchmarks",
+                analysis_dir=f"{temp_dir}/analysis",
+                run_name="llama_cpp_measured_tokens_test",
+                seed=5,
+            )
+
+            env = AdaptiveQuantizationEnv(config, log_path=f"{temp_dir}/logs/test.jsonl")
+            state = env.reset(forced_hardware=HardwareType.GPU, forced_prompt_id="simple_qa")
+            decision = finalize_decision(
+                QuantizationDecision(mode=QuantMode.DISCRETE, base_bit_width=4), state, config
+            )
+
+            def fake_run(cmd, **kwargs):  # type: ignore[no-untyped-def]
+                return subprocess.CompletedProcess(
+                    cmd,
+                    0,
+                    stdout=(
+                        "llama_print_timings: sample time = 5.00 ms / 10 runs "
+                        "( 0.50 ms per token, 2000.00 tok/s)\n"
+                    ),
+                    stderr="",
+                )
+
+            import adaptive_quant.backends.llama_cpp as backend_module
+
+            original_run = backend_module.subprocess.run
+            backend_module.subprocess.run = fake_run  # type: ignore[assignment]
+            try:
+                metrics = LlamaCppBackend(config).evaluate(state, decision)
+            finally:
+                backend_module.subprocess.run = original_run  # type: ignore[assignment]
+
+            self.assertEqual(metrics["tokens_processed"], 10.0)
+            self.assertEqual(metrics["latency_ms"], 5.0)
+            self.assertEqual(metrics["latency_ms_per_token"], 0.5)
+
     def test_llama_cpp_backend_uses_external_quality_sidecar(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
