@@ -86,6 +86,14 @@ class EasyConfigTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             config_from_dict({"run_name": "x", "not_a_field": 1}, strict=True)
 
+    def test_config_strict_rejects_unknown_nested_section_key(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            config_from_dict(
+                {"run_name": "nested_bad", "training": {"training_episodes": 1, "typo": 2}},
+                strict=True,
+            )
+        self.assertIn("Unknown TrainingSettings keys", str(ctx.exception))
+
     def test_load_json_with_preset(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "cfg.json"

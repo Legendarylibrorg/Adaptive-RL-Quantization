@@ -84,6 +84,41 @@ class OnlineRouterTests(unittest.TestCase):
         self.assertEqual(decision.metadata["llama_cpp_model_path"], "/models/local.gguf")
         self.assertEqual(decision.metadata["route_backend"], "llama_cpp")
 
+    def test_online_request_prompt_id_collision_keeps_request_text(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cfg = FrameworkConfig(
+                outputs_dir=temp_dir,
+                log_dir=f"{temp_dir}/logs",
+                benchmark_dir=f"{temp_dir}/benchmarks",
+                analysis_dir=f"{temp_dir}/analysis",
+                checkpoint_dir=f"{temp_dir}/checkpoints",
+                report_dir=f"{temp_dir}/reports",
+                run_name="online_prompt_collision",
+                stability_probe_count=1,
+                backend="simulator",
+                online_learning=False,
+                training_episodes=1,
+                evaluation_episodes=1,
+            )
+            trainer = build_trainer(cfg)
+            loop = OnlineLearningLoop(cfg, trainer=trainer)
+            try:
+                record = loop.serve_request(
+                    OnlineRequest(
+                        prompt_text="This is the external request, not the built-in QA prompt.",
+                        hardware=HardwareType.GPU,
+                        prompt_id="simple_qa",
+                        prompt_domain="external",
+                    )
+                )
+            finally:
+                loop.close()
+                trainer.close()
+
+        self.assertEqual(record["prompt_id"], "simple_qa")
+        self.assertEqual(record["prompt_domain"], "external")
+        self.assertNotEqual(record["input_features"].prompt_length, 6)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -19,6 +19,12 @@ from adaptive_quant.configuration.validation import (
 from adaptive_quant.types import BackendMetricDict, EpisodeState, QuantizationDecision
 
 _NUMBER_RE = r"-?\d+(?:\.\d+)?"
+_TIMING_RE = re.compile(
+    rf"(?P<total_ms>{_NUMBER_RE})\s*ms\s*/\s*(?P<tokens>\d+)\s+"
+    rf"(?:tokens|runs)\s*\(\s*(?P<latency>{_NUMBER_RE})\s*ms per token,\s*"
+    rf"(?P<throughput>{_NUMBER_RE})\s*tok/s",
+    re.IGNORECASE,
+)
 
 
 def extract_numeric(text: str, marker: str, default: float) -> float:
@@ -73,6 +79,16 @@ def parse_llama_cpp_metrics(text: str) -> dict[str, float]:
     latency_ms_per_token = extract_numeric(text, "ms per token", default=0.0)
     memory_mb = _extract_memory_mb(text, default=0.0)
     result: dict[str, float] = {}
+    timing_matches = list(_TIMING_RE.finditer(text))
+    if timing_matches:
+        timing = timing_matches[-1]
+        try:
+            result["latency_ms"] = float(timing.group("total_ms"))
+            result["tokens_processed"] = float(timing.group("tokens"))
+            latency_ms_per_token = float(timing.group("latency"))
+            throughput_tps = float(timing.group("throughput"))
+        except ValueError:
+            pass
     if throughput_tps > 0.0:
         result["throughput_tps"] = throughput_tps
     if latency_ms_per_token > 0.0:
@@ -218,14 +234,23 @@ class LlamaCppBackend:
         if parsed.get("throughput_tps", 0.0) > 0.0:
             metrics["throughput_tps"] = float(parsed["throughput_tps"])
         if parsed.get("latency_ms_per_token", 0.0) > 0.0:
-            metrics["latency_ms"] = float(parsed["latency_ms_per_token"]) * max(
-                1, state.input_features.prompt_length
+            tokens_processed = float(
+                parsed.get("tokens_processed", max(1, int(self.config.llama_cpp_generate_tokens)))
             )
+            metrics["latency_ms"] = float(
+                parsed.get(
+                    "latency_ms",
+                    float(parsed["latency_ms_per_token"]) * max(1.0, tokens_processed),
+                )
+            )
+            metrics["tokens_processed"] = max(1.0, tokens_processed)
+            metrics["latency_ms_per_token"] = float(parsed["latency_ms_per_token"])
         if parsed.get("memory_mb", 0.0) > 0.0:
             metrics["memory_mb"] = float(parsed["memory_mb"])
-        metrics.update(
-            cast(BackendMetricDict, per_token_latency_fields(state, metrics["latency_ms"]))
-        )
+        if "latency_ms_per_token" not in metrics or "tokens_processed" not in metrics:
+            metrics.update(
+                cast(BackendMetricDict, per_token_latency_fields(state, metrics["latency_ms"]))
+            )
         metrics.update(
             {
                 "latency_source": "llama_cpp",
