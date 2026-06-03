@@ -18,4 +18,11 @@ python scripts/verify_hashes.py
 
 On macOS, `scripts/compile_locked_requirements.py` uses `uv` when available so `pytorch-cpu.txt` resolves Linux CPU wheels; the lockfile keeps `--extra-index-url https://download.pytorch.org/whl/cpu` for `pip --require-hashes` installs.
 
-Optional extras (`torch`, `router`) in `pyproject.toml` remain **minimum versions** for local `pip install -e ".[torch,router]"`; CI and Docker use the locked files above where possible.
+Optional extras in `pyproject.toml` remain the source of truth for local workflow installs:
+
+- `torch` — PyTorch trainer
+- `hub` — Hugging Face Hub CLI for route downloads
+- `router` — Transformers embedding router, usually paired with `torch`
+- `dev` — contributor tooling mirrored into `requirements/dev.txt`
+
+CI and Docker use the locked files above where possible.

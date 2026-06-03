@@ -282,6 +282,12 @@ If you set `router_feature_backend="hf"`, install the optional dependencies firs
 python3 -m pip install -e ".[torch,router]"
 ```
 
+Route downloads only need the lighter Hugging Face Hub CLI extra:
+
+```bash
+python3 -m pip install -e ".[hub]"
+```
+
 ## Common edits
 
 Reduce runtime:
