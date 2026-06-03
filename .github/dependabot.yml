@@ -20,6 +20,7 @@ updates:
     groups:
       python-optional-extras:
         patterns:
+          - "huggingface_hub"
           - "torch"
           - "transformers"
           - "ruff"

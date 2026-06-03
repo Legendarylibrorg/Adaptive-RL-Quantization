@@ -57,6 +57,15 @@ On Windows: `setup.bat`, or `py -3.11 scripts/setup_from_clone.py`, or `python s
 
 This creates **`.venv`**, upgrades **`pip`** (using `ensurepip` first and falling back to `get-pip.py` only if needed), runs **`pip install -e .`**, **`unittest`**, and a **short reproducible end-to-end RL run** (train → eval → benchmarks → analysis) via **`config.e2e_smoke.json`**. Install, tests, and smoke use the venv interpreter directly (no reliance on activating the venv first). Edit that JSON to tune episode counts, `seed`, and `run_name` without touching Python.
 
+Optional extras are intentionally split by workflow:
+
+```bash
+python3 -m pip install -e ".[torch]"         # PyTorch trainer
+python3 -m pip install -e ".[hub]"           # Hugging Face route downloads
+python3 -m pip install -e ".[torch,router]"  # HF embedding router
+python3 -m pip install -e ".[dev]"           # contributor tools
+```
+
 Override paths if needed:
 
 ```bash

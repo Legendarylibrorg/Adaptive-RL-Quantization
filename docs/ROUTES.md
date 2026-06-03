@@ -78,6 +78,12 @@ Both binaries are supported:
 - **Modern**: `hf` (huggingface_hub ≥ 0.34).
 - **Legacy**: `huggingface-cli`.
 
+Install the lightweight route-download extra if you do not already have either CLI:
+
+```bash
+python3 -m pip install -e ".[hub]"
+```
+
 The wrapper resolves whichever is on `PATH` (override with `HF_CLI=/path/to/hf`). It only
 spawns subprocesses with **validated argv lists** — no shell expansion — so you can include
 free-form notes / prompts in your catalog without worrying about quoting.

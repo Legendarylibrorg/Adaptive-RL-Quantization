@@ -122,7 +122,7 @@ More: [docs/INSTALL.md](docs/INSTALL.md) · [docs/RUNNING.md](docs/RUNNING.md) �
 
 ### Install and dev (quick reference)
 
-**Install (after activating a venv):** `python3 -m pip install -e .`. GPU training: `python3 -m pip install -e ".[torch]"` or install a matching [torch](https://pytorch.org/get-started/locally/) wheel first, then `python3 -m pip install -e .`. On Windows, substitute `py -3.11 -m pip` or `python -m pip`.
+**Install (after activating a venv):** `python3 -m pip install -e .`. GPU training: `python3 -m pip install -e ".[torch]"` or install a matching [torch](https://pytorch.org/get-started/locally/) wheel first, then `python3 -m pip install -e .`. Route downloads: `python3 -m pip install -e ".[hub]"`. HF embedding router: `python3 -m pip install -e ".[torch,router]"`. On Windows, substitute `py -3.11 -m pip` or `python -m pip`.
 
 **Daily dev (optional):** `python3 -m pip install -e ".[dev]"` then `make help` on Linux/macOS, or `python3 scripts/pre_commit_check.py` on Unix-like hosts (`py -3.11` / `python` on Windows). See [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -153,7 +153,7 @@ Artifacts land under **`outputs/`** (see [Outputs](#outputs) below).
 
 | Path | Role |
 | --- | --- |
-| `src/` | **Packaged source layout** (`src/adaptive_quant/`, `src/analysis/`, `src/config*.py`) |
+| `src/` | **Packaged source layout** (`src/adaptive_quant/`, `src/analysis/`, `src/config.py`) |
 | `src/adaptive_quant/` | Core library: env, trainers, policies, backends, CLI under **`cli/`**, **`easy_config.py`**, presets under **`presets/`** |
 | `src/config.py` | Python experiment presets (`CONFIG`, `CONFIG_GPU`, …; also `adaptive_quant.presets` after `pip install -e .`) |
 | `config.example.json` | Example **JSON** config (`preset` + overrides) |

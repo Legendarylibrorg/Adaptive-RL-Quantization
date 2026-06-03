@@ -397,6 +397,10 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertIn("LICENSE", project["license-files"])
         self.assertIn("Repository", project["urls"])
         self.assertIn("Issues", project["urls"])
+        extras = project["optional-dependencies"]
+        self.assertIn("huggingface_hub>=1.17.0", extras["hub"])
+        self.assertIn("transformers>=5.10.1", extras["router"])
+        self.assertNotIn("transformers>=5.10.1", extras["hub"])
         scripts = project["scripts"]
         self.assertEqual(scripts["adaptive-rl-quant"], "adaptive_quant.cli.research:main")
         self.assertEqual(scripts["adaptive-rl-quant-pytorch"], "adaptive_quant.cli.pytorch:main")
