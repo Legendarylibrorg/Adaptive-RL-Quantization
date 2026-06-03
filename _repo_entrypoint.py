@@ -26,9 +26,7 @@ def _cli_module_for_script(caller_file: str) -> str:
         raise ValueError(f"Unknown runner script {script!r}; expected run_<command>.py")
     module = f"adaptive_quant.cli.{script.removeprefix('run_').removesuffix('.py')}"
     if find_spec(module) is None:
-        raise ValueError(
-            f"Unknown runner script {script!r}; expected matching module {module!r}"
-        )
+        raise ValueError(f"Unknown runner script {script!r}; expected matching module {module!r}")
     return module
 
 
