@@ -15,9 +15,10 @@ from __future__ import annotations
 import importlib
 from typing import Any
 
-from adaptive_quant.configuration import FrameworkConfig
-from adaptive_quant.gpu_profiles import apply_gpu_profile, available_gpu_profiles
-from adaptive_quant.types import OnlineRequest
+from adaptive_quant.configuration import FrameworkConfig as FrameworkConfig
+from adaptive_quant.gpu_profiles import apply_gpu_profile as apply_gpu_profile
+from adaptive_quant.gpu_profiles import available_gpu_profiles as available_gpu_profiles
+from adaptive_quant.types import OnlineRequest as OnlineRequest
 
 _EAGER_EXPORTS = (
     "FrameworkConfig",
