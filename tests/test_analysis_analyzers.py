@@ -147,6 +147,13 @@ class AnalysisModuleMainTests(unittest.TestCase):
 
 
 class AdaptiveQuantLazyExportTests(unittest.TestCase):
+    def test_all_exports_are_eager_or_lazy_symbols(self) -> None:
+        import adaptive_quant
+
+        expected = set(adaptive_quant._EAGER_EXPORTS) | set(adaptive_quant._LAZY)
+        self.assertEqual(set(adaptive_quant.__all__), expected)
+        self.assertEqual(dir(adaptive_quant), sorted(expected))
+
     def test_lazy_exports_research_pipeline(self) -> None:
         import adaptive_quant
 

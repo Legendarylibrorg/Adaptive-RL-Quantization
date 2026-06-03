@@ -67,6 +67,15 @@ class RunnerScriptCliTests(unittest.TestCase):
             sys.path.pop(0)
         return module
 
+    def _load_repo_entrypoint_module(self):
+        script_path = _REPO_ROOT / "_repo_entrypoint.py"
+        spec = importlib.util.spec_from_file_location("repo_entrypoint_module", script_path)
+        self.assertIsNotNone(spec)
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
     def _installed_command(self, name: str) -> list[str] | None:
         bin_dir = Path(sysconfig.get_path("scripts"))
         candidates = [
@@ -417,6 +426,21 @@ class RunnerScriptCliTests(unittest.TestCase):
         py_modules = setuptools_cfg["py-modules"]
         self.assertEqual(py_modules, ["config"])
         self.assertNotIn("run_research", py_modules)
+
+    def test_repo_runner_shims_resolve_by_filename_convention(self) -> None:
+        entrypoint = self._load_repo_entrypoint_module()
+        for path in sorted(_REPO_ROOT.glob("run_*.py")):
+            with self.subTest(path=path.name):
+                module_name = entrypoint._cli_module_for_script(str(path))
+                self.assertEqual(
+                    module_name,
+                    f"adaptive_quant.cli.{path.stem.removeprefix('run_')}",
+                )
+
+        with self.assertRaisesRegex(ValueError, "expected run_<command>.py"):
+            entrypoint._cli_module_for_script("research.py")
+        with self.assertRaisesRegex(ValueError, "expected matching module"):
+            entrypoint._cli_module_for_script("run_missing.py")
 
     def test_console_entrypoints_have_help(self) -> None:
         for command in self._pyproject_scripts():

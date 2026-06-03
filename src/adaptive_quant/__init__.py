@@ -19,26 +19,12 @@ from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.gpu_profiles import apply_gpu_profile, available_gpu_profiles
 from adaptive_quant.types import OnlineRequest
 
-__all__ = [
-    "AdaptiveQuantizationEnv",
-    "BenchmarkSuite",
+_EAGER_EXPORTS = (
     "FrameworkConfig",
-    "OnlineLearningLoop",
     "OnlineRequest",
-    "ResearchPipeline",
-    "Trainer",
-    "UniversalQuantizationPolicy",
     "apply_gpu_profile",
     "available_gpu_profiles",
-    "build_request_stream",
-    "build_trainer",
-    "detect_host_hardware",
-    "load_config",
-    "quick_config",
-    "recommend_quantization",
-    "run_online_pipeline",
-    "run_pipeline_entrypoint",
-]
+)
 
 _LAZY: dict[str, tuple[str, str]] = {
     "BenchmarkSuite": ("adaptive_quant.benchmark", "BenchmarkSuite"),
@@ -56,6 +42,8 @@ _LAZY: dict[str, tuple[str, str]] = {
     "ResearchPipeline": ("adaptive_quant.research_pipeline", "ResearchPipeline"),
     "run_pipeline_entrypoint": ("adaptive_quant.research_pipeline", "run_pipeline_entrypoint"),
 }
+
+__all__ = sorted((*_EAGER_EXPORTS, *_LAZY))
 
 
 def __getattr__(name: str) -> Any:
