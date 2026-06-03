@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Set up Python 3.12
         uses: actions/setup-python@c8813ba1bc76ebf779b911ad8ffccbf2e449cb48
@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Set up Python 3.12
         uses: actions/setup-python@c8813ba1bc76ebf779b911ad8ffccbf2e449cb48
@@ -72,7 +72,7 @@ jobs:
           - { os: macos-latest, python-version: "3.12" }
           - { os: windows-latest, python-version: "3.12" }
     steps:
-      - uses: actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Git for Windows (pre_commit / unittest)
         if: runner.os == 'Windows'
@@ -128,7 +128,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Set up Python 3.12
         uses: actions/setup-python@c8813ba1bc76ebf779b911ad8ffccbf2e449cb48
