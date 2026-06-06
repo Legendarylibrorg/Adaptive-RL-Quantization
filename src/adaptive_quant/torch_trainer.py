@@ -133,18 +133,8 @@ if torch is not None:
         def sample(
             self, batch_size: int
         ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, list[dict[str, Any]]]:
-            n = min(batch_size, self.size)
-            if self._sample_gen is not None:
-                indices = torch.randint(
-                    0, self.size, (n,), device=self.device, generator=self._sample_gen
-                )
-            else:
-                indices = torch.randint(0, self.size, (n,), device=self.device)
-            sampled_records: list[dict[str, Any]] = []
-            for idx in indices.cpu().tolist():
-                record = self.records[int(idx)]
-                if record is not None:
-                    sampled_records.append(record)
+            indices = self._sample_indices(batch_size)
+            sampled_records = self.records_at(indices)
             return (
                 self.states[indices],
                 self.rewards[indices],
@@ -152,6 +142,25 @@ if torch is not None:
                 self.values[indices],
                 sampled_records,
             )
+
+        def sample_records(self, batch_size: int) -> list[dict[str, Any]]:
+            return self.records_at(self._sample_indices(batch_size))
+
+        def records_at(self, indices: torch.Tensor) -> list[dict[str, Any]]:
+            sampled_records: list[dict[str, Any]] = []
+            for idx in indices.cpu().tolist():
+                record = self.records[int(idx)]
+                if record is not None:
+                    sampled_records.append(record)
+            return sampled_records
+
+        def _sample_indices(self, batch_size: int) -> torch.Tensor:
+            n = min(batch_size, self.size)
+            if self._sample_gen is not None:
+                return torch.randint(
+                    0, self.size, (n,), device=self.device, generator=self._sample_gen
+                )
+            return torch.randint(0, self.size, (n,), device=self.device)
 
         def vram_bytes(self) -> int:
             total = 0
@@ -289,7 +298,7 @@ if torch is not None:
                 self.replay_buffer is not None
                 and self.replay_buffer.size >= self.config.torch_minibatch_size
             ):
-                _, _, _, _, replay_records = self.replay_buffer.sample(
+                replay_records = self.replay_buffer.sample_records(
                     max(len(batch_records), self.config.torch_batch_episodes)
                 )
                 combined = batch_records + [r for r in replay_records if r is not None]
