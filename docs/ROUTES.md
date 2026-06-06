@@ -49,7 +49,16 @@ adaptive-rl-quant-route download --route-id mistral7b-q4km              # actual
 # 4. Train the bandit on the simulator (or local llama.cpp GGUFs if config.backend="llama_cpp").
 adaptive-rl-quant-route train --iterations 1024 --evaluate --require-local-models
 
-# 5. Ask which route to serve a given task on which hardware.
+# 5. Score your own prompt JSON against every route and choose the lowest-VRAM route whose
+#    evaluation reward/perplexity stays within regression bounds.
+adaptive-rl-quant-route evaluate-prompts \
+  --prompts-json prompts.json \
+  --hardware gpu \
+  --max-reward-regression 0.05 \
+  --max-perplexity-regression 0.02 \
+  --output outputs/routes/prompt_eval.json
+
+# 6. Ask which route to serve a given task on which hardware.
 adaptive-rl-quant-route recommend \
   --prompt-text "Generate a SQL query that aggregates monthly revenue per region." \
   --domain code \
@@ -58,6 +67,28 @@ adaptive-rl-quant-route recommend \
 
 `adaptive-rl-quant-route --help` lists every subcommand and option. The catalog defaults to
 `outputs/routes/catalog.json`; pass `--catalog` to use multiple catalogs side by side.
+
+## JSON prompt evaluation
+
+`evaluate-prompts` accepts either a JSON list or an object with a `prompts` list. Each item may
+be a plain string or an object with `text` (or `prompt`), optional `id` / `prompt_id`, and
+optional `domain`:
+
+```json
+{
+  "prompts": [
+    {"id": "sql_case", "domain": "code", "text": "Generate a SQL query for monthly revenue."},
+    "Summarize this incident report for an executive audience."
+  ]
+}
+```
+
+For every prompt and hardware mode, the command evaluates every hardware-feasible catalog
+route with the configured backend. It treats the highest reward as the reference, filters out
+routes whose reward or perplexity regression exceeds the requested bounds, then recommends
+the remaining route with the lowest measured `memory_mb`. The JSON report includes both
+`rows` (all route measurements) and `recommendations` (the selected lowest-VRAM route per
+prompt/hardware pair) so quality tradeoffs stay inspectable.
 
 ## Artifact layout
 

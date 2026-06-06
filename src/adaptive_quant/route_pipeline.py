@@ -195,6 +195,7 @@ def train_route_bandit(
     iterations: int = 512,
     bandit: RouteBandit | None = None,
     telemetry_path: str | None = None,
+    prompt_library: PromptLibrary | None = None,
 ) -> tuple[RouteBandit, RouteTrainingSummary]:
     """Run the bandit training loop and persist a JSONL of every pull.
 
@@ -211,12 +212,12 @@ def train_route_bandit(
         for route in catalog.routes:
             assert_hf_repo_allowed(route.repo_id, config_allowlist=config.route_hf_allowed_repos)
 
-    library = PromptLibrary()
+    library = prompt_library or PromptLibrary()
     known_domains = tuple(sorted({prompt.domain for prompt in library.prompts}))
     if bandit is None:
         bandit = make_bandit(catalog, config, known_domains=known_domains)
 
-    env = AdaptiveQuantizationEnv(config, enable_logging=False)
+    env = AdaptiveQuantizationEnv(config, enable_logging=False, prompt_library=library)
     backend = build_backend(config)
 
     log_path = telemetry_path or f"{config.log_dir}/{config.run_name}_route_telemetry.jsonl"
@@ -296,13 +297,14 @@ def evaluate_route_bandit(
     catalog: RouteCatalog,
     bandit: RouteBandit,
     sweeps: int = 1,
+    prompt_library: PromptLibrary | None = None,
 ) -> dict[str, Any]:
     """Sweep every (prompt, hardware) pair under greedy bandit recommendations and aggregate."""
     if sweeps <= 0:
         raise ValueError("sweeps must be > 0")
-    library = PromptLibrary()
+    library = prompt_library or PromptLibrary()
     known_domains = tuple(sorted({prompt.domain for prompt in library.prompts}))
-    env = AdaptiveQuantizationEnv(config, enable_logging=False)
+    env = AdaptiveQuantizationEnv(config, enable_logging=False, prompt_library=library)
     backend = build_backend(config)
 
     rows: list[dict[str, Any]] = []
@@ -358,6 +360,96 @@ def evaluate_route_bandit(
     }
 
 
+def evaluate_routes_for_prompts(
+    config: FrameworkConfig,
+    *,
+    catalog: RouteCatalog,
+    prompt_library: PromptLibrary,
+    hardware: tuple[HardwareType, ...] | None = None,
+    max_reward_regression: float = 0.05,
+    max_perplexity_regression: float | None = 0.02,
+) -> dict[str, Any]:
+    """Evaluate all routes and choose the lowest-memory route with bounded regression.
+
+    For each prompt/hardware pair, the best reward across all candidate routes is treated as
+    the quality reference. A route is eligible when its reward is within
+    ``max_reward_regression`` of that reference and, when enabled, its perplexity is within
+    ``max_perplexity_regression`` of the best observed perplexity. The recommendation is the
+    eligible route with the lowest measured ``memory_mb``.
+    """
+    if not catalog.routes:
+        raise ValueError("catalog is empty; register at least one route before evaluation")
+    if max_reward_regression < 0.0:
+        raise ValueError("max_reward_regression must be >= 0")
+    if max_perplexity_regression is not None and max_perplexity_regression < 0.0:
+        raise ValueError("max_perplexity_regression must be >= 0")
+    hardware_modes = hardware or tuple(HardwareType(value) for value in config.hardware_modes)
+    if not hardware_modes:
+        raise ValueError("at least one hardware mode is required")
+    if not hf_allow_unlisted_from_env():
+        for route in catalog.routes:
+            assert_hf_repo_allowed(route.repo_id, config_allowlist=config.route_hf_allowed_repos)
+
+    env = AdaptiveQuantizationEnv(config, enable_logging=False, prompt_library=prompt_library)
+    backend = build_backend(config)
+    rows: list[dict[str, Any]] = []
+    recommendations: list[dict[str, Any]] = []
+    try:
+        for prompt in prompt_library.prompts:
+            for hw in hardware_modes:
+                state = env.reset(forced_prompt=prompt, forced_hardware=hw, phase="eval")
+                group_rows: list[dict[str, Any]] = []
+                for route in catalog.filter(hardware=hw.value):
+                    metrics, reward = evaluate_route(
+                        env=env,
+                        backend=backend,
+                        state=state,
+                        route=route,
+                        config=config,
+                    )
+                    row = {
+                        "prompt_id": prompt.prompt_id,
+                        "domain": prompt.domain,
+                        "hardware": hw.value,
+                        "route_id": route.route_id,
+                        "repo_id": route.repo_id,
+                        "quant_label": route.quant_label,
+                        "effective_bits": route.effective_bits,
+                        "reward": reward,
+                        "latency_ms": metrics["latency_ms"],
+                        "throughput_tps": metrics["throughput_tps"],
+                        "perplexity": metrics["perplexity"],
+                        "memory_mb": metrics["memory_mb"],
+                    }
+                    rows.append(row)
+                    group_rows.append(row)
+                recommendations.append(
+                    _select_lowest_memory_without_regression(
+                        prompt_id=prompt.prompt_id,
+                        domain=prompt.domain,
+                        hardware=hw.value,
+                        rows=group_rows,
+                        max_reward_regression=max_reward_regression,
+                        max_perplexity_regression=max_perplexity_regression,
+                    )
+                )
+    finally:
+        env.logger.close()
+
+    selected = [rec for rec in recommendations if rec.get("route_id") is not None]
+    return {
+        "samples": len(rows),
+        "prompt_count": len(prompt_library.prompts),
+        "hardware": [hw.value for hw in hardware_modes],
+        "route_count": len(catalog.routes),
+        "max_reward_regression": max_reward_regression,
+        "max_perplexity_regression": max_perplexity_regression,
+        "mean_selected_memory_mb": mean([float(rec["memory_mb"]) for rec in selected]),
+        "recommendations": recommendations,
+        "rows": rows,
+    }
+
+
 def recommend_route(
     *,
     config: FrameworkConfig,
@@ -402,6 +494,78 @@ def recommend_route(
         known_domains=known_domains,
     )
     return bandit.recommend(context)
+
+
+def _select_lowest_memory_without_regression(
+    *,
+    prompt_id: str,
+    domain: str,
+    hardware: str,
+    rows: list[dict[str, Any]],
+    max_reward_regression: float,
+    max_perplexity_regression: float | None,
+) -> dict[str, Any]:
+    if not rows:
+        return {
+            "prompt_id": prompt_id,
+            "domain": domain,
+            "hardware": hardware,
+            "route_id": None,
+            "reason": "no feasible routes for hardware",
+        }
+    best_reward = max(float(row["reward"]) for row in rows)
+    best_perplexity = min(float(row["perplexity"]) for row in rows)
+    eligible: list[dict[str, Any]] = []
+    for row in rows:
+        reward_regression = best_reward - float(row["reward"])
+        perplexity_regression = (
+            (float(row["perplexity"]) - best_perplexity) / max(best_perplexity, 1e-9)
+            if max_perplexity_regression is not None
+            else 0.0
+        )
+        if reward_regression > max_reward_regression:
+            continue
+        if (
+            max_perplexity_regression is not None
+            and perplexity_regression > max_perplexity_regression
+        ):
+            continue
+        candidate = dict(row)
+        candidate["reward_regression"] = reward_regression
+        candidate["perplexity_regression"] = perplexity_regression
+        eligible.append(candidate)
+
+    if not eligible:
+        best = max(rows, key=lambda row: float(row["reward"]))
+        return {
+            "prompt_id": prompt_id,
+            "domain": domain,
+            "hardware": hardware,
+            "route_id": best["route_id"],
+            "repo_id": best["repo_id"],
+            "quant_label": best["quant_label"],
+            "effective_bits": best["effective_bits"],
+            "reward": best["reward"],
+            "memory_mb": best["memory_mb"],
+            "perplexity": best["perplexity"],
+            "latency_ms": best["latency_ms"],
+            "throughput_tps": best["throughput_tps"],
+            "reward_regression": 0.0,
+            "perplexity_regression": 0.0,
+            "reason": "no candidate met regression bounds; selected best reward",
+        }
+
+    selected = min(
+        eligible,
+        key=lambda row: (
+            float(row["memory_mb"]),
+            -float(row["reward"]),
+            float(row["perplexity"]),
+            str(row["route_id"]),
+        ),
+    )
+    selected["reason"] = "lowest memory within regression bounds"
+    return selected
 
 
 def save_bandit_artifacts(
@@ -512,6 +676,7 @@ __all__ = [
     "build_route_decision",
     "evaluate_route",
     "evaluate_route_bandit",
+    "evaluate_routes_for_prompts",
     "load_bandit_artifact",
     "make_bandit",
     "recommend_route",
