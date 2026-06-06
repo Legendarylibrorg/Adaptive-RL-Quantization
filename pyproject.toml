@@ -61,17 +61,17 @@ adaptive-rl-quant-analyze = "analysis.__main__:main"
 # Or install a CUDA-matched wheel from https://pytorch.org/get-started/locally/ then: pip install -e .
 torch = ["torch>=2.12.0"]
 # Optional: Hugging Face CLI for route downloads (`hf` / `huggingface-cli`).
-hub = ["huggingface_hub>=1.17.0"]
+hub = ["huggingface_hub>=1.18.0"]
 # Optional: Hugging Face embedding router (used when router_feature_backend="hf").
 # Install: pip install -e ".[router]" or pip install -e ".[torch,router]" for CUDA embeddings.
 # transformers already pulls safetensors; no separate pin needed.
-router = ["transformers>=5.10.1"]
+router = ["transformers>=5.10.2"]
 # Local quality + CI audit (hash-pinned via requirements/dev.txt).
 dev = [
     "coverage[toml]>=7.14.1",
     "mypy>=2.1.0",
     "pip-audit>=2.10.0",
-    "ruff>=0.15.15",
+    "ruff>=0.15.16",
 ]
 
 [tool.setuptools]

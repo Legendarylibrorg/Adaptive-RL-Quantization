@@ -12,6 +12,7 @@ Quick reference (``adaptive-rl-quant-route <subcommand> --help`` for details):
 * ``remove``    — drop a route from the catalog.
 * ``download``  — fetch a route's GGUF via Hugging Face CLI (validated argv only).
 * ``train``     — bandit train across simulated rewards from the existing framework backend.
+* ``evaluate-prompts`` — score JSON prompts against all catalog routes and pick lowest VRAM.
 * ``recommend`` — print the bandit's best route for a given (hardware, task) context.
 """
 
@@ -49,8 +50,10 @@ from adaptive_quant.model_routes import (
     RouteCatalog,
     default_route_catalog,
 )
+from adaptive_quant.prompts import PromptLibrary, load_prompt_library_json
 from adaptive_quant.route_pipeline import (
     evaluate_route_bandit,
+    evaluate_routes_for_prompts,
     load_bandit_artifact,
     make_bandit,
     recommend_route,
@@ -201,6 +204,66 @@ def main(argv: Iterable[str] | None = None) -> None:
         action="store_true",
         help="Require every catalog route to have an existing local GGUF path before training.",
     )
+    train_parser.add_argument(
+        "--prompts-json",
+        default=None,
+        metavar="PATH",
+        help="Optional JSON prompt list used for route training/evaluation instead of bundled prompts.",
+    )
+
+    eval_prompts_parser = sub.add_parser(
+        "evaluate-prompts",
+        help="Evaluate JSON prompts across all catalog routes and pick the lowest-VRAM non-regressing route.",
+    )
+    add_config_file_argument(eval_prompts_parser, help_suffix="Otherwise uses config.py defaults.")
+    add_config_override_arguments(eval_prompts_parser)
+    eval_prompts_parser.add_argument(
+        "--prompts-json",
+        required=True,
+        metavar="PATH",
+        help="JSON prompt file: list of strings/objects or {'prompts': [...]}",
+    )
+    eval_prompts_parser.add_argument(
+        "--hardware",
+        action="append",
+        choices=tuple(hw.value for hw in HardwareType),
+        default=None,
+        help="Hardware mode to evaluate. Pass repeatedly; defaults to config.hardware_modes.",
+    )
+    eval_prompts_parser.add_argument(
+        "--max-reward-regression",
+        type=float,
+        default=0.05,
+        help="Maximum allowed reward drop from the best route before a route is rejected. Default: 0.05.",
+    )
+    eval_prompts_parser.add_argument(
+        "--max-perplexity-regression",
+        type=float,
+        default=0.02,
+        help="Maximum allowed relative perplexity increase from best route. Default: 0.02.",
+    )
+    eval_prompts_parser.add_argument(
+        "--no-perplexity-regression-bound",
+        action="store_true",
+        help="Only use reward regression when selecting the lowest-memory route.",
+    )
+    eval_prompts_parser.add_argument(
+        "--output",
+        default=None,
+        metavar="PATH",
+        help="Optional path for the JSON evaluation report.",
+    )
+    eval_prompts_parser.add_argument(
+        "--format",
+        choices=("json", "table"),
+        default="json",
+        help="Output format for stdout. Default: json.",
+    )
+    eval_prompts_parser.add_argument(
+        "--require-local-models",
+        action="store_true",
+        help="Require every catalog route to have an existing local GGUF path before evaluation.",
+    )
 
     recommend_parser = sub.add_parser("recommend", help="Print the best route for a context.")
     add_config_file_argument(recommend_parser)
@@ -235,7 +298,7 @@ def main(argv: Iterable[str] | None = None) -> None:
 
     args = parser.parse_args(list(argv) if argv is not None else None)
 
-    if args.command in {"download", "train", "recommend"}:
+    if args.command in {"download", "train", "evaluate-prompts", "recommend"}:
         from adaptive_quant.security_bypass import enforce_security_bypass_policy
 
         enforce_security_bypass_policy(context=f"route {args.command}")
@@ -254,6 +317,8 @@ def main(argv: Iterable[str] | None = None) -> None:
         _cmd_download(catalog_path, args)
     elif args.command == "train":
         _cmd_train(catalog_path, args)
+    elif args.command == "evaluate-prompts":
+        _cmd_evaluate_prompts(catalog_path, args)
     elif args.command == "recommend":
         _cmd_recommend(args)
     else:  # pragma: no cover - argparse enforces choices.
@@ -399,6 +464,7 @@ def _cmd_train(catalog_path: Path, args: argparse.Namespace) -> None:
     validate_cli_path_argument("catalog", str(catalog_path))
     catalog = _load_catalog(catalog_path)
     config = _resolve_config(args)
+    prompt_library = _load_prompt_library_arg(args)
     if config.backend == "llama_cpp" or args.require_local_models:
         try:
             validate_local_route_models(catalog)
@@ -420,6 +486,7 @@ def _cmd_train(catalog_path: Path, args: argparse.Namespace) -> None:
         catalog=catalog,
         iterations=int(args.iterations),
         bandit=bandit,
+        prompt_library=prompt_library,
     )
 
     evaluation = None
@@ -429,6 +496,7 @@ def _cmd_train(catalog_path: Path, args: argparse.Namespace) -> None:
             catalog=catalog,
             bandit=bandit,
             sweeps=int(args.evaluation_sweeps),
+            prompt_library=prompt_library,
         )
 
     artifacts = save_bandit_artifacts(
@@ -451,6 +519,61 @@ def _cmd_train(catalog_path: Path, args: argparse.Namespace) -> None:
         )
     print(f"Bandit state: {artifacts['bandit']}")
     print(f"Summary:      {artifacts['summary']}")
+
+
+def _cmd_evaluate_prompts(catalog_path: Path, args: argparse.Namespace) -> None:
+    validate_cli_path_argument("catalog", str(catalog_path))
+    catalog = _load_catalog(catalog_path)
+    config = _resolve_config(args)
+    if config.backend == "llama_cpp" or args.require_local_models:
+        try:
+            validate_local_route_models(catalog)
+        except FileNotFoundError as exc:
+            raise SystemExit(str(exc)) from exc
+    prompt_library = _load_required_prompt_library_arg(args)
+    hardware = (
+        tuple(HardwareType(value) for value in args.hardware)
+        if args.hardware
+        else tuple(HardwareType(value) for value in config.hardware_modes)
+    )
+    report = evaluate_routes_for_prompts(
+        config,
+        catalog=catalog,
+        prompt_library=prompt_library,
+        hardware=hardware,
+        max_reward_regression=float(args.max_reward_regression),
+        max_perplexity_regression=(
+            None if args.no_perplexity_regression_bound else float(args.max_perplexity_regression)
+        ),
+    )
+    if args.output is not None:
+        validate_cli_path_argument("output", args.output)
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(
+            json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+    if args.format == "table":
+        rows = [
+            [
+                rec["prompt_id"],
+                rec["hardware"],
+                rec.get("route_id") or "-",
+                rec.get("quant_label") or "-",
+                f"{float(rec.get('memory_mb', 0.0)):.1f}",
+                f"{float(rec.get('reward', 0.0)):.3f}",
+                rec.get("reason", ""),
+            ]
+            for rec in report["recommendations"]
+        ]
+        for line in md_table(
+            ["prompt_id", "hardware", "route_id", "quant", "memory_mb", "reward", "reason"],
+            rows,
+        ):
+            print(line)
+        return
+    json.dump(report, sys.stdout, indent=2, sort_keys=True)
+    sys.stdout.write("\n")
 
 
 def _cmd_recommend(args: argparse.Namespace) -> None:
@@ -513,6 +636,21 @@ def _resolve_config(args: argparse.Namespace) -> FrameworkConfig:
             base = CONFIG if isinstance(CONFIG, FrameworkConfig) else FrameworkConfig()
     resolved, _audit = resolve_startup_config(base, args)
     return resolved
+
+
+def _load_prompt_library_arg(args: argparse.Namespace) -> PromptLibrary | None:
+    path = getattr(args, "prompts_json", None)
+    if path is None:
+        return None
+    validate_cli_path_argument("prompts_json", path)
+    return load_prompt_library_json(path)
+
+
+def _load_required_prompt_library_arg(args: argparse.Namespace) -> PromptLibrary:
+    library = _load_prompt_library_arg(args)
+    if library is None:
+        raise SystemExit("--prompts-json is required for this command")
+    return library
 
 
 if __name__ == "__main__":

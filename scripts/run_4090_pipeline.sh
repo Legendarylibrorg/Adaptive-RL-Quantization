@@ -13,6 +13,9 @@ cd "${ROOT_DIR}"
 
 "${PYTHON_BIN}" - <<'PY'
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path.cwd() / "src"))
 
 try:
     import torch
@@ -32,6 +35,16 @@ print(f"CUDA device: {device_name}")
 print(f"Device memory (GB): {total_memory_gb}")
 if "4090" not in device_name.lower():
     print("Warning: active CUDA device does not look like an RTX 4090. The pipeline will still run with the fixed 4090 preset.")
+
+from adaptive_quant.torch_policy import torch_cuda_diagnostics, validate_cuda_runtime_compatibility
+
+diagnostics = torch_cuda_diagnostics("cuda")
+print(f"Device capability: {diagnostics.get('device_capability', 'unknown')}")
+print(f"Torch CUDA arch list: {', '.join(diagnostics.get('torch_cuda_arch_list') or ['unknown'])}")
+try:
+    validate_cuda_runtime_compatibility("cuda")
+except RuntimeError as exc:
+    raise SystemExit(str(exc)) from exc
 PY
 
 if [[ "${RUN_TESTS}" == "1" ]]; then

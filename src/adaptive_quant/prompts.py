@@ -1,7 +1,14 @@
 from __future__ import annotations
 
+import json
 import random
+from pathlib import Path
+from typing import Any
 
+from adaptive_quant.configuration.validation import (
+    validate_router_task_text,
+    validate_safe_identifier,
+)
 from adaptive_quant.types import PromptSample
 
 
@@ -131,3 +138,55 @@ class PromptLibrary:
             return []
         ordered = sorted(candidates, key=lambda p: p.prompt_id)
         return [ordered[i % len(ordered)] for i in range(count)]
+
+
+def load_prompt_library_json(path: str | Path) -> PromptLibrary:
+    """Load prompts from JSON as either a list or an object with a ``prompts`` list.
+
+    Each prompt may be a string or an object with ``text`` plus optional ``prompt_id``/``id``
+    and ``domain``. Generated ids are stable by input order so reports stay reproducible.
+    """
+    target = Path(path)
+    with target.open("r", encoding="utf-8") as handle:
+        payload = json.load(handle)
+    raw_prompts = payload.get("prompts") if isinstance(payload, dict) else payload
+    if not isinstance(raw_prompts, list):
+        raise TypeError("prompt JSON must be a list or an object with a 'prompts' list")
+    prompts = [_parse_prompt_item(item, index) for index, item in enumerate(raw_prompts)]
+    if not prompts:
+        raise ValueError("prompt JSON must include at least one prompt")
+    seen: set[str] = set()
+    for prompt in prompts:
+        if prompt.prompt_id in seen:
+            raise ValueError(f"duplicate prompt_id in prompt JSON: {prompt.prompt_id!r}")
+        seen.add(prompt.prompt_id)
+    return PromptLibrary(prompts)
+
+
+def _parse_prompt_item(item: Any, index: int) -> PromptSample:
+    prompt_id = f"json_prompt_{index + 1:04d}"
+    domain = "json"
+    if isinstance(item, str):
+        text = item
+    elif isinstance(item, dict):
+        raw_text = item.get("text") or item.get("prompt")
+        if not isinstance(raw_text, str):
+            raise TypeError(f"prompts[{index}] must include string 'text' or 'prompt'")
+        text = raw_text
+        raw_id = item.get("prompt_id", item.get("id"))
+        if raw_id is not None:
+            if not isinstance(raw_id, str):
+                raise TypeError(f"prompts[{index}].prompt_id must be a string")
+            prompt_id = raw_id
+        raw_domain = item.get("domain", domain)
+        if not isinstance(raw_domain, str):
+            raise TypeError(f"prompts[{index}].domain must be a string")
+        domain = raw_domain.strip() or domain
+    else:
+        raise TypeError(f"prompts[{index}] must be a string or object")
+    validate_safe_identifier("prompt_id", prompt_id)
+    return PromptSample(
+        prompt_id=prompt_id,
+        text=validate_router_task_text(text),
+        domain=domain,
+    )

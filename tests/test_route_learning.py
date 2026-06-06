@@ -24,10 +24,12 @@ from adaptive_quant.model_routes import (
     RouteCatalog,
     default_route_catalog,
 )
+from adaptive_quant.prompts import load_prompt_library_json
 from adaptive_quant.route_pipeline import (
     build_route_decision,
     evaluate_route,
     evaluate_route_bandit,
+    evaluate_routes_for_prompts,
     load_bandit_artifact,
     make_bandit,
     recommend_route,
@@ -378,6 +380,27 @@ class HuggingFaceCliTests(unittest.TestCase):
 
 
 class RoutePipelineTests(unittest.TestCase):
+    def test_load_prompt_library_json_accepts_objects_and_strings(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "prompts.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "prompts": [
+                            {"id": "code_case", "text": "Write fizzbuzz.", "domain": "code"},
+                            "Summarize the tradeoff between latency and memory.",
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            library = load_prompt_library_json(path)
+        self.assertEqual(
+            [prompt.prompt_id for prompt in library.prompts],
+            ["code_case", "json_prompt_0002"],
+        )
+        self.assertEqual(library.by_id("code_case").domain, "code")
+
     def test_build_route_decision_preserves_effective_bits(self) -> None:
         route = ModelRoute(route_id="r", repo_id="org/repo", quant_label="Q5_K_M")
         with tempfile.TemporaryDirectory() as tmp:
@@ -444,6 +467,38 @@ class RoutePipelineTests(unittest.TestCase):
             for row in results["rows"]:
                 self.assertIn(row["hardware"], cfg.hardware_modes)
                 self.assertIn(row["route_id"], {r.route_id for r in catalog.routes})
+
+    def test_evaluate_routes_for_prompts_selects_lowest_memory_without_regression(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            prompt_path = tmpdir / "prompts.json"
+            prompt_path.write_text(
+                json.dumps(
+                    [{"id": "qa_eval", "text": "Answer a short factual question.", "domain": "qa"}]
+                ),
+                encoding="utf-8",
+            )
+            cfg = _smoke_config(tmpdir, run_name="route_prompt_eval")
+            catalog = RouteCatalog(
+                routes=[
+                    ModelRoute(route_id="small", repo_id="org/small", quant_label="Q2_K"),
+                    ModelRoute(route_id="large", repo_id="org/large", quant_label="Q8_0"),
+                ]
+            )
+            with mock.patch.dict("os.environ", {"ADAPTIVE_RL_HF_ALLOW_UNLISTED": "1"}):
+                report = evaluate_routes_for_prompts(
+                    cfg,
+                    catalog=catalog,
+                    prompt_library=load_prompt_library_json(prompt_path),
+                    hardware=(HardwareType.GPU,),
+                    max_reward_regression=100.0,
+                    max_perplexity_regression=None,
+                )
+        self.assertEqual(report["samples"], 2)
+        self.assertEqual(report["recommendations"][0]["route_id"], "small")
+        self.assertEqual(
+            report["recommendations"][0]["reason"], "lowest memory within regression bounds"
+        )
 
     def test_recommend_route_returns_feasible_selection(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -561,6 +616,47 @@ class RouteCliTests(unittest.TestCase):
             )
             catalog = RouteCatalog.from_file(catalog_path)
             self.assertEqual(catalog.by_id("local-q4").local_path, str(model_path))
+
+    def test_cli_evaluate_prompts_outputs_recommendations(self) -> None:
+        from io import StringIO
+
+        from adaptive_quant.cli.route_learning import main as route_main
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            catalog_path = tmpdir / "catalog.json"
+            RouteCatalog(
+                routes=[
+                    ModelRoute(route_id="small", repo_id="org/small", quant_label="Q2_K"),
+                    ModelRoute(route_id="large", repo_id="org/large", quant_label="Q8_0"),
+                ]
+            ).save(str(catalog_path))
+            prompts_path = tmpdir / "prompts.json"
+            prompts_path.write_text(
+                json.dumps(["Write a short Python function."]), encoding="utf-8"
+            )
+
+            with (
+                mock.patch.dict("os.environ", {"ADAPTIVE_RL_HF_ALLOW_UNLISTED": "1"}),
+                mock.patch("sys.stdout", new_callable=StringIO) as stdout,
+            ):
+                route_main(
+                    [
+                        "--catalog",
+                        str(catalog_path),
+                        "evaluate-prompts",
+                        "--prompts-json",
+                        str(prompts_path),
+                        "--hardware",
+                        "gpu",
+                        "--max-reward-regression",
+                        "100",
+                        "--no-perplexity-regression-bound",
+                    ]
+                )
+                payload = json.loads(stdout.getvalue())
+        self.assertEqual(payload["prompt_count"], 1)
+        self.assertEqual(payload["recommendations"][0]["route_id"], "small")
 
     def test_pyproject_exposes_route_console_script(self) -> None:
         pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
