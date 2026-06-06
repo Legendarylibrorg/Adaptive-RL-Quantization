@@ -1116,7 +1116,10 @@ class DockerComposeHardeningTests(unittest.TestCase):
 
     def test_docker_gpu_device_probe_without_require_is_warning(self) -> None:
         root = Path(__file__).resolve().parent.parent
-        env = {**os.environ}
+        env = {
+            **os.environ,
+            "ADAPTIVE_RL_NVIDIA_DEVICE_GLOB": str(root / ".no-such-nvidia-device-*"),
+        }
         env.pop("ADAPTIVE_RL_REQUIRE_CONTAINER_CUDA", None)
         proc = subprocess.run(
             [sys.executable, str(root / "scripts" / "docker_gpu_device_probe.py")],
@@ -1131,7 +1134,11 @@ class DockerComposeHardeningTests(unittest.TestCase):
 
     def test_docker_gpu_device_probe_require_fails_without_devices(self) -> None:
         root = Path(__file__).resolve().parent.parent
-        env = {**os.environ, "ADAPTIVE_RL_REQUIRE_CONTAINER_CUDA": "1"}
+        env = {
+            **os.environ,
+            "ADAPTIVE_RL_REQUIRE_CONTAINER_CUDA": "1",
+            "ADAPTIVE_RL_NVIDIA_DEVICE_GLOB": str(root / ".no-such-nvidia-device-*"),
+        }
         proc = subprocess.run(
             [sys.executable, str(root / "scripts" / "docker_gpu_device_probe.py")],
             cwd=root,
@@ -1142,6 +1149,27 @@ class DockerComposeHardeningTests(unittest.TestCase):
         )
         self.assertEqual(proc.returncode, 1, proc.stdout)
         self.assertIn("nvidia", proc.stderr.lower())
+
+    def test_docker_gpu_device_probe_reports_present_devices(self) -> None:
+        root = Path(__file__).resolve().parent.parent
+        with tempfile.TemporaryDirectory() as tmp:
+            fake_device = Path(tmp) / "nvidia0"
+            fake_device.write_text("", encoding="utf-8")
+            env = {
+                **os.environ,
+                "ADAPTIVE_RL_NVIDIA_DEVICE_GLOB": str(Path(tmp) / "nvidia*"),
+            }
+            proc = subprocess.run(
+                [sys.executable, str(root / "scripts" / "docker_gpu_device_probe.py")],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=env,
+            )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("ok", proc.stdout.lower())
+        self.assertIn("nvidia0", proc.stdout)
 
 
 class CliStartupOverrideRedTeamTests(unittest.TestCase):
