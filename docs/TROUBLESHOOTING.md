@@ -60,6 +60,21 @@ or:
 adaptive-rl-quant-pytorch --preset 4090
 ```
 
+## RTX 4090 fails with a Torch CUDA architecture error
+
+An RTX 4090 needs PyTorch CUDA kernels for compute capability `sm_89`. If the
+preflight or `scripts/run_4090_pipeline.sh` says the active wheel does not
+support `sm_89`, replace the active Torch install with a CUDA-enabled wheel from
+the official PyTorch selector. For current CUDA 12.8-capable drivers:
+
+```bash
+python3 -m pip install --upgrade torch --index-url https://download.pytorch.org/whl/cu128
+python3 -c "import torch; print(torch.__version__); print(torch.cuda.get_device_capability(0)); print(torch.cuda.get_arch_list())"
+```
+
+Expected: `torch.cuda.is_available()` is `True`, the device capability is
+`(8, 9)`, and the architecture list includes `sm_89` or `compute_89`.
+
 ## CUDA is available but the preflight warns about low free memory
 
 The preflight checks free VRAM before training. If it warns that free memory is low:

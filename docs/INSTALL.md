@@ -237,7 +237,9 @@ python3 -m unittest discover -s tests -t . -v
 
 ## 3. GPU setup
 
-Optional: install the declared PyTorch extra (still pick a CUDA wheel that matches your driver):
+Optional: install the declared PyTorch extra. This is the simplest path, but on a
+GPU host you should still confirm that pip selected a CUDA wheel rather than a
+CPU-only wheel:
 
 ```bash
 python3 -m pip install -e ".[torch]"
@@ -248,6 +250,14 @@ Or install CUDA-enabled PyTorch manually on the target GPU host. The exact comma
 - your driver version
 - your CUDA runtime
 - the PyTorch build you want to use
+
+For current RTX 4090 Linux/WSL2 hosts, prefer a CUDA 12.x wheel from the
+official PyTorch selector. For example, when your driver supports CUDA 12.8:
+
+```bash
+python3 -m pip install --upgrade torch --index-url https://download.pytorch.org/whl/cu128
+python3 -m pip install -e .
+```
 
 Linux NVIDIA sanity checks:
 
@@ -269,7 +279,13 @@ Optional deeper verification:
 ```bash
 python3 -c "import torch; print('bf16', getattr(torch.cuda, 'is_bf16_supported', lambda: False)())"
 python3 -c "import torch; print(torch.cuda.get_device_name(0))"
+python3 -c "import torch; print(torch.cuda.get_device_capability(0)); print(torch.cuda.get_arch_list())"
 ```
+
+An RTX 4090 reports compute capability `(8, 9)`, so the active PyTorch build
+should include `sm_89` or `compute_89` in `torch.cuda.get_arch_list()`. The
+PyTorch entrypoint and `scripts/run_4090_pipeline.sh` now check this before the
+training loop starts.
 
 Then run:
 
