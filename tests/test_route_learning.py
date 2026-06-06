@@ -635,16 +635,20 @@ class RouteCliTests(unittest.TestCase):
             prompts_path.write_text(
                 json.dumps(["Write a short Python function."]), encoding="utf-8"
             )
+            config_path = tmpdir / "config.json"
+            config_path.write_text(
+                json.dumps({"route_hf_allowed_repos": ["org/small", "org/large"]}),
+                encoding="utf-8",
+            )
 
-            with (
-                mock.patch.dict("os.environ", {"ADAPTIVE_RL_HF_ALLOW_UNLISTED": "1"}),
-                mock.patch("sys.stdout", new_callable=StringIO) as stdout,
-            ):
+            with mock.patch("sys.stdout", new_callable=StringIO) as stdout:
                 route_main(
                     [
                         "--catalog",
                         str(catalog_path),
                         "evaluate-prompts",
+                        "--config",
+                        str(config_path),
                         "--prompts-json",
                         str(prompts_path),
                         "--hardware",
