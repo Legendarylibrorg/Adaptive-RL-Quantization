@@ -4,7 +4,12 @@ import inspect
 import time
 
 from adaptive_quant.configuration import FrameworkConfig
-from adaptive_quant.torch_policy import TORCH_IMPORT_ERROR, TorchPolicyAdapter, torch
+from adaptive_quant.torch_policy import (
+    TORCH_IMPORT_ERROR,
+    TorchPolicyAdapter,
+    torch,
+    torch_cuda_diagnostics,
+)
 
 
 def run_torch_preflight(config: FrameworkConfig, policy: TorchPolicyAdapter) -> dict[str, object]:
@@ -43,6 +48,7 @@ def collect_torch_system_report(
         "warnings": warnings,
         "recommendations": recommendations,
     }
+    report["cuda_diagnostics"] = torch_cuda_diagnostics(config.torch_device)
 
     if device.type != "cuda" or not torch.cuda.is_available():
         warnings.append(
@@ -76,6 +82,11 @@ def collect_torch_system_report(
 
     if "bf16" in config.torch_dtype.lower() and not bf16_supported:
         warnings.append("Requested bf16, but this CUDA stack does not report bf16 support.")
+    cuda_diag = report["cuda_diagnostics"]
+    if isinstance(cuda_diag, dict) and cuda_diag.get("cuda_arch_warning"):
+        warnings.append(str(cuda_diag["cuda_arch_warning"]))
+        if cuda_diag.get("install_hint"):
+            recommendations.append(str(cuda_diag["install_hint"]))
     if free_gb < config.torch_preflight_min_free_memory_gb:
         warnings.append(
             f"Only {free_gb:.2f} GB free on the selected GPU. "

@@ -29,6 +29,77 @@ TORCH_BACKEND_REQUIRED_MESSAGE = (
 )
 
 
+def torch_cuda_diagnostics(requested_device: str = "cuda") -> dict[str, Any]:
+    """Return a small, JSON-friendly report for the active Torch/CUDA stack."""
+    if torch is None:
+        return {
+            "torch_installed": False,
+            "torch_import_error": repr(TORCH_IMPORT_ERROR),
+            "cuda_available": False,
+        }
+
+    report: dict[str, Any] = {
+        "torch_installed": True,
+        "torch_version": torch.__version__,
+        "cuda_version": getattr(torch.version, "cuda", None),
+        "cuda_available": bool(torch.cuda.is_available()),
+        "requested_device": requested_device,
+    }
+    if not torch.cuda.is_available():
+        return report
+
+    device = torch.device(requested_device or "cuda")
+    index = (
+        device.index
+        if device.type == "cuda" and device.index is not None
+        else torch.cuda.current_device()
+    )
+    props = torch.cuda.get_device_properties(index)
+    major, minor = int(props.major), int(props.minor)
+    arch = f"sm_{major}{minor}"
+    arch_list = _safe_cuda_arch_list()
+    report.update(
+        {
+            "device_index": int(index),
+            "device_name": str(props.name),
+            "device_capability": f"{major}.{minor}",
+            "required_arch": arch,
+            "torch_cuda_arch_list": arch_list,
+            "cuda_arch_supported": _cuda_arch_supported(major, minor, arch_list),
+        }
+    )
+    if arch_list and not report["cuda_arch_supported"]:
+        report["cuda_arch_warning"] = (
+            f"Active CUDA device {props.name!s} requires {arch} support, but this "
+            f"PyTorch build reports architectures: {', '.join(arch_list)}."
+        )
+    if "4090" in str(props.name).lower() and arch != "sm_89":
+        report["cuda_device_warning"] = (
+            f"Expected an RTX 4090-class compute capability of sm_89, got {arch}."
+        )
+    if "4090" in str(props.name).lower() and arch_list and not report["cuda_arch_supported"]:
+        report["install_hint"] = (
+            "Install a CUDA-enabled PyTorch wheel from the official PyTorch selector "
+            "for this driver, for example a cu12x wheel on current NVIDIA drivers."
+        )
+    return report
+
+
+def validate_cuda_runtime_compatibility(requested_device: str = "cuda") -> None:
+    """Fail early when a CUDA device is visible but the active Torch build cannot run it."""
+    diagnostics = torch_cuda_diagnostics(requested_device)
+    if not diagnostics.get("torch_installed", False):
+        raise ImportError(TORCH_BACKEND_REQUIRED_MESSAGE) from TORCH_IMPORT_ERROR
+    if not diagnostics.get("cuda_available", False):
+        return
+    arch_list = diagnostics.get("torch_cuda_arch_list") or []
+    if arch_list and not diagnostics.get("cuda_arch_supported", True):
+        hint = diagnostics.get("install_hint") or (
+            "Install a CUDA-enabled PyTorch wheel that includes this GPU architecture."
+        )
+        raise RuntimeError(f"{diagnostics['cuda_arch_warning']} {hint}")
+
+
 def resolve_training_device(requested: str) -> tuple["torch.device", str | None]:
     """
     Map config.torch_device to a device that exists on this machine.
@@ -40,9 +111,23 @@ def resolve_training_device(requested: str) -> tuple["torch.device", str | None]
     device = torch.device(raw)
     if device.type == "cuda":
         if not torch.cuda.is_available():
+            extra = ""
+            try:
+                from adaptive_quant.hardware import detect_cuda_device
+
+                smi_cuda = detect_cuda_device(prefer_torch=False)
+            except Exception:
+                smi_cuda = None
+            if smi_cuda is not None:
+                extra = (
+                    f" nvidia-smi sees {smi_cuda.name} ({smi_cuda.total_memory_gb:.2f} GB), "
+                    "so the active PyTorch install is probably CPU-only or linked to an "
+                    "incompatible CUDA runtime."
+                )
             return torch.device(
                 "cpu"
-            ), f"torch_device={requested!r} but CUDA is not available; using CPU."
+            ), f"torch_device={requested!r} but CUDA is not available; using CPU.{extra}"
+        validate_cuda_runtime_compatibility(raw)
         return device, None
     if device.type == "mps":
         mps_ok = hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
@@ -587,6 +672,36 @@ def _resolve_autocast_dtype(dtype_name: str):
         "fp32": torch.float32,
     }
     return mapping.get(dtype_name.lower(), torch.bfloat16)
+
+
+def _safe_cuda_arch_list() -> list[str]:
+    if torch is None or not hasattr(torch.cuda, "get_arch_list"):
+        return []
+    try:
+        return [str(item) for item in torch.cuda.get_arch_list()]
+    except Exception:
+        return []
+
+
+def _cuda_arch_supported(major: int, minor: int, arch_list: list[str]) -> bool:
+    if not arch_list:
+        return True
+    exact = {f"sm_{major}{minor}", f"compute_{major}{minor}"}
+    if exact.intersection(arch_list):
+        return True
+    # PTX for the same major and newer minor can generally JIT down within a generation.
+    for item in arch_list:
+        if not item.startswith("compute_"):
+            continue
+        try:
+            encoded = item.removeprefix("compute_")
+            item_major = int(encoded[0])
+            item_minor = int(encoded[1:])
+        except (IndexError, ValueError):
+            continue
+        if item_major == major and item_minor >= minor:
+            return True
+    return False
 
 
 def _mode_code(mode: str) -> int:
