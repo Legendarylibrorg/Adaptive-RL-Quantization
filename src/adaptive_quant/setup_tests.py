@@ -9,7 +9,7 @@ optional torch/NVIDIA wiring for the current host.
 from __future__ import annotations
 
 import importlib.util
-from typing import Sequence
+from collections.abc import Sequence
 
 # Core: presets, config coercion, guardrails, feature math — no GPU required.
 _BASE_MODULES: tuple[str, ...] = (
