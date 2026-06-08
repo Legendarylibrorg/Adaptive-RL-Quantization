@@ -27,9 +27,9 @@ After cloning the repo:
 ./setup.sh && ./run
 ```
 
-`./setup.sh` already runs tests and a short smoke (`config.e2e_smoke.json`). `./run` starts a **full** simulator run (uses `.venv/bin/adaptive-rl-quant` when the venv exists). You do not need to activate the venv first.
+`./setup.sh` runs **hardware-aware setup tests** and a short smoke (`config.e2e_smoke.json`). No NVIDIA secure-boundary ack is required for this simulator bootstrap on Linux. `./run` starts a **full** simulator run (uses `.venv/bin/adaptive-rl-quant` when the venv exists). You do not need to activate the venv first.
 
-**Install only (no tests, no smoke):** `./setup.sh --quick`
+**Install only (no tests, no smoke):** `./setup.sh --quick` · **Full unittest:** `./setup.sh --full-tests`
 
 Alternatives: `python3 scripts/setup_from_clone.py`, `make setup`. macOS and Windows notes follow below.
 
@@ -50,6 +50,8 @@ python3 --version   # expect 3.11 or newer
 ```bash
 ./setup.sh
 ```
+
+On **Linux + NVIDIA**, `./setup.sh` works without a secure-boundary ack. GPU steps (`scripts/install_cuda_torch.py`, `adaptive-rl-quant-pytorch`, `run_4090_pipeline.sh`) require an ack — see [SECURE_RUN.md](SECURE_RUN.md).
 
 On Windows: `setup.bat`, or `py -3.11 scripts/setup_from_clone.py`, or `python scripts/setup_from_clone.py`.
 
@@ -307,18 +309,13 @@ bash scripts/run_4090_pipeline.sh
 
 By default the script runs **setup tests** on CPU before the GPU preset (`RUN_TESTS=1`). Tests use only modules needed for the current host (config, CLI, torch when installed, NVIDIA boundary when `nvidia-smi` sees a GPU). Skip with `RUN_TESTS=0`; full suite with `RUN_TESTS=full bash scripts/run_4090_pipeline.sh`.
 
-On Linux + NVIDIA, `run_4090_pipeline.sh` and `./setup.sh` enforce the secure boundary in [SECURE_RUN.md](SECURE_RUN.md). Example for a trusted lab host:
+On Linux + NVIDIA, `run_4090_pipeline.sh`, `scripts/install_cuda_torch.py`, and `adaptive-rl-quant-pytorch` enforce the secure boundary in [SECURE_RUN.md](SECURE_RUN.md). Example for a trusted lab host:
 
 ```bash
 export ADAPTIVE_RL_NVIDIA_HOST_VENV_ACK=1
 bash scripts/run_4090_pipeline.sh
-```
-
-On Linux + NVIDIA, `run_4090_pipeline.sh` and `./setup.sh` enforce the secure boundary in [SECURE_RUN.md](SECURE_RUN.md). Example for a trusted lab host:
-
-```bash
-export ADAPTIVE_RL_NVIDIA_HOST_VENV_ACK=1
-bash scripts/run_4090_pipeline.sh
+# or after ./setup.sh:
+.venv/bin/python scripts/install_cuda_torch.py
 ```
 
 If **`.venv`** already exists (for example after **`./setup.sh`**), the script picks **`.venv/bin/python`** automatically unless you set **`PYTHON_BIN`**. Override: `PYTHON_BIN=/usr/bin/python3 bash scripts/run_4090_pipeline.sh`.

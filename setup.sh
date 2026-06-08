@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Bootstrap from repo root (same as scripts/setup_from_clone.py).
-# On Linux + NVIDIA, enforces the secure boundary (docs/SECURE_RUN.md) before install.
+# Simulator-only: no NVIDIA secure-boundary ack required (see docs/SECURE_RUN.md for GPU steps).
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${ROOT_DIR}"

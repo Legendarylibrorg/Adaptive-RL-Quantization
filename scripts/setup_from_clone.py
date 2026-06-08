@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
+import platform
 import re
 import ssl
 import subprocess
@@ -138,10 +139,46 @@ def _install_editable(python_bin: str, root: Path) -> None:
 def _require_python_311_plus() -> None:
     major, minor = sys.version_info[:2]
     if major < 3 or (major == 3 and minor < 11):
-        raise SystemExit(
+        message = (
             f"Python 3.11+ is required; this interpreter is {sys.version.split()[0]} "
             f"({sys.executable})."
         )
+        if platform.system().lower() == "linux":
+            message += (
+                "\n\nOn Debian/Ubuntu install a newer Python, then rerun with PYTHON_BIN set, e.g.:\n"
+                "  sudo apt install -y python3.12 python3.12-venv\n"
+                "  PYTHON_BIN=python3.12 ./setup.sh"
+            )
+        raise SystemExit(message)
+
+
+def _venv_failure_message(venv_dir: Path) -> str:
+    lines = [
+        f"Failed to create virtualenv at {venv_dir}.",
+        f"Interpreter: {sys.executable} ({sys.version.split()[0]})",
+    ]
+    if platform.system().lower() == "linux":
+        lines.extend(
+            [
+                "",
+                "On Debian/Ubuntu install the venv module for your Python version:",
+                "  sudo apt install -y python3-venv",
+                "  # or: sudo apt install -y python3.12-venv",
+                "",
+                "If the default python3 is too old, point PYTHON_BIN at 3.11+:",
+                "  PYTHON_BIN=python3.12 ./setup.sh",
+            ]
+        )
+    return "\n".join(lines)
+
+
+def _ensure_venv(venv_dir: Path, root: Path) -> None:
+    if venv_dir.exists():
+        return
+    try:
+        run([sys.executable, "-m", "venv", str(venv_dir)], cwd=root)
+    except subprocess.CalledProcessError as exc:
+        raise SystemExit(_venv_failure_message(venv_dir)) from exc
 
 
 def _smoke_command(venv_dir: Path, venv_python: Path, config_path: Path) -> list[str]:
@@ -198,14 +235,10 @@ def main(argv: list[str] | None = None) -> int:
 
     root = repo_root()
     sys.path.insert(0, str(root / "src"))
-    from adaptive_quant.nvidia_secure_boundary import enforce_nvidia_secure_boundary
-
-    enforce_nvidia_secure_boundary(context="setup")
     venv_dir = (root / args.venv_dir).resolve()
     config_path = (root / args.config).resolve()
 
-    if not venv_dir.exists():
-        run([sys.executable, "-m", "venv", str(venv_dir)], cwd=root)
+    _ensure_venv(venv_dir, root)
 
     venv_python = venv_python_path(venv_dir)
     if not venv_python.is_file():
@@ -235,6 +268,16 @@ def main(argv: list[str] | None = None) -> int:
         run(_smoke_command(venv_dir, venv_python, config_path), cwd=root)
 
     _print_success(venv_dir=venv_dir, ran_smoke=ran_smoke)
+    if platform.system().lower() == "linux":
+        from adaptive_quant.nvidia_secure_boundary import is_linux_nvidia_host
+
+        if is_linux_nvidia_host():
+            print(
+                "Note: Linux + NVIDIA detected. Simulator setup is complete; "
+                "CUDA install and GPU runs require the secure boundary — "
+                "see docs/SECURE_RUN.md.",
+                file=sys.stderr,
+            )
     return 0
 
 

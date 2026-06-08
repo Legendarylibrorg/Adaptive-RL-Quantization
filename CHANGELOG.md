@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `./setup.sh` no longer enforces the NVIDIA secure boundary on Linux GPU hosts (simulator bootstrap only); boundary remains on CUDA install, PyTorch CLI, and `run_4090_pipeline.sh`. Linux venv/Python version failures now print distro-specific hints.
 - Slim `run_*.py` shims; removed redundant Unix shell wrappers around `setup_from_clone.py`, `pre_commit_check.py`, and `secret_scan.py` (use the Python scripts directly).
 - CI, Makefile, and docs now use `python3 -m unittest discover -s tests -t .` consistently.
 
