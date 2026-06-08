@@ -38,6 +38,8 @@ python3 -m pip install -e .
 python3 -m unittest discover -s tests -t . -q
 ```
 
+**Note:** `./setup.sh` runs a **hardware-aware setup subset** via [`scripts/run_setup_tests.py`](scripts/run_setup_tests.py) (see [docs/INSTALL.md](docs/INSTALL.md)). Contributors validating changes before a PR should run the **full** suite above or `python3 scripts/pre_commit_check.py` (which also runs full unittest).
+
 **Without** `pip install -e .`, run tests with `python3 -m unittest discover -s tests -t . -q` from the repo root — [`tests/__init__.py`](tests/__init__.py) bootstraps `src/` on `sys.path`. Source-checkout runners (`run_*.py`) and `python -m analysis` use the same path setup via [`src/bootstrap.py`](src/bootstrap.py). CI always uses the editable install above.
 
 Optional GPU work: `python3 scripts/install_cuda_torch.py` (or a CUDA-matched PyTorch `cu130`/`cu126` wheel), then see [docs/INSTALL.md](docs/INSTALL.md).

@@ -2,7 +2,7 @@
 
 **Platform:** The simulator entrypoints work on **Linux, macOS, and Windows**. Linux and WSL2 are the primary command paths in this guide. On Windows, substitute `py -3.11` or `python` where a `python3` helper command still appears. Run from the **repository root** (where `pyproject.toml` lives; presets are defined in [`src/adaptive_quant/presets/`](../src/adaptive_quant/presets/) and re-exported from [`src/config.py`](../src/config.py)).
 
-1. Install: `python3 -m pip install -e .`, or run **`./setup.sh`** / **`python3 scripts/setup_from_clone.py`** once (see [INSTALL.md](INSTALL.md)) — creates a venv, bootstraps `pip` when needed, then runs tests + RL smoke. Editable installs expose console commands such as `adaptive-rl-quant` and `adaptive-rl-quant-pytorch`.
+1. Install: `python3 -m pip install -e .`, or run **`./setup.sh`** / **`python3 scripts/setup_from_clone.py`** once (see [INSTALL.md](INSTALL.md)) — creates a venv, bootstraps `pip` when needed, then runs **hardware-aware setup tests** + E2E smoke (`config.e2e_smoke.json`). Use **`--full-tests`** for the full unittest suite; **`--quick`** skips tests and smoke. Editable installs expose console commands such as `adaptive-rl-quant` and `adaptive-rl-quant-pytorch`.
 2. Default full run after setup: **`./run`** or `make run` (uses the venv CLI when present).
 3. Short reproducible E2E (no Python edits): [**`config.e2e_smoke.json`**](../config.e2e_smoke.json) — `adaptive-rl-quant --config config.e2e_smoke.json`
 4. More examples: [CONFIG.md](CONFIG.md), [`config.example.json`](../config.example.json).
@@ -31,7 +31,7 @@ Artifacts and API: [USAGE.md](USAGE.md).
 | GPU + file (**replaces** `--preset`) | `adaptive-rl-quant-pytorch --config cuda_run.toml` |
 | RTX 3090 preset | `adaptive-rl-quant-pytorch --preset 3090` or `make 3090` |
 | RTX 4090 preset | `adaptive-rl-quant-pytorch --preset 4090` |
-| Linux 4090 checks + run | `bash scripts/run_4090_pipeline.sh` |
+| Linux 4090 checks + setup tests + run | `bash scripts/run_4090_pipeline.sh` (`RUN_TESTS=0` to skip tests; `RUN_TESTS=full` for full unittest) |
 | 4090 host, universal-policy naming | `adaptive-rl-quant-pytorch --preset 4090-universal` |
 | Long routed RL post-training | `adaptive-rl-quant-pytorch --preset post-train` or `make post-train` |
 | Multi-seed (`dense` or `moe`) | `adaptive-rl-quant-multiseed --preset dense --seeds 13,17,23,29,31` |

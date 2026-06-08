@@ -164,9 +164,9 @@ Artifacts land under **`outputs/`** (see [Outputs](#outputs) below).
 | `config.example.post_train.json` | Example **JSON** for long routed RL post-training (`--preset post-train`) |
 | `run` (repo root) | One-command default run after setup (`./run`; uses venv CLI when present) |
 | `run_*.py` (repo root) | Thin shims (prepend `src/` to `sys.path`) matching the installed console commands |
-| `setup.sh`, `setup.bat` | **One-command bootstrap** from repo root (venv + install + tests + smoke) |
+| `setup.sh`, `setup.bat` | **One-command bootstrap** from repo root (venv + install + setup tests + smoke) |
 | `Makefile` | **Research** targets: `make help` — `setup` / `run` / `reproduce` / `multiseed` / `sweep` / `pytorch` / `post-train` / `install-torch-cuda`; quality: `lint` / `format` / `check` |
-| `scripts/` | Cross-platform **`setup_from_clone.py`**, **`pre_commit_check.py`**, **`secret_scan.py`**, **`run_4090_pipeline.sh`**, **`_resolve_venv_python.sh`** |
+| `scripts/` | Cross-platform **`setup_from_clone.py`**, **`run_setup_tests.py`**, **`pre_commit_check.py`**, **`secret_scan.py`**, **`run_4090_pipeline.sh`**, **`nvidia_secure_startup.py`**, **`_resolve_venv_python.sh`** |
 | `requirements/ci.txt` + `security/dependency_hashes.json` | Pinned CI bootstrap dependencies plus the separate sha256 manifest used to render a `--require-hashes` install file |
 | `src/analysis/` | Post-hoc analyzers (`python -m analysis`) |
 | `docs/` | Install, running, config reference, troubleshooting |
@@ -218,7 +218,7 @@ Programmatically: `FrameworkConfig.from_file("path.json")`, `load_config()` from
 | RTX 4090 preset | `adaptive-rl-quant-pytorch --preset 4090` |
 | 4090 universal policy | `adaptive-rl-quant-pytorch --preset 4090-universal` |
 | Long routed RL post-training | `adaptive-rl-quant-pytorch --preset post-train` (or `make post-train`) |
-| 4090 checks + unittest + run | `bash scripts/run_4090_pipeline.sh` |
+| 4090 checks + setup tests + run | `bash scripts/run_4090_pipeline.sh` (`RUN_TESTS=0` skip; `RUN_TESTS=full` for full unittest) |
 | Multi-seed aggregation | `adaptive-rl-quant-multiseed --preset dense --seeds 13,17,23` |
 | Hyperparameter sweep | `adaptive-rl-quant-sweep --sweep-config config.sweep.example.json` |
 | Calibrate simulator from llama.cpp | `adaptive-rl-quant-calibrate` (binary + model in config) |
@@ -240,6 +240,7 @@ adaptive-rl-quant-sweep --help
 adaptive-rl-quant-calibrate --help
 adaptive-rl-quant-route --help
 adaptive-rl-quant-replay --help
+python3 scripts/run_setup_tests.py
 python3 -m unittest discover -s tests -t . -q
 ```
 

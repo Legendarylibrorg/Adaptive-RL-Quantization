@@ -110,8 +110,9 @@ Reports are intended to be derived from machine-readable outputs, not handwritte
 
 ## 5. Tooling and ops
 
-- `scripts/setup_from_clone.py`: bootstrap from a fresh clone
-- `scripts/pre_commit_check.py`: syntax, hashes, tests, and scans
+- `scripts/setup_from_clone.py`: bootstrap from a fresh clone (setup tests + E2E smoke by default)
+- `scripts/run_setup_tests.py` / `src/adaptive_quant/setup_tests.py`: hardware-aware unittest subset during setup
+- `scripts/pre_commit_check.py`: syntax, hashes, full unittest, and scans
 - `scripts/env_report.py`: environment diagnosis (`make doctor`)
 - `Makefile`: Linux/WSL2-oriented convenience commands
 
