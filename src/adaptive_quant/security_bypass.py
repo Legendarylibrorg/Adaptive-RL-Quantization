@@ -8,6 +8,7 @@ import sys
 _BYPASS_ENV_VARS: tuple[tuple[str, str], ...] = (
     ("ADAPTIVE_RL_HF_ALLOW_UNLISTED", "Hugging Face repo allowlist disabled"),
     ("ADAPTIVE_RL_SKIP_CHECKPOINT_INTEGRITY", "Checkpoint integrity verification disabled"),
+    ("ADAPTIVE_RL_SKIP_NVIDIA_BOUNDARY", "NVIDIA secure-boundary checks disabled"),
 )
 
 _ABORT_ENV = "ADAPTIVE_RL_ABORT_ON_SECURITY_BYPASS"

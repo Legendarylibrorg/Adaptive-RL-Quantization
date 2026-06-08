@@ -54,6 +54,25 @@ The GPU Compose file **merges** with the base service: hardening from [`docker-c
 | **macOS** | Tier 1 **Linux VM** → Docker inside VM | Docker Desktop alone is weaker than Linux KVM/QEMU |
 | **Windows** | Tier 3: **WSL2** → Docker inside WSL2 | Prefer over native Windows venv; Tier 1 VM still stronger |
 
+## Startup boundary on NVIDIA Linux hosts
+
+`./setup.sh`, `scripts/install_cuda_torch.py`, `scripts/run_4090_pipeline.sh`, and
+`adaptive-rl-quant-pytorch` call the **NVIDIA secure boundary** when `nvidia-smi` reports a
+GPU on Linux. CI runners are exempt.
+
+Before bootstrap or CUDA install on a bare host, approve **one** tier:
+
+| Env var | Tier |
+| --- | --- |
+| `ADAPTIVE_RL_NVIDIA_SECURE_VM=1` | Tier 1–2 disposable VM / dedicated lab host |
+| `ADAPTIVE_RL_NVIDIA_WSL_ACK=1` | Tier 3 WSL2 |
+| `ADAPTIVE_RL_NVIDIA_HOST_VENV_ACK=1` | Tier 4 host `.venv` (trusted artifacts only) |
+
+Diagnostics: `python3 scripts/nvidia_secure_startup.py --report-only`
+
+Emergency bypass (logged in `security_audit`): `ADAPTIVE_RL_SKIP_NVIDIA_BOUNDARY=1` — pair with
+`ADAPTIVE_RL_ABORT_ON_SECURITY_BYPASS=1` in CI to fail fast when bypasses are active.
+
 ## Preflight
 
 From the repo root:

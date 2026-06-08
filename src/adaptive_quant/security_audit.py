@@ -13,6 +13,7 @@ from adaptive_quant.configuration.validation import (
     hf_allow_unlisted_from_env,
     hf_allowed_repos_from_env,
 )
+from adaptive_quant.nvidia_secure_boundary import nvidia_boundary_report
 from adaptive_quant.security_bypass import active_security_bypasses
 
 
@@ -36,6 +37,7 @@ def build_security_audit_record(
             os.environ.get(_LLAMA_CPP_BINARY_PREFIXES_ENV, "").strip()
         ),
         "security_bypass_env_active": [name for name, _desc in active_security_bypasses()],
+        "nvidia_boundary": nvidia_boundary_report(),
     }
     binary = config.llama_cpp_binary
     if binary:

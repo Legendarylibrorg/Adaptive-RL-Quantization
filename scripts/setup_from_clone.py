@@ -192,6 +192,10 @@ def main(argv: list[str] | None = None) -> int:
     _require_python_311_plus()
 
     root = repo_root()
+    sys.path.insert(0, str(root / "src"))
+    from adaptive_quant.nvidia_secure_boundary import enforce_nvidia_secure_boundary
+
+    enforce_nvidia_secure_boundary(context="setup")
     venv_dir = (root / args.venv_dir).resolve()
     config_path = (root / args.config).resolve()
 
