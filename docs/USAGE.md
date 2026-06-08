@@ -2,7 +2,7 @@
 
 ## Platform and working directory
 
-- **Simulator path:** supported on **Linux, macOS, and Windows**. Work in the **repo root** (directory with `pyproject.toml` and `src/`). Python presets live under **`src/config*.py`** (or use `from config import CONFIG` after `pip install -e .`).
+- **Simulator path:** supported on **Linux, macOS, and Windows**. Work in the **repo root** (directory with `pyproject.toml` and `src/`). Python presets live in **`src/adaptive_quant/presets/`** and are re-exported from **`src/config.py`** (`from config import CONFIG` after `pip install -e .`).
 - **Windows:** use `py -3.11` or `python` instead of `python3`, and venv `Scripts\activate`.
 - **GPU workflows:** remain **Linux-first**.
 - **WSL2:** recommended on Windows when you want Linux shell, Makefile, and GPU-oriented workflow parity.

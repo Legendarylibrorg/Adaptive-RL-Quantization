@@ -18,6 +18,7 @@ from adaptive_quant.torch_install import (  # noqa: E402
     DEFAULT_CUDA_INDEX,
     TORCH_CUDA_INDEX_CU126,
     TORCH_CUDA_INDEX_CU130,
+    cuda_torch_pip_argv,
     cuda_torch_pip_command,
     torch_cuda_ready_report,
     validate_cuda_after_install,
@@ -82,18 +83,11 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     index_url = _index_for(args.cuda)
-    pip_cmd = [
-        sys.executable,
-        "-m",
-        "pip",
-        "install",
-        "--upgrade",
-        "torch",
-        "--index-url",
-        index_url,
-    ]
-    if args.force_reinstall:
-        pip_cmd.insert(4, "--force-reinstall")
+    pip_cmd = cuda_torch_pip_argv(
+        python=sys.executable,
+        index_url=index_url,
+        force_reinstall=args.force_reinstall,
+    )
     commands = [pip_cmd]
     if not args.skip_editable_install:
         commands.append([sys.executable, "-m", "pip", "install", "-e", str(_REPO_ROOT)])
@@ -107,7 +101,7 @@ def main(argv: list[str] | None = None) -> int:
     report = torch_cuda_ready_report()
     print("Post-install:", report)
     try:
-        validate_cuda_after_install("cuda")
+        validate_cuda_after_install("cuda", report=report)
     except RuntimeError as exc:
         print(str(exc), file=sys.stderr)
         print(

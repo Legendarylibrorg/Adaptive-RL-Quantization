@@ -35,7 +35,7 @@ if not report.get("cuda_available"):
 
 print(f"CUDA device: {report.get('device_name', 'unknown')}")
 print(f"Device capability: {report.get('device_capability', 'unknown')}")
-arch_list = report.get("torch_cuda_arch_list") or report.get("arch_list") or []
+arch_list = report.get("torch_cuda_arch_list") or []
 print(f"Torch CUDA arch list: {', '.join(arch_list) or 'unknown'}")
 device_name = str(report.get("device_name", ""))
 if "4090" not in device_name.lower():

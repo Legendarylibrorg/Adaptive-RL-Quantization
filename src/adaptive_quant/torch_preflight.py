@@ -56,17 +56,13 @@ def collect_torch_system_report(
         )
         return report
 
-    from adaptive_quant.hardware import detect_cuda_device
-
-    cuda = detect_cuda_device()
     index = device.index if device.index is not None else torch.cuda.current_device()
-    free_bytes, total_bytes = _mem_get_info(index)
-    free_gb = round(free_bytes / (1024**3), 2)
-    total_gb = cuda.total_memory_gb if cuda is not None else round(total_bytes / (1024**3), 2)
-    bf16_supported = bool(getattr(torch.cuda, "is_bf16_supported", lambda: False)())
-
-    device_name = cuda.name if cuda is not None else str(torch.cuda.get_device_name(index))
     props = torch.cuda.get_device_properties(index)
+    free_bytes, _total_bytes = _mem_get_info(index)
+    free_gb = round(free_bytes / (1024**3), 2)
+    total_gb = round(float(props.total_memory) / (1024**3), 2)
+    bf16_supported = bool(getattr(torch.cuda, "is_bf16_supported", lambda: False)())
+    device_name = str(props.name)
     report.update(
         {
             "device_index": index,
@@ -83,10 +79,13 @@ def collect_torch_system_report(
     if "bf16" in config.torch_dtype.lower() and not bf16_supported:
         warnings.append("Requested bf16, but this CUDA stack does not report bf16 support.")
     cuda_diag = report["cuda_diagnostics"]
-    if isinstance(cuda_diag, dict) and cuda_diag.get("cuda_arch_warning"):
-        warnings.append(str(cuda_diag["cuda_arch_warning"]))
-        if cuda_diag.get("install_hint"):
-            recommendations.append(str(cuda_diag["install_hint"]))
+    if isinstance(cuda_diag, dict):
+        if cuda_diag.get("cuda_arch_warning"):
+            warnings.append(str(cuda_diag["cuda_arch_warning"]))
+            if cuda_diag.get("install_hint"):
+                recommendations.append(str(cuda_diag["install_hint"]))
+        if cuda_diag.get("cuda_device_warning"):
+            warnings.append(str(cuda_diag["cuda_device_warning"]))
     if free_gb < config.torch_preflight_min_free_memory_gb:
         warnings.append(
             f"Only {free_gb:.2f} GB free on the selected GPU. "

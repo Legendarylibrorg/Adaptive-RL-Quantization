@@ -119,41 +119,32 @@ def main() -> int:
         print("  pkg version: (editable install without metadata — OK)")
 
     print("== PyTorch (optional) ==")
-    try:
-        _ensure_src_on_path()
-        from adaptive_quant.hardware import nvidia_smi_visible
-        from adaptive_quant.torch_install import INSTALL_CUDA_TORCH_SCRIPT, torch_cuda_ready_report
+    _ensure_src_on_path()
+    from adaptive_quant.torch_install import INSTALL_CUDA_TORCH_SCRIPT, torch_cuda_ready_report
 
-        report = torch_cuda_ready_report()
-        if not report.get("torch_installed", False):
-            print(f"  torch:       not installed ({report.get('torch_import_error')})")
-            print(f"  install:     {INSTALL_CUDA_TORCH_SCRIPT}")
-        else:
-            print(f"  torch:       {report.get('torch_version')}")
-            cuda = bool(report.get("cuda_available"))
-            print(f"  cuda:        {cuda}")
-            if report.get("cuda_version") is not None:
-                print(f"  cuda_ver:    {report.get('cuda_version')}")
-            print(f"  nvidia-smi:  {'yes' if nvidia_smi_visible() else 'no'}")
-            if cuda:
-                print(f"  device[0]:   {report.get('device_name')}")
-                arch_list = report.get("torch_cuda_arch_list") or report.get("arch_list")
-                if arch_list:
-                    print(f"  arch_list:   {', '.join(arch_list)}")
-                if report.get("cuda_arch_supported") is False:
-                    print(f"  warning:     {report.get('cuda_arch_warning')}")
-                    if report.get("install_hint"):
-                        print(f"  install:     {report['install_hint']}")
-            elif report.get("likely_cpu_only_wheel"):
-                print(
-                    '  warning:     CPU-only torch wheel (pip install -e ".[torch]" is not enough)'
-                )
-                print(f"  install:     {INSTALL_CUDA_TORCH_SCRIPT}")
-    except ImportError:
-        print("  torch:       not installed")
-        from adaptive_quant.torch_install import INSTALL_CUDA_TORCH_SCRIPT
-
+    report = torch_cuda_ready_report()
+    if not report.get("torch_installed", False):
+        print(f"  torch:       not installed ({report.get('torch_import_error')})")
         print(f"  install:     {INSTALL_CUDA_TORCH_SCRIPT}")
+    else:
+        print(f"  torch:       {report.get('torch_version')}")
+        cuda = bool(report.get("cuda_available"))
+        print(f"  cuda:        {cuda}")
+        if report.get("cuda_version") is not None:
+            print(f"  cuda_ver:    {report.get('cuda_version')}")
+        print(f"  nvidia-smi:  {'yes' if report.get('nvidia_smi_visible') else 'no'}")
+        if cuda:
+            print(f"  device[0]:   {report.get('device_name')}")
+            arch_list = report.get("torch_cuda_arch_list")
+            if arch_list:
+                print(f"  arch_list:   {', '.join(arch_list)}")
+            if report.get("cuda_arch_supported") is False:
+                print(f"  warning:     {report.get('cuda_arch_warning')}")
+                if report.get("install_hint"):
+                    print(f"  install:     {report['install_hint']}")
+        elif report.get("likely_cpu_only_wheel"):
+            print('  warning:     CPU-only torch wheel (pip install -e ".[torch]" is not enough)')
+            print(f"  install:     {INSTALL_CUDA_TORCH_SCRIPT}")
 
     print("== Ruff (optional) ==")
     try:
@@ -193,8 +184,6 @@ def main() -> int:
         print("  WSL2:       keep the repo under ~/... not /mnt/...")
     if import_ok and (repo / ".venv").is_dir():
         print("  Makefile:   make run   (uses .venv when present)")
-    from adaptive_quant.torch_install import INSTALL_CUDA_TORCH_SCRIPT
-
     print(f"  CUDA:       {INSTALL_CUDA_TORCH_SCRIPT} && make pytorch")
     return 0 if import_ok else 1
 

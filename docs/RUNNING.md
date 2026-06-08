@@ -1,6 +1,6 @@
 # Running Guide
 
-**Platform:** The simulator entrypoints work on **Linux, macOS, and Windows**. Linux and WSL2 are the primary command paths in this guide. On Windows, substitute `py -3.11` or `python` where a `python3` helper command still appears. Run from the **repository root** (where `pyproject.toml` lives; Python presets are under [`src/config.py`](../src/config.py)).
+**Platform:** The simulator entrypoints work on **Linux, macOS, and Windows**. Linux and WSL2 are the primary command paths in this guide. On Windows, substitute `py -3.11` or `python` where a `python3` helper command still appears. Run from the **repository root** (where `pyproject.toml` lives; presets are defined in [`src/adaptive_quant/presets/`](../src/adaptive_quant/presets/) and re-exported from [`src/config.py`](../src/config.py)).
 
 1. Install: `python3 -m pip install -e .`, or run **`./setup.sh`** / **`python3 scripts/setup_from_clone.py`** once (see [INSTALL.md](INSTALL.md)) — creates a venv, bootstraps `pip` when needed, then runs tests + RL smoke. Editable installs expose console commands such as `adaptive-rl-quant` and `adaptive-rl-quant-pytorch`.
 2. Default full run after setup: **`./run`** or `make run` (uses the venv CLI when present).
@@ -89,7 +89,7 @@ Multi-seed: seeds can be `a,b,c` or `0-9`. Reports under `outputs/reports/` as `
 
 Hyperparameter sweep: pass a sweep file (`--sweep-config`) or repeat `--vary KEY=val1,val2` for a cartesian grid. Each trial runs the full research pipeline with unique `run_name` suffixes; results are ranked by `--objective` (default `evaluation.mean_reward`) and written to `outputs/benchmarks/<run_name>_sweep_summary.json` and `outputs/reports/<run_name>_sweep_report.md`. Quick smoke: `make sweep-smoke`. Full guide: **[SWEEP.md](SWEEP.md)**.
 
-Fixed horizons and episode counts live in each `config*.py`. For long PyTorch runs, enable `continuous_training` and related fields in [CONFIG.md](CONFIG.md).
+Fixed horizons and episode counts live in presets under `src/adaptive_quant/presets/` (or JSON/TOML `--config` files). For long PyTorch runs, use `--preset post-train` or enable `continuous_training` in [CONFIG.md](CONFIG.md).
 
 Startup overrides are available on research-style entrypoints. Use named flags for common fields (`--training-episodes`, `--evaluation-episodes`, `--benchmark-training-episodes`, `--benchmark-evaluation-episodes`, `--run-name`, `--seed`) and repeat `--set KEY=VALUE` for tuning fields such as torch batch sizes or reward weights. `VALUE` is parsed with bounded JSON when possible. **Privileged keys** (backend, llama.cpp, router/HF allowlists, checkpoints) require `ADAPTIVE_RL_ALLOW_PRIVILEGED_OVERRIDES=1`; prefer `--config` for those. Summaries record applied overrides under `security_audit.cli_startup_overrides`.
 
