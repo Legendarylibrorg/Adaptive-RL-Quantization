@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Run hardware-aware setup tests (curated unittest subset)."""
+
 from __future__ import annotations
 
 import argparse

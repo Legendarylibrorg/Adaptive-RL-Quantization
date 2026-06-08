@@ -1,4 +1,5 @@
 """Tests for hardware-aware setup test selection."""
+
 from __future__ import annotations
 
 import importlib.util

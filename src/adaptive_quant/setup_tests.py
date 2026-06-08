@@ -20,14 +20,10 @@ _BASE_MODULES: tuple[str, ...] = (
 )
 
 # CLI wiring and entrypoint scripts.
-_CLI_MODULES: tuple[str, ...] = (
-    "tests.test_cli_behavior",
-)
+_CLI_MODULES: tuple[str, ...] = ("tests.test_cli_behavior",)
 
 # When PyTorch is importable (CPU or CUDA wheel).
-_TORCH_MODULES: tuple[str, ...] = (
-    "tests.test_torch_trainer",
-)
+_TORCH_MODULES: tuple[str, ...] = ("tests.test_torch_trainer",)
 
 # Linux hosts where ``nvidia-smi`` reports a GPU.
 _NVIDIA_MODULES: tuple[str, ...] = (
