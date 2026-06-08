@@ -56,11 +56,12 @@ The GPU Compose file **merges** with the base service: hardening from [`docker-c
 
 ## Startup boundary on NVIDIA Linux hosts
 
-`./setup.sh`, `scripts/install_cuda_torch.py`, `scripts/run_4090_pipeline.sh`, and
+`scripts/install_cuda_torch.py`, `scripts/run_4090_pipeline.sh`, and
 `adaptive-rl-quant-pytorch` call the **NVIDIA secure boundary** when `nvidia-smi` reports a
-GPU on Linux. CI runners are exempt.
+GPU on Linux. **`./setup.sh` does not** — it only installs the simulator path (venv, setup
+tests, E2E smoke). CI runners are exempt.
 
-Before bootstrap or CUDA install on a bare host, approve **one** tier:
+Before **CUDA install or GPU training** on a bare host, approve **one** tier:
 
 | Env var | Tier |
 | --- | --- |

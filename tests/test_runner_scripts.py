@@ -285,6 +285,17 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertIn("--quick", proc.stdout)
         self.assertIn("--full-tests", proc.stdout)
 
+    def test_setup_from_clone_venv_failure_message_mentions_linux_packages(self) -> None:
+        module = self._load_setup_from_clone_module()
+        with mock.patch("platform.system", return_value="Linux"):
+            message = module._venv_failure_message(Path("/tmp/.venv"))
+        self.assertIn("python3-venv", message)
+        self.assertIn("PYTHON_BIN", message)
+
+    def test_setup_from_clone_does_not_enforce_nvidia_boundary(self) -> None:
+        source = (_REPO_ROOT / "scripts" / "setup_from_clone.py").read_text(encoding="utf-8")
+        self.assertNotIn("enforce_nvidia_secure_boundary", source)
+
     def test_root_setup_sh_delegates_to_python_script(self) -> None:
         script = _REPO_ROOT / "setup.sh"
         self.assertTrue(script.is_file())

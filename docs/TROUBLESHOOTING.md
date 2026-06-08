@@ -5,6 +5,24 @@
 - **“Config file not found”** — paths are resolved relative to the **current working directory**. From the repo root, use `./my.json` or an absolute path.
 - **`adaptive-rl-quant-pytorch` exits** asking for `training_backend='pytorch'` — JSON/TOML for the GPU entrypoint must set `"training_backend": "pytorch"` (or start from the `pytorch` preset in [CONFIG.md](CONFIG.md)).
 
+## `./setup.sh` fails on Linux (venv / Python version)
+
+**`ensurepip` / `venv` module missing** — common on minimal Debian/Ubuntu images:
+
+```bash
+sudo apt update
+sudo apt install -y git curl python3 python3-venv
+# If the default python3 is older than 3.11:
+sudo apt install -y python3.12 python3.12-venv
+PYTHON_BIN=python3.12 ./setup.sh
+```
+
+**`Python 3.11+ is required`** — the bootstrap interpreter must be 3.11+. Use `python3 --version`; set `PYTHON_BIN` to a newer `python3.12` (or `python3.11`) if the default `python3` is too old.
+
+**NVIDIA secure boundary** — `./setup.sh` does **not** require `ADAPTIVE_RL_NVIDIA_HOST_VENV_ACK`. If you see that error during setup, update the repo (older branches enforced the boundary on bootstrap). GPU steps (`install_cuda_torch.py`, `run_4090_pipeline.sh`, `adaptive-rl-quant-pytorch`) still require an ack on Linux + NVIDIA — see [SECURE_RUN.md](SECURE_RUN.md).
+
+**`mypy is required for the quality gate`** — that applies to `pre_commit_check.py` / `make check`, not `./setup.sh`. Install dev tools with `pip install -e ".[dev]"` or skip type-checking: `python3 scripts/pre_commit_check.py --skip-mypy --skip-ruff`.
+
 ## Shell scripts use the wrong Python
 
 - **`pre_commit_check.py`** prefers **`PYTHON_BIN`** when set, then the repo venv interpreter (`.venv/bin/python` on Unix, `.venv\Scripts\python.exe` on Windows), then the current interpreter.
