@@ -283,6 +283,7 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, msg=proc.stderr)
         self.assertIn("--skip-smoke", proc.stdout)
         self.assertIn("--quick", proc.stdout)
+        self.assertIn("--full-tests", proc.stdout)
 
     def test_root_setup_sh_delegates_to_python_script(self) -> None:
         script = _REPO_ROOT / "setup.sh"

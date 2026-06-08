@@ -181,6 +181,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--skip-tests", action="store_true", help="Skip unittest.")
     parser.add_argument(
+        "--full-tests",
+        action="store_true",
+        help="Run the full unittest discover suite (default: hardware-aware setup subset).",
+    )
+    parser.add_argument(
         "--skip-smoke", action="store_true", help="Skip adaptive-rl-quant smoke execution."
     )
     args = parser.parse_args(argv)
@@ -213,10 +218,17 @@ def main(argv: list[str] | None = None) -> int:
     ran_smoke = not args.skip_smoke
 
     if ran_tests:
-        run(
-            [str(venv_python), "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-q"],
-            cwd=root,
-        )
+        if args.full_tests:
+            run(
+                [str(venv_python), "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-q"],
+                cwd=root,
+            )
+        else:
+            from adaptive_quant.setup_tests import resolve_setup_test_modules, unittest_command
+
+            modules = resolve_setup_test_modules()
+            print("Setup tests:", ", ".join(modules))
+            run(unittest_command(str(venv_python), modules, quiet=True), cwd=root)
     if ran_smoke:
         if not config_path.is_file():
             raise SystemExit(f"Smoke config not found: {config_path}")
