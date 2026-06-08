@@ -24,7 +24,7 @@ def cuda_torch_install_instructions(*, index_url: str = DEFAULT_CUDA_INDEX) -> s
         "If that wheel does not match your driver, try the legacy CUDA 12.6 build:\n"
         f"  {cuda_torch_pip_command(index_url=legacy)}\n"
         "Verify with:\n"
-        "  python3 -c \"import torch; print(torch.__version__, torch.cuda.is_available(), torch.version.cuda)\""
+        '  python3 -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.version.cuda)"'
     )
 
 

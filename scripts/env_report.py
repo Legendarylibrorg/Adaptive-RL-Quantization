@@ -138,7 +138,9 @@ def main() -> int:
                 if report.get("arch_list"):
                     print(f"  arch_list:   {', '.join(report['arch_list'])}")
             elif report.get("likely_cpu_only_wheel"):
-                print("  warning:     CPU-only torch wheel (pip install -e \".[torch]\" is not enough)")
+                print(
+                    '  warning:     CPU-only torch wheel (pip install -e ".[torch]" is not enough)'
+                )
                 print(f"  install:     {cuda_torch_pip_command()}")
                 print("  helper:      python3 scripts/install_cuda_torch.py")
     except ImportError:
