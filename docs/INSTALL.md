@@ -303,6 +303,8 @@ For a one-command 4090 validation and run:
 bash scripts/run_4090_pipeline.sh
 ```
 
+By default the script **skips** the full unittest suite (`RUN_TESTS=0`) so VRAM stays free for the 4090 training preset. To run tests first (on CPU, not GPU): `RUN_TESTS=1 bash scripts/run_4090_pipeline.sh`.
+
 If **`.venv`** already exists (for example after **`./setup.sh`**), the script picks **`.venv/bin/python`** automatically unless you set **`PYTHON_BIN`**. Override: `PYTHON_BIN=/usr/bin/python3 bash scripts/run_4090_pipeline.sh`.
 
 ## 4. llama.cpp setup

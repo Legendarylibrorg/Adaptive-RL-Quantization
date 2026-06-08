@@ -114,6 +114,7 @@ class TorchCheckpointSafeTests(unittest.TestCase):
             ckpt = str(Path(temp_dir) / "trial_final.pt")
             config = FrameworkConfig(
                 training_backend="pytorch",
+                torch_device="cpu",
                 training_episodes=1,
                 evaluation_episodes=1,
                 stability_probe_count=1,
@@ -186,6 +187,7 @@ class TorchCheckpointSafeTests(unittest.TestCase):
             )
             config = FrameworkConfig(
                 training_backend="pytorch",
+                torch_device="cpu",
                 training_episodes=1,
                 evaluation_episodes=1,
                 stability_probe_count=1,
@@ -207,6 +209,7 @@ class TorchCheckpointSafeTests(unittest.TestCase):
             with self.subTest(algo=algo), tempfile.TemporaryDirectory() as temp_dir:
                 config = FrameworkConfig(
                     training_backend="pytorch",
+                    torch_device="cpu",
                     training_episodes=2,
                     evaluation_episodes=1,
                     stability_probe_count=1,
@@ -236,6 +239,7 @@ class TorchCheckpointSafeTests(unittest.TestCase):
         """Smoke test the actor-critic on CPU: heads emit the expected per-batch dimensions."""
         config = FrameworkConfig(
             training_backend="pytorch",
+            torch_device="cpu",
             training_episodes=1,
             evaluation_episodes=1,
             stability_probe_count=1,
@@ -267,6 +271,7 @@ class TorchCheckpointSafeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             config = FrameworkConfig(
                 training_backend="pytorch",
+                torch_device="cpu",
                 continuous_training=True,
                 max_training_episodes=4,
                 evaluation_episodes=1,
@@ -299,6 +304,7 @@ class TorchCheckpointSafeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             config = FrameworkConfig(
                 training_backend="pytorch",
+                torch_device="cpu",
                 training_episodes=2,
                 evaluation_episodes=1,
                 stability_probe_count=1,
