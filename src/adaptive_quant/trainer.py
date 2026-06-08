@@ -39,7 +39,18 @@ class Trainer(TrainerBase):
             previous_action=self.previous_action, phase="train", episode_index=episode_index
         )
         decision, trace = self.policy.act(state, deterministic=self.config.rl_train_deterministic())
-        result = self.env.evaluate_current(decision, episode_index=episode_index)
+        routed_decision = decision
+        if self.offline_router is not None:
+            routed_decision = self.offline_router.prepare_decision(decision, state)
+        result = self.env.evaluate_current(routed_decision, episode_index=episode_index)
+        if self.offline_router is not None:
+            self.offline_router.complete_episode(
+                state=state,
+                policy_decision=decision,
+                routed_result=result,
+                env=self.env,
+                episode_index=episode_index,
+            )
         self.policy.update(trace, result.metrics.reward)
         self.previous_action = self._feedback_vector(result.decision)
         self.training_history.append(training_row(float(episode_index), result))

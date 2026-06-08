@@ -215,6 +215,7 @@ class FrameworkConfig:
             self.online_max_replay_entries_per_prompt_hash,
             ceiling=v.MAX_ONLINE_REPLAY_ENTRIES_PER_PROMPT_HASH,
         )
+        v.validate_optional_filesystem_path("prompt_library_path", self.prompt_library_path)
         v.validate_router_routes(self.router_routes)
         v.validate_moe_topology(
             num_experts=self.moe_num_experts,

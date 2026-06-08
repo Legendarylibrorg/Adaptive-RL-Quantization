@@ -348,7 +348,20 @@ if torch is not None:
                     deterministic=self.config.rl_train_deterministic(),
                     moe_context=state.moe_context,
                 )
-                result = self.env.evaluate_current(decision, episode_index=self.global_episode)
+                routed_decision = decision
+                if self.offline_router is not None:
+                    routed_decision = self.offline_router.prepare_decision(decision, state)
+                result = self.env.evaluate_current(
+                    routed_decision, episode_index=self.global_episode
+                )
+                if self.offline_router is not None:
+                    self.offline_router.complete_episode(
+                        state=state,
+                        policy_decision=decision,
+                        routed_result=result,
+                        env=self.env,
+                        episode_index=self.global_episode,
+                    )
                 self.global_episode += 1
                 self.previous_action = self._feedback_vector(result.decision)
                 record["state_vector"] = state_vector
