@@ -478,6 +478,7 @@ class RunnerScriptCliTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, msg=proc.stderr)
         self.assertIn("3090", proc.stdout)
         self.assertIn("4090-universal", proc.stdout)
+        self.assertIn("post-train", proc.stdout)
 
     def test_run_pytorch_config_requires_pytorch_backend(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

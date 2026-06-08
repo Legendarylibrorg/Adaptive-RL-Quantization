@@ -39,6 +39,8 @@ class PostTrainPresetTests(unittest.TestCase):
         self.assertTrue(CONFIG_POST_TRAIN.router_enabled)
         self.assertEqual(CONFIG_POST_TRAIN.env_sampling_mode, "sequential")
         self.assertIsNotNone(CONFIG_POST_TRAIN.prompt_library_path)
+        self.assertTrue(CONFIG_POST_TRAIN.torch_require_cuda)
+        self.assertEqual(CONFIG_POST_TRAIN.torch_device, "cuda")
 
 
 class OfflineRouterTrainerTests(unittest.TestCase):

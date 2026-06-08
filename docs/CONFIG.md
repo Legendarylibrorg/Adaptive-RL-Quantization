@@ -47,7 +47,7 @@ Lists in JSON for tuple fields (`hardware_modes`, `discrete_bit_widths`, `scale_
 
 Configuration also lives in:
 
-- [`config.py`](../src/config.py) — exports `CONFIG`, `CONFIG_MOE`, `CONFIG_ONLINE`, `CONFIG_GPU`, `CONFIG_3090`, `CONFIG_4090`, `CONFIG_4090_UNIVERSAL`
+- [`config.py`](../src/config.py) — exports `CONFIG`, `CONFIG_MOE`, `CONFIG_ONLINE`, `CONFIG_GPU`, `CONFIG_3090`, `CONFIG_4090`, `CONFIG_4090_UNIVERSAL`, `CONFIG_POST_TRAIN`
 - [`adaptive_quant/presets/`](../src/adaptive_quant/presets/) — preset definitions
 - [`adaptive_quant/configuration/`](../src/adaptive_quant/configuration/) (`framework.py`: `FrameworkConfig`)
 
@@ -124,7 +124,7 @@ Continuous learning:
 
 GPU replay buffer (VRAM):
 
-- `replay_buffer_capacity`: number of experiences stored in the replay buffer (default: 20,000; PyTorch path only)
+- `replay_buffer_capacity`: number of experiences stored in the replay buffer (default: 50,000 via `OnlineSettings`; `CONFIG` baseline uses 20,000; GPU profiles cap this on 8–16 GB cards; PyTorch path only)
 - `replay_buffer_on_gpu`: if true, replay buffer tensors live on CUDA VRAM (default: true)
 
 Safety and reward:

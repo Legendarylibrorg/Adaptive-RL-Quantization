@@ -415,6 +415,23 @@ class FrameworkTests(unittest.TestCase):
         self.assertEqual(metadata["selected_gpu_profile"], "rtx4080")
         self.assertGreaterEqual(tuned.torch_batch_episodes, tuned.torch_minibatch_size)
 
+    def test_small_gpu_profiles_cap_replay_buffer_for_long_runs(self) -> None:
+        from adaptive_quant.presets.post_train import CONFIG_POST_TRAIN
+
+        tuned, _ = apply_gpu_profile(
+            CONFIG_POST_TRAIN,
+            device_name="Generic 8GB GPU",
+            total_memory_gb=8.0,
+        )
+        self.assertEqual(tuned.replay_buffer_capacity, 20_000)
+
+        tuned_4070, _ = apply_gpu_profile(
+            CONFIG_POST_TRAIN,
+            device_name="NVIDIA GeForce RTX 4070",
+            total_memory_gb=12.0,
+        )
+        self.assertEqual(tuned_4070.replay_buffer_capacity, 32_768)
+
     def test_host_aware_profiles_follow_detected_machine(self) -> None:
         detected = DetectedHardware(
             system="linux",
