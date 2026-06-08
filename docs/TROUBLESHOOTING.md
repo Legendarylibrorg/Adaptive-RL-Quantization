@@ -9,7 +9,7 @@
 
 - **`pre_commit_check.py`** prefers **`PYTHON_BIN`** when set, then the repo venv interpreter (`.venv/bin/python` on Unix, `.venv\Scripts\python.exe` on Windows), then the current interpreter.
 - Force a specific interpreter: `PYTHON_BIN=/usr/bin/python3.12 python3 scripts/pre_commit_check.py`
-- **`run_4090_pipeline.sh`** still uses **`scripts/_resolve_venv_python.sh`** on Linux GPU hosts.
+- **`run_4090_pipeline.sh`** still uses **`scripts/_resolve_venv_python.sh`** on Linux GPU hosts. It skips the full unittest suite by default (`RUN_TESTS=0`); use `RUN_TESTS=1` only if you want CPU-isolated tests before the GPU run.
 - **`setup_from_clone.py`** always uses the venv interpreter it creates for install, tests, and the E2E smoke after the venv exists (see [INSTALL.md](INSTALL.md)).
 
 ## WSL2 feels slow

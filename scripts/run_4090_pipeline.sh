@@ -7,7 +7,9 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENV_DIR="${VENV_DIR:-${ROOT_DIR}/.venv}"
 # shellcheck source=scripts/_resolve_venv_python.sh
 source "${ROOT_DIR}/scripts/_resolve_venv_python.sh"
-RUN_TESTS="${RUN_TESTS:-1}"
+# Full unittest before a long GPU run is optional; default off on 4090 hosts.
+# When enabled, tests run on CPU so VRAM stays free for the training preset.
+RUN_TESTS="${RUN_TESTS:-0}"
 
 cd "${ROOT_DIR}"
 
@@ -51,7 +53,8 @@ except RuntimeError as exc:
 PY
 
 if [[ "${RUN_TESTS}" == "1" ]]; then
-  "${PYTHON_BIN}" -m unittest discover -s tests -t . -v
+  echo "Running unittest suite on CPU (CUDA reserved for --preset 4090)..."
+  CUDA_VISIBLE_DEVICES="" "${PYTHON_BIN}" -m unittest discover -s tests -t . -q
 fi
 
 "${PYTHON_BIN}" "${ROOT_DIR}/run_pytorch.py" --preset 4090
