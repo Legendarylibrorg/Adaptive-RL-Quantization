@@ -249,7 +249,7 @@ for older drivers) and then `pip install -e .`.
 `pip install -e ".[torch]"` alone often installs a **CPU-only** wheel. Do not
 rely on it for `adaptive-rl-quant-pytorch` on GPU hosts.
 
-Manual install (pick one CUDA index):
+Manual install (only if you cannot run the helper script; pick one CUDA index):
 
 ```bash
 # Default for current NVIDIA drivers (PyTorch 2.12+):
@@ -260,6 +260,8 @@ python3 -m pip install -e .
 python3 -m pip install --upgrade torch --index-url https://download.pytorch.org/whl/cu126
 python3 -m pip install -e .
 ```
+
+Verify either path with `python3 scripts/install_cuda_torch.py --check-only`.
 
 **Note:** PyTorch 2.12 **removed `cu128` wheels**. Do not use `cu128` install URLs.
 

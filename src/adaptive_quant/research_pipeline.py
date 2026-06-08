@@ -209,6 +209,17 @@ class ResearchPipeline:
             return build_trainer(config)
         except ImportError as exc:
             raise SystemExit(str(exc)) from exc
+        except RuntimeError as exc:
+            message = str(exc)
+            cuda_related = (
+                "CUDA is not available",
+                "torch_device=",
+                "PyTorch build reports architectures",
+                "Install a CUDA-enabled PyTorch wheel",
+            )
+            if any(marker in message for marker in cuda_related):
+                raise SystemExit(message) from exc
+            raise
 
     def _collect_vram_report(self, trainer) -> dict[str, object] | None:
         vram_fn = getattr(trainer, "_vram_stats", None)

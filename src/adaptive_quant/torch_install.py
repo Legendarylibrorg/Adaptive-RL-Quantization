@@ -7,6 +7,7 @@ from __future__ import annotations
 TORCH_CUDA_INDEX_CU130 = "https://download.pytorch.org/whl/cu130"
 TORCH_CUDA_INDEX_CU126 = "https://download.pytorch.org/whl/cu126"
 DEFAULT_CUDA_INDEX = TORCH_CUDA_INDEX_CU130
+INSTALL_CUDA_TORCH_SCRIPT = "python3 scripts/install_cuda_torch.py"
 
 
 def cuda_torch_pip_command(*, index_url: str = DEFAULT_CUDA_INDEX) -> str:
@@ -19,46 +20,55 @@ def cuda_torch_install_instructions(*, index_url: str = DEFAULT_CUDA_INDEX) -> s
     legacy = TORCH_CUDA_INDEX_CU126
     return (
         "Install a CUDA-enabled PyTorch wheel before GPU training:\n"
+        f"  {INSTALL_CUDA_TORCH_SCRIPT}\n"
+        "Or install manually:\n"
         f"  {cuda_torch_pip_command(index_url=index_url)}\n"
         f"  python3 -m pip install -e .\n"
         "If that wheel does not match your driver, try the legacy CUDA 12.6 build:\n"
         f"  {cuda_torch_pip_command(index_url=legacy)}\n"
         "Verify with:\n"
-        '  python3 -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.version.cuda)"'
+        "  python3 scripts/install_cuda_torch.py --check-only"
     )
 
 
 def torch_cuda_ready_report() -> dict[str, object]:
-    """Small JSON-friendly summary of the active torch/CUDA install."""
-    try:
-        import torch
-    except Exception as exc:
-        return {
-            "torch_installed": False,
-            "torch_import_error": repr(exc),
-            "cuda_available": False,
-            "install_hint": cuda_torch_pip_command(),
-        }
+    """Canonical JSON-friendly summary of the active torch/CUDA install."""
+    from adaptive_quant.hardware import nvidia_smi_visible
+    from adaptive_quant.torch_policy import torch_cuda_diagnostics
 
-    cuda_available = bool(torch.cuda.is_available())
-    cuda_version = getattr(torch.version, "cuda", None)
-    report: dict[str, object] = {
-        "torch_installed": True,
-        "torch_version": torch.__version__,
-        "cuda_version": cuda_version,
-        "cuda_available": cuda_available,
-    }
-    if cuda_available:
-        index = torch.cuda.current_device()
-        report["device_name"] = str(torch.cuda.get_device_name(index))
-        props = torch.cuda.get_device_properties(index)
-        report["device_capability"] = f"{props.major}.{props.minor}"
-        if hasattr(torch.cuda, "get_arch_list"):
-            try:
-                report["arch_list"] = list(torch.cuda.get_arch_list())
-            except Exception:
-                report["arch_list"] = []
-    elif cuda_version is None:
-        report["likely_cpu_only_wheel"] = True
-        report["install_hint"] = cuda_torch_pip_command()
+    report: dict[str, object] = dict(torch_cuda_diagnostics("cuda"))
+    smi_visible = nvidia_smi_visible()
+    report["nvidia_smi_visible"] = smi_visible
+
+    if not report.get("torch_installed", False):
+        report.setdefault("install_hint", INSTALL_CUDA_TORCH_SCRIPT)
+        return report
+
+    cuda_version = report.get("cuda_version")
+    if not report.get("cuda_available"):
+        if cuda_version is None:
+            report["likely_cpu_only_wheel"] = True
+        report.setdefault("install_hint", INSTALL_CUDA_TORCH_SCRIPT)
+        if report.get("likely_cpu_only_wheel") and smi_visible:
+            report["driver_gpu_detected"] = True
+        return report
+
+    arch_list = report.get("torch_cuda_arch_list")
+    if arch_list:
+        report["arch_list"] = arch_list
     return report
+
+
+def validate_cuda_after_install(requested_device: str = "cuda") -> None:
+    """Raise when CUDA is unavailable or the active wheel cannot run the visible GPU."""
+    report = torch_cuda_ready_report()
+    if not report.get("cuda_available"):
+        hint = report.get("install_hint") or INSTALL_CUDA_TORCH_SCRIPT
+        smi = " nvidia-smi sees a GPU but" if report.get("driver_gpu_detected") else ""
+        raise RuntimeError(
+            f"CUDA is not available after installing torch.{smi} "
+            f"Confirm the driver with `nvidia-smi`, then retry:\n  {hint}"
+        )
+    from adaptive_quant.torch_policy import validate_cuda_runtime_compatibility
+
+    validate_cuda_runtime_compatibility(requested_device)

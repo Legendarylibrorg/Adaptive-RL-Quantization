@@ -26,12 +26,14 @@ Artifacts and API: [USAGE.md](USAGE.md).
 | … with your own file | `adaptive-rl-quant --config path.json` or `-c path.toml` |
 | MoE preset | `adaptive-rl-quant-moe` |
 | MoE + file | `adaptive-rl-quant-moe --config moe.json` |
+| NVIDIA GPU setup (Linux) | `python3 scripts/install_cuda_torch.py` or `make install-torch-cuda` |
 | NVIDIA GPU (auto profile) | `adaptive-rl-quant-pytorch --preset gpu` |
 | GPU + file (**replaces** `--preset`) | `adaptive-rl-quant-pytorch --config cuda_run.toml` |
 | RTX 3090 preset | `adaptive-rl-quant-pytorch --preset 3090` or `make 3090` |
 | RTX 4090 preset | `adaptive-rl-quant-pytorch --preset 4090` |
 | Linux 4090 checks + run | `bash scripts/run_4090_pipeline.sh` |
 | 4090 host, universal-policy naming | `adaptive-rl-quant-pytorch --preset 4090-universal` |
+| Long routed RL post-training | `adaptive-rl-quant-pytorch --preset post-train` or `make post-train` |
 | Multi-seed (`dense` or `moe`) | `adaptive-rl-quant-multiseed --preset dense --seeds 13,17,23,29,31` |
 | Hyperparameter sweep | `adaptive-rl-quant-sweep --sweep-config config.sweep.example.json` |
 | Hyperparameter sweep (CLI grid) | `adaptive-rl-quant-sweep --config config.e2e_smoke.json --vary learning_rate=0.02,0.035` |

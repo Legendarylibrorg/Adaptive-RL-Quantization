@@ -13,12 +13,14 @@ _SRC = _REPO_ROOT / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
+from adaptive_quant.hardware import nvidia_smi_visible  # noqa: E402
 from adaptive_quant.torch_install import (  # noqa: E402
     DEFAULT_CUDA_INDEX,
     TORCH_CUDA_INDEX_CU126,
     TORCH_CUDA_INDEX_CU130,
     cuda_torch_pip_command,
     torch_cuda_ready_report,
+    validate_cuda_after_install,
 )
 
 
@@ -45,6 +47,16 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Print the active torch/CUDA report and exit without installing",
     )
+    parser.add_argument(
+        "--force-reinstall",
+        action="store_true",
+        help="Pass --force-reinstall to pip when upgrading torch",
+    )
+    parser.add_argument(
+        "--skip-nvidia-smi-check",
+        action="store_true",
+        help="Skip the pre-install nvidia-smi visibility check",
+    )
     return parser
 
 
@@ -58,12 +70,31 @@ def main(argv: list[str] | None = None) -> int:
         report = torch_cuda_ready_report()
         for key, value in report.items():
             print(f"{key}: {value}")
+        if report.get("cuda_available") and report.get("cuda_arch_supported") is False:
+            return 1
         return 0 if report.get("cuda_available") else 1
 
+    if not args.skip_nvidia_smi_check and not nvidia_smi_visible():
+        print(
+            "Warning: nvidia-smi did not list a GPU. Install will continue, but CUDA training "
+            "requires a working NVIDIA driver on Linux.",
+            file=sys.stderr,
+        )
+
     index_url = _index_for(args.cuda)
-    commands = [
-        [sys.executable, "-m", "pip", "install", "--upgrade", "torch", "--index-url", index_url],
+    pip_cmd = [
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        "--upgrade",
+        "torch",
+        "--index-url",
+        index_url,
     ]
+    if args.force_reinstall:
+        pip_cmd.insert(4, "--force-reinstall")
+    commands = [pip_cmd]
     if not args.skip_editable_install:
         commands.append([sys.executable, "-m", "pip", "install", "-e", str(_REPO_ROOT)])
 
@@ -75,10 +106,12 @@ def main(argv: list[str] | None = None) -> int:
 
     report = torch_cuda_ready_report()
     print("Post-install:", report)
-    if not report.get("cuda_available"):
+    try:
+        validate_cuda_after_install("cuda")
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
         print(
-            "CUDA is still not available. Confirm nvidia-smi works, then retry with "
-            f"--cuda cu126 if your driver is older. Default index is {DEFAULT_CUDA_INDEX}.",
+            f"If your driver is older, retry with --cuda cu126. Default index is {DEFAULT_CUDA_INDEX}.",
             file=sys.stderr,
         )
         return 1

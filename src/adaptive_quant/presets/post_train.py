@@ -28,7 +28,8 @@ CONFIG_POST_TRAIN = CONFIG_GPU.clone(
         "hf:openai-community/gpt2@q2",
     ),
     router_exploration=0.12,
-    replay_buffer_capacity=100_000,
+    # Large replay for 24 GB+ cards; smaller GPU profiles cap this via apply_gpu_profile.
+    replay_buffer_capacity=65_536,
     replay_buffer_on_gpu=True,
     log_every_n_episodes=32,
     jsonl_buffered=True,

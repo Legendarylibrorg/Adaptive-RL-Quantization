@@ -5,10 +5,14 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from adaptive_quant.hardware import nvidia_smi_visible
 from adaptive_quant.torch_install import (
     DEFAULT_CUDA_INDEX,
+    INSTALL_CUDA_TORCH_SCRIPT,
     TORCH_CUDA_INDEX_CU126,
+    cuda_torch_install_instructions,
     cuda_torch_pip_command,
+    torch_cuda_ready_report,
 )
 from adaptive_quant.torch_policy import _cuda_arch_supported, resolve_training_device
 from adaptive_quant.torch_trainer import (
@@ -53,6 +57,18 @@ class TorchTrainerHelperTests(unittest.TestCase):
         cmd = cuda_torch_pip_command(index_url=TORCH_CUDA_INDEX_CU126)
         self.assertIn("cu126", cmd)
 
+    def test_nvidia_smi_visible_returns_bool(self) -> None:
+        self.assertIsInstance(nvidia_smi_visible(), bool)
+
+    def test_torch_cuda_ready_report_includes_smi_field(self) -> None:
+        report = torch_cuda_ready_report()
+        self.assertIn("nvidia_smi_visible", report)
+
+    def test_cuda_install_instructions_reference_install_script(self) -> None:
+        instructions = cuda_torch_install_instructions()
+        self.assertIn(INSTALL_CUDA_TORCH_SCRIPT, instructions)
+        self.assertIn("cu130", cuda_torch_pip_command())
+
 
 @unittest.skipUnless(importlib.util.find_spec("torch") is not None, "PyTorch not installed")
 class ResolveTrainingDeviceTests(unittest.TestCase):
@@ -64,7 +80,7 @@ class ResolveTrainingDeviceTests(unittest.TestCase):
                 resolve_training_device("cuda", require_cuda=True)
         message = str(ctx.exception)
         self.assertIn("CUDA is not available", message)
-        self.assertIn("cu130", message)
+        self.assertIn("install_cuda_torch", message)
 
     def test_require_cuda_false_falls_back_to_cpu_with_note(self) -> None:
         import torch

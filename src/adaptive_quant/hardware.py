@@ -22,6 +22,11 @@ class CudaDeviceInfo:
     device_index: int = 0
 
 
+def nvidia_smi_visible() -> bool:
+    """Return True when ``nvidia-smi`` reports at least one GPU."""
+    return _detect_accelerator_from_nvidia_smi() is not None
+
+
 def detect_cuda_device(*, prefer_torch: bool = True) -> CudaDeviceInfo | None:
     """Return the current CUDA device, probing PyTorch first then ``nvidia-smi``."""
     if prefer_torch:

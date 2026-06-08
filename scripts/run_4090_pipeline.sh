@@ -17,32 +17,35 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path.cwd() / "src"))
 
-try:
-    import torch
-except Exception as exc:
+from adaptive_quant.torch_install import INSTALL_CUDA_TORCH_SCRIPT, torch_cuda_ready_report, validate_cuda_after_install
+
+report = torch_cuda_ready_report()
+if not report.get("torch_installed", False):
     raise SystemExit(
-        "PyTorch is not installed. Install a CUDA-enabled PyTorch build on the 4090 host before running this script."
-    ) from exc
+        "PyTorch is not installed. On Linux + NVIDIA run:\n"
+        f"  {INSTALL_CUDA_TORCH_SCRIPT}\n"
+        "then retry this script."
+    )
 
-if not torch.cuda.is_available():
-    raise SystemExit("CUDA is not available. This script is intended for a GPU host.")
+if not report.get("cuda_available"):
+    raise SystemExit(
+        "CUDA is not available. Confirm `nvidia-smi` works, then install a CUDA torch wheel:\n"
+        f"  {INSTALL_CUDA_TORCH_SCRIPT}"
+    )
 
-device_index = torch.cuda.current_device()
-device_name = torch.cuda.get_device_name(device_index)
-total_memory_gb = round(torch.cuda.get_device_properties(device_index).total_memory / (1024 ** 3), 2)
-
-print(f"CUDA device: {device_name}")
-print(f"Device memory (GB): {total_memory_gb}")
+print(f"CUDA device: {report.get('device_name', 'unknown')}")
+print(f"Device capability: {report.get('device_capability', 'unknown')}")
+arch_list = report.get("torch_cuda_arch_list") or report.get("arch_list") or []
+print(f"Torch CUDA arch list: {', '.join(arch_list) or 'unknown'}")
+device_name = str(report.get("device_name", ""))
 if "4090" not in device_name.lower():
-    print("Warning: active CUDA device does not look like an RTX 4090. The pipeline will still run with the fixed 4090 preset.")
+    print(
+        "Warning: active CUDA device does not look like an RTX 4090. "
+        "The pipeline will still run with the fixed 4090 preset."
+    )
 
-from adaptive_quant.torch_policy import torch_cuda_diagnostics, validate_cuda_runtime_compatibility
-
-diagnostics = torch_cuda_diagnostics("cuda")
-print(f"Device capability: {diagnostics.get('device_capability', 'unknown')}")
-print(f"Torch CUDA arch list: {', '.join(diagnostics.get('torch_cuda_arch_list') or ['unknown'])}")
 try:
-    validate_cuda_runtime_compatibility("cuda")
+    validate_cuda_after_install("cuda")
 except RuntimeError as exc:
     raise SystemExit(str(exc)) from exc
 PY

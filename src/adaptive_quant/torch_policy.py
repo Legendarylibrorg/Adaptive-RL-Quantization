@@ -78,11 +78,11 @@ def torch_cuda_diagnostics(requested_device: str = "cuda") -> dict[str, Any]:
             f"Expected an RTX 4090-class compute capability of sm_89, got {arch}."
         )
     if arch_list and not report["cuda_arch_supported"]:
-        from adaptive_quant.torch_install import cuda_torch_pip_command
+        from adaptive_quant.torch_install import INSTALL_CUDA_TORCH_SCRIPT
 
         report["install_hint"] = (
-            "Install a CUDA-enabled PyTorch wheel that includes this GPU architecture, "
-            f"for example: {cuda_torch_pip_command()}"
+            "Install a CUDA-enabled PyTorch wheel that includes this GPU architecture: "
+            f"{INSTALL_CUDA_TORCH_SCRIPT}"
         )
     return report
 

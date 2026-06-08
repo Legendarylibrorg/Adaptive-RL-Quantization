@@ -57,6 +57,7 @@ GPU_PROFILES: dict[str, GpuProfile] = {
             "torch_update_epochs": 4,
             "torch_preflight_batch_size": 4096,
             "torch_preflight_min_free_memory_gb": 7.0,
+            "replay_buffer_capacity": 48_000,
         },
     ),
     "rtx4070": GpuProfile(
@@ -72,6 +73,7 @@ GPU_PROFILES: dict[str, GpuProfile] = {
             "torch_preflight_min_free_memory_gb": 5.0,
             "benchmark_training_episodes": 768,
             "benchmark_evaluation_episodes": 96,
+            "replay_buffer_capacity": 32_768,
         },
     ),
     "consumer_8gb": GpuProfile(
@@ -87,6 +89,7 @@ GPU_PROFILES: dict[str, GpuProfile] = {
             "torch_preflight_min_free_memory_gb": 3.5,
             "benchmark_training_episodes": 512,
             "benchmark_evaluation_episodes": 64,
+            "replay_buffer_capacity": 20_000,
         },
     ),
     "l4": GpuProfile(

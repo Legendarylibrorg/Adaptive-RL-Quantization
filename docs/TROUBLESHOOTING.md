@@ -51,7 +51,7 @@ Fix:
 
 ```bash
 python3 scripts/install_cuda_torch.py
-python3 -c "import torch; print(torch.__version__); print(torch.cuda.is_available())"
+python3 scripts/install_cuda_torch.py --check-only
 adaptive-rl-quant-pytorch --preset gpu
 ```
 
@@ -70,11 +70,9 @@ wheel. **PyTorch 2.12 removed `cu128` wheels** — use `cu130` (default) or
 `cu126` (legacy drivers):
 
 ```bash
-python3 scripts/install_cuda_torch.py
-# or explicitly:
-python3 -m pip install --upgrade torch --index-url https://download.pytorch.org/whl/cu130
-python3 -m pip install -e .
-python3 -c "import torch; print(torch.__version__); print(torch.cuda.get_device_capability(0)); print(torch.cuda.get_arch_list())"
+python3 scripts/install_cuda_torch.py --force-reinstall
+python3 scripts/install_cuda_torch.py --check-only
+# Manual fallback only: see docs/INSTALL.md (cu130 / cu126 index URLs).
 ```
 
 Expected: `torch.cuda.is_available()` is `True`, the device capability is

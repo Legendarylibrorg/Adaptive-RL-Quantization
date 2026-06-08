@@ -156,7 +156,7 @@ def load_config(path: str | Path, *, strict: bool = True) -> FrameworkConfig:
     Load ``.json`` or ``.toml`` into FrameworkConfig.
 
     Optional top-level string key ``preset`` selects a base profile
-    (``default``, ``reproducible``, ``pytorch``, ``minimal``); remaining keys override it.
+    (``default``, ``reproducible``, ``pytorch``, ``post_train``, ``minimal``); remaining keys override it.
     File-backed config loading is strict by default so typos fail fast.
     """
     raw_path = Path(path)
