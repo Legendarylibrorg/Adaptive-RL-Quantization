@@ -67,6 +67,9 @@ def _index_for(cuda: str) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
+    from adaptive_quant.nvidia_secure_boundary import enforce_nvidia_secure_boundary
+
+    enforce_nvidia_secure_boundary(context="cuda-torch-install")
     if args.check_only:
         report = torch_cuda_ready_report()
         for key, value in report.items():

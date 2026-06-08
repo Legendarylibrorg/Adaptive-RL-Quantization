@@ -13,6 +13,8 @@ RUN_TESTS="${RUN_TESTS:-0}"
 
 cd "${ROOT_DIR}"
 
+"${PYTHON_BIN}" "${ROOT_DIR}/scripts/nvidia_secure_startup.py" --context "4090-pipeline"
+
 "${PYTHON_BIN}" - <<'PY'
 import sys
 from pathlib import Path
