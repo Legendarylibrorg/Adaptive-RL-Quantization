@@ -77,10 +77,12 @@ def torch_cuda_diagnostics(requested_device: str = "cuda") -> dict[str, Any]:
         report["cuda_device_warning"] = (
             f"Expected an RTX 4090-class compute capability of sm_89, got {arch}."
         )
-    if "4090" in str(props.name).lower() and arch_list and not report["cuda_arch_supported"]:
+    if arch_list and not report["cuda_arch_supported"]:
+        from adaptive_quant.torch_install import cuda_torch_pip_command
+
         report["install_hint"] = (
-            "Install a CUDA-enabled PyTorch wheel from the official PyTorch selector "
-            "for this driver, for example a cu12x wheel on current NVIDIA drivers."
+            "Install a CUDA-enabled PyTorch wheel that includes this GPU architecture, "
+            f"for example: {cuda_torch_pip_command()}"
         )
     return report
 
@@ -100,10 +102,13 @@ def validate_cuda_runtime_compatibility(requested_device: str = "cuda") -> None:
         raise RuntimeError(f"{diagnostics['cuda_arch_warning']} {hint}")
 
 
-def resolve_training_device(requested: str) -> tuple["torch.device", str | None]:
+def resolve_training_device(
+    requested: str, *, require_cuda: bool = False
+) -> tuple["torch.device", str | None]:
     """
     Map config.torch_device to a device that exists on this machine.
-    Falls back to CPU when CUDA/MPS was requested but is not available.
+    Falls back to CPU when CUDA/MPS was requested but is not available,
+    unless ``require_cuda`` is set (GPU presets default to True).
     """
     if torch is None:
         raise RuntimeError("resolve_training_device requires torch")
@@ -123,6 +128,13 @@ def resolve_training_device(requested: str) -> tuple["torch.device", str | None]
                     f" nvidia-smi sees {smi_cuda.name} ({smi_cuda.total_memory_gb:.2f} GB), "
                     "so the active PyTorch install is probably CPU-only or linked to an "
                     "incompatible CUDA runtime."
+                )
+            if require_cuda:
+                from adaptive_quant.torch_install import cuda_torch_install_instructions
+
+                raise RuntimeError(
+                    f"torch_device={requested!r} but CUDA is not available.{extra}\n\n"
+                    f"{cuda_torch_install_instructions()}"
                 )
             return torch.device(
                 "cpu"
@@ -264,7 +276,10 @@ class TorchPolicyAdapter:
         configure_global_torch_reproducibility(config)
         self.supported_modes = config.supported_modes()
         self.mode_to_index = {mode: index for index, mode in enumerate(self.supported_modes)}
-        self.device, device_note = resolve_training_device(config.torch_device)
+        self.device, device_note = resolve_training_device(
+            config.torch_device,
+            require_cuda=config.torch_require_cuda,
+        )
         if device_note:
             warnings.warn(device_note, UserWarning, stacklevel=2)
         self.compute_dtype = _resolve_autocast_dtype(config.torch_dtype)

@@ -46,6 +46,7 @@ class LlamaCppSettings:
 @dataclass
 class TorchSettings:
     device: str = "cuda"
+    require_cuda: bool = False
     gpu_profile: str = "auto"
     dtype: str = "bfloat16"
     compile: bool = True

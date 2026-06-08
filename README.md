@@ -63,7 +63,7 @@ flowchart LR
 | --- | --- |
 | **Simulator (default)** | **Python ≥ 3.11**, `pip install -e .` — no PyPI runtime deps, no CUDA |
 | **llama.cpp grounded** | Same + built **llama.cpp** binary and GGUF path in config (`backend="llama_cpp"`) |
-| **PyTorch / CUDA** | Same repo + **CUDA-enabled PyTorch** on **Linux + NVIDIA** (`pip install -e ".[torch]"`, `adaptive-rl-quant-pytorch`) |
+| **PyTorch / CUDA** | Same repo + **CUDA-enabled PyTorch** on **Linux + NVIDIA** (`python3 scripts/install_cuda_torch.py`, `adaptive-rl-quant-pytorch`) |
 
 **Installed entrypoints (thin `run_*.py` shims at repo root match these):** `adaptive-rl-quant` (default simulator), `adaptive-rl-quant-moe`, `adaptive-rl-quant-pytorch`, `adaptive-rl-quant-online`, `adaptive-rl-quant-multiseed`, `adaptive-rl-quant-sweep`, `adaptive-rl-quant-calibrate`, `adaptive-rl-quant-route`, `adaptive-rl-quant-replay`, `adaptive-rl-quant-analyze`.
 
@@ -122,7 +122,7 @@ More: [docs/INSTALL.md](docs/INSTALL.md) · [docs/RUNNING.md](docs/RUNNING.md) �
 
 ### Install and dev (quick reference)
 
-**Install (after activating a venv):** `python3 -m pip install -e .`. GPU training: `python3 -m pip install -e ".[torch]"` or install a matching [torch](https://pytorch.org/get-started/locally/) wheel first, then `python3 -m pip install -e .`. Route downloads: `python3 -m pip install -e ".[hub]"`. HF embedding router: `python3 -m pip install -e ".[torch,router]"`. On Windows, substitute `py -3.11 -m pip` or `python -m pip`.
+**Install (after activating a venv):** `python3 -m pip install -e .`. GPU training: `python3 scripts/install_cuda_torch.py` (installs a CUDA `torch` wheel, then the package) or pick a [PyTorch 2.12+](https://pytorch.org/get-started/locally/) `cu130`/`cu126` wheel manually, then `python3 -m pip install -e .`. Route downloads: `python3 -m pip install -e ".[hub]"`. HF embedding router: install CUDA torch first, then `python3 -m pip install -e ".[router]"`. On Windows, substitute `py -3.11 -m pip` or `python -m pip`.
 
 **Daily dev (optional):** `python3 -m pip install -e ".[dev]"` then `make help` on Linux/macOS, or `python3 scripts/pre_commit_check.py` on Unix-like hosts (`py -3.11` / `python` on Windows). See [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -134,10 +134,10 @@ Learning loop, backends, and commands: [How it learns](#how-it-learns) · [Techn
 
 ## GPU and platform notes
 
-**CUDA (Linux + NVIDIA):** after `./setup.sh`, install PyTorch for your driver, then:
+**CUDA (Linux + NVIDIA):** after `./setup.sh`, install a CUDA-enabled PyTorch wheel, then:
 
 ```bash
-.venv/bin/python -m pip install -e ".[torch]"
+.venv/bin/python scripts/install_cuda_torch.py
 .venv/bin/adaptive-rl-quant-pytorch --preset gpu
 ```
 

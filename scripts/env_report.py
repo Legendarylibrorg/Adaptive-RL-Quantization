@@ -120,17 +120,32 @@ def main() -> int:
 
     print("== PyTorch (optional) ==")
     try:
-        import torch
+        _ensure_src_on_path()
+        from adaptive_quant.torch_install import cuda_torch_pip_command, torch_cuda_ready_report
 
-        print(f"  torch:       {torch.__version__}")
-        cuda = torch.cuda.is_available()
-        print(f"  cuda:        {cuda}")
-        if cuda:
-            print(f"  device[0]:   {torch.cuda.get_device_name(0)}")
+        report = torch_cuda_ready_report()
+        if not report.get("torch_installed", False):
+            print(f"  torch:       not installed ({report.get('torch_import_error')})")
+            print(f"  install:     {cuda_torch_pip_command()}")
+        else:
+            print(f"  torch:       {report.get('torch_version')}")
+            cuda = bool(report.get("cuda_available"))
+            print(f"  cuda:        {cuda}")
+            if report.get("cuda_version") is not None:
+                print(f"  cuda_ver:    {report.get('cuda_version')}")
+            if cuda:
+                print(f"  device[0]:   {report.get('device_name')}")
+                if report.get("arch_list"):
+                    print(f"  arch_list:   {', '.join(report['arch_list'])}")
+            elif report.get("likely_cpu_only_wheel"):
+                print(
+                    '  warning:     CPU-only torch wheel (pip install -e ".[torch]" is not enough)'
+                )
+                print(f"  install:     {cuda_torch_pip_command()}")
+                print("  helper:      python3 scripts/install_cuda_torch.py")
     except ImportError:
-        print(
-            '  torch:       not installed → pip install -e ".[torch]" (CUDA wheel from pytorch.org)'
-        )
+        print("  torch:       not installed")
+        print("  install:     python3 scripts/install_cuda_torch.py")
 
     print("== Ruff (optional) ==")
     try:
@@ -170,7 +185,7 @@ def main() -> int:
         print("  WSL2:       keep the repo under ~/... not /mnt/...")
     if import_ok and (repo / ".venv").is_dir():
         print("  Makefile:   make run   (uses .venv when present)")
-    print('  CUDA:       .venv/bin/python -m pip install -e ".[torch]" && make pytorch')
+    print("  CUDA:       python3 scripts/install_cuda_torch.py && make pytorch")
     return 0 if import_ok else 1
 
 

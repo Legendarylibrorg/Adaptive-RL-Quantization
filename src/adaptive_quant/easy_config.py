@@ -38,7 +38,11 @@ def named_preset(name: str) -> FrameworkConfig:
     if key in ("repro", "reproducible", "reproducible_research"):
         return FrameworkConfig.reproducible_research()
     if key in ("gpu", "pytorch", "torch"):
-        return FrameworkConfig(training_backend="pytorch", torch_gpu_profile="auto")
+        return FrameworkConfig(
+            training_backend="pytorch",
+            torch_gpu_profile="auto",
+            torch_require_cuda=True,
+        )
     if key in ("minimal", "fast"):
         return FrameworkConfig(
             training_episodes=256,

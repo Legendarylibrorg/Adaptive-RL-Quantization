@@ -41,15 +41,16 @@ Normal. [`src/config.py`](../src/config.py) uses `training_backend="python"` (st
 
 ## `adaptive-rl-quant-pytorch` says PyTorch is required
 
-This means CUDA-enabled PyTorch is not installed in the active environment.
+This means PyTorch is not installed in the active environment.
 
 Fix:
 
 1. activate the right virtual environment
-2. install the correct CUDA-enabled PyTorch build for that machine
+2. install PyTorch (CUDA wheel on GPU hosts — `pip install -e ".[torch]"` alone is often CPU-only)
 3. rerun:
 
 ```bash
+python3 scripts/install_cuda_torch.py
 python3 -c "import torch; print(torch.__version__); print(torch.cuda.is_available())"
 adaptive-rl-quant-pytorch --preset gpu
 ```
@@ -64,16 +65,32 @@ adaptive-rl-quant-pytorch --preset 4090
 
 An RTX 4090 needs PyTorch CUDA kernels for compute capability `sm_89`. If the
 preflight or `scripts/run_4090_pipeline.sh` says the active wheel does not
-support `sm_89`, replace the active Torch install with a CUDA-enabled wheel from
-the official PyTorch selector. For current CUDA 12.8-capable drivers:
+support `sm_89`, replace the active Torch install with a current CUDA-enabled
+wheel. **PyTorch 2.12 removed `cu128` wheels** — use `cu130` (default) or
+`cu126` (legacy drivers):
 
 ```bash
-python3 -m pip install --upgrade torch --index-url https://download.pytorch.org/whl/cu128
+python3 scripts/install_cuda_torch.py
+# or explicitly:
+python3 -m pip install --upgrade torch --index-url https://download.pytorch.org/whl/cu130
+python3 -m pip install -e .
 python3 -c "import torch; print(torch.__version__); print(torch.cuda.get_device_capability(0)); print(torch.cuda.get_arch_list())"
 ```
 
 Expected: `torch.cuda.is_available()` is `True`, the device capability is
 `(8, 9)`, and the architecture list includes `sm_89` or `compute_89`.
+
+## GPU preset exits: CUDA is not available
+
+GPU presets set `torch_require_cuda=true` and **fail fast** instead of silently
+training on CPU. Typical causes:
+
+- CPU-only `torch` wheel (`pip install -e ".[torch]"` without a CUDA index)
+- `nvidia-smi` works but PyTorch was built without CUDA
+- WSL2 GPU passthrough not configured
+
+Fix with `python3 scripts/install_cuda_torch.py`, or set
+`torch_require_cuda=false` only for deliberate CPU smoke tests.
 
 ## CUDA is available but the preflight warns about low free memory
 

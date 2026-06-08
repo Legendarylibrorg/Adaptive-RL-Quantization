@@ -40,7 +40,7 @@ python3 -m unittest discover -s tests -t . -q
 
 **Without** `pip install -e .`, run tests with `python3 -m unittest discover -s tests -t . -q` from the repo root — [`tests/__init__.py`](tests/__init__.py) bootstraps `src/` on `sys.path`. Source-checkout runners (`run_*.py`) and `python -m analysis` use the same path setup via [`src/bootstrap.py`](src/bootstrap.py). CI always uses the editable install above.
 
-Optional GPU work: `pip install -e ".[torch]"` or a CUDA-matched PyTorch wheel, then see [docs/INSTALL.md](docs/INSTALL.md).
+Optional GPU work: `python3 scripts/install_cuda_torch.py` (or a CUDA-matched PyTorch `cu130`/`cu126` wheel), then see [docs/INSTALL.md](docs/INSTALL.md).
 
 **Simulator-only changes** must pass **without** PyTorch. Do not add imports that force `torch` on the default test path unless guarded (existing patterns in the codebase).
 

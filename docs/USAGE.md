@@ -17,7 +17,7 @@ Install and system packages: [INSTALL.md](INSTALL.md). Command reference: [RUNNI
 
 Cross-platform shortcuts: `python3 scripts/setup_from_clone.py` and `python3 scripts/pre_commit_check.py` on Unix-like hosts; on Windows use `py -3.11` or `python`.
 
-**Dependencies:** Core package has **no required PyPI deps** ([`pyproject.toml`](../pyproject.toml)). PyTorch is optional (`pip install -e ".[torch]"` or a manual CUDA wheel) for GPU entrypoints and `training_backend="pytorch"`.
+**Dependencies:** Core package has **no required PyPI deps** ([`pyproject.toml`](../pyproject.toml)). PyTorch is optional for GPU entrypoints and `training_backend="pytorch"` — use `python3 scripts/install_cuda_torch.py` on Linux + NVIDIA (or a manual `cu130`/`cu126` wheel).
 
 ## Configuration without editing Python
 

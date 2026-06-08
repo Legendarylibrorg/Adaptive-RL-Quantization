@@ -3,7 +3,7 @@
 
 .PHONY: help
 .PHONY: setup setup-quick
-.PHONY: install install-dev install-torch
+.PHONY: install install-dev install-torch install-torch-cuda
 .PHONY: run reproduce smoke run-config moe multiseed multiseed-smoke sweep sweep-smoke
 .PHONY: pytorch 3090 4090 4090-universal
 .PHONY: online calibrate route-help
@@ -40,7 +40,8 @@ help:
 	@echo "  make setup-quick      venv + editable install only (no tests/smoke)"
 	@echo "  make install          pip install -e . (simulator path; assumes venv active)"
 	@echo "  make install-dev      + Ruff (lint/format)"
-	@echo "  make install-torch    + PyTorch extra (CUDA wheel still your job)"
+	@echo "  make install-torch        + CPU torch extra (not for NVIDIA training)"
+	@echo "  make install-torch-cuda   CUDA torch (cu130/cu126) + editable install"
 	@echo ""
 	@echo "[Experiments — simulator / stdlib trainer]"
 	@echo "  make run              full run: ./run or run_research.py (config.py)"
@@ -52,7 +53,7 @@ help:
 	@echo "  make sweep            SWEEP_CONFIG=config.sweep.example.json (override as needed)"
 	@echo "  make sweep-smoke      two learning rates, low episodes (quick sanity)"
 	@echo ""
-	@echo "[CUDA — install torch first: make install-torch]"
+	@echo "[CUDA — install torch first: make install-torch-cuda]"
 	@echo "  make pytorch          PYTORCH_PRESET=gpu (default) | 3090 | 4090 | 4090-universal"
 	@echo "  make 3090             same as pytorch with preset 3090 (RTX 3090)"
 	@echo "  make 4090             same as pytorch with preset 4090"
@@ -98,7 +99,12 @@ install-dev:
 	@echo "Tip: add torch with: pip install -e \".[dev,torch]\""
 
 install-torch:
+	@echo "Note: pip install -e \".[torch]\" installs CPU torch on many hosts."
+	@echo "For NVIDIA GPUs use: make install-torch-cuda"
 	$(PY) -m pip install -e ".[torch]"
+
+install-torch-cuda:
+	$(PY) scripts/install_cuda_torch.py
 
 # --- Experiments ---
 
