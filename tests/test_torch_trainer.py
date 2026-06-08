@@ -3,7 +3,6 @@ from __future__ import annotations
 import importlib.util
 import unittest
 from pathlib import Path
-
 from unittest import mock
 
 from adaptive_quant.torch_install import (
