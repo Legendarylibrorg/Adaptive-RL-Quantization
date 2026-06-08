@@ -10,9 +10,23 @@ DEFAULT_CUDA_INDEX = TORCH_CUDA_INDEX_CU130
 INSTALL_CUDA_TORCH_SCRIPT = "python3 scripts/install_cuda_torch.py"
 
 
+def cuda_torch_pip_argv(
+    *,
+    python: str,
+    index_url: str = DEFAULT_CUDA_INDEX,
+    force_reinstall: bool = False,
+) -> list[str]:
+    """Return argv for installing a CUDA-enabled torch wheel."""
+    cmd = [python, "-m", "pip", "install"]
+    if force_reinstall:
+        cmd.append("--force-reinstall")
+    cmd.extend(["--upgrade", "torch", "--index-url", index_url])
+    return cmd
+
+
 def cuda_torch_pip_command(*, index_url: str = DEFAULT_CUDA_INDEX) -> str:
     """Return a pip command that installs a CUDA-enabled torch wheel."""
-    return f"python3 -m pip install --upgrade torch --index-url {index_url}"
+    return " ".join(cuda_torch_pip_argv(python="python3", index_url=index_url))
 
 
 def cuda_torch_install_instructions(*, index_url: str = DEFAULT_CUDA_INDEX) -> str:
@@ -53,15 +67,17 @@ def torch_cuda_ready_report() -> dict[str, object]:
             report["driver_gpu_detected"] = True
         return report
 
-    arch_list = report.get("torch_cuda_arch_list")
-    if arch_list:
-        report["arch_list"] = arch_list
     return report
 
 
-def validate_cuda_after_install(requested_device: str = "cuda") -> None:
+def validate_cuda_after_install(
+    requested_device: str = "cuda",
+    *,
+    report: dict[str, object] | None = None,
+) -> None:
     """Raise when CUDA is unavailable or the active wheel cannot run the visible GPU."""
-    report = torch_cuda_ready_report()
+    active = report if report is not None else torch_cuda_ready_report()
+    report = active
     if not report.get("cuda_available"):
         hint = report.get("install_hint") or INSTALL_CUDA_TORCH_SCRIPT
         smi = " nvidia-smi sees a GPU but" if report.get("driver_gpu_detected") else ""

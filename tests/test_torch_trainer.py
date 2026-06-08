@@ -11,6 +11,7 @@ from adaptive_quant.torch_install import (
     INSTALL_CUDA_TORCH_SCRIPT,
     TORCH_CUDA_INDEX_CU126,
     cuda_torch_install_instructions,
+    cuda_torch_pip_argv,
     cuda_torch_pip_command,
     torch_cuda_ready_report,
 )
@@ -68,6 +69,14 @@ class TorchTrainerHelperTests(unittest.TestCase):
         instructions = cuda_torch_install_instructions()
         self.assertIn(INSTALL_CUDA_TORCH_SCRIPT, instructions)
         self.assertIn("cu130", cuda_torch_pip_command())
+
+    def test_cuda_torch_pip_argv_matches_command(self) -> None:
+        argv = cuda_torch_pip_argv(python="python3", index_url=DEFAULT_CUDA_INDEX)
+        self.assertEqual(argv[:4], ["python3", "-m", "pip", "install"])
+        self.assertIn("--index-url", argv)
+        self.assertIn(DEFAULT_CUDA_INDEX, argv)
+        forced = cuda_torch_pip_argv(python="python3", force_reinstall=True)
+        self.assertIn("--force-reinstall", forced)
 
 
 @unittest.skipUnless(importlib.util.find_spec("torch") is not None, "PyTorch not installed")

@@ -160,10 +160,11 @@ Artifacts land under **`outputs/`** (see [Outputs](#outputs) below).
 | `config.e2e_smoke.json` | **Short reproducible RL run** (train+eval+benchmarks+analysis) for CI and quick tuning |
 | `config.sweep.example.json` | Example **hyperparameter sweep** grid (`base_config` + `grid` + objective) |
 | `config.example.pytorch.toml` | Example **TOML** for `run_pytorch.py --config` (needs CUDA PyTorch) |
+| `config.example.post_train.json` | Example **JSON** for long routed RL post-training (`--preset post-train`) |
 | `run` (repo root) | One-command default run after setup (`./run`; uses venv CLI when present) |
 | `run_*.py` (repo root) | Thin shims (prepend `src/` to `sys.path`) matching the installed console commands |
 | `setup.sh`, `setup.bat` | **One-command bootstrap** from repo root (venv + install + tests + smoke) |
-| `Makefile` | **Research** targets: `make help` — `setup` / `run` / `reproduce` (`smoke`) / `multiseed` / `sweep` / `pytorch`; quality: `lint` / `format` / `check` (Ruff needs `pip install -e ".[dev]"`) |
+| `Makefile` | **Research** targets: `make help` — `setup` / `run` / `reproduce` / `multiseed` / `sweep` / `pytorch` / `post-train` / `install-torch-cuda`; quality: `lint` / `format` / `check` |
 | `scripts/` | Cross-platform **`setup_from_clone.py`**, **`pre_commit_check.py`**, **`secret_scan.py`**, **`run_4090_pipeline.sh`**, **`_resolve_venv_python.sh`** |
 | `requirements/ci.txt` + `security/dependency_hashes.json` | Pinned CI bootstrap dependencies plus the separate sha256 manifest used to render a `--require-hashes` install file |
 | `src/analysis/` | Post-hoc analyzers (`python -m analysis`) |
@@ -184,9 +185,9 @@ Artifacts land under **`outputs/`** (see [Outputs](#outputs) below).
 
 ## Configuration
 
-**1. Python presets** — Edit or copy `src/config.py` (exports `CONFIG`, `CONFIG_GPU`, `CONFIG_MOE`, …) or use `adaptive_quant.presets` in code. After `pip install -e .`, `from config import CONFIG` still works. This is the default when you do **not** pass `--config`.
+**1. Python presets** — Import from `adaptive_quant.presets` or `from config import CONFIG, CONFIG_GPU, CONFIG_POST_TRAIN, …` after `pip install -e .`. Preset definitions live in `src/adaptive_quant/presets/`; `src/config.py` re-exports them. This is the default when you do **not** pass `--config`.
 
-**2. JSON / TOML** — Copy **`config.example.json`**, or write a `.toml` file with the same keys. Optional top-level **`preset`**: `default`, `minimal`, `pytorch`, `reproducible`. A file passed with `--config` replaces the Python preset selected by the entrypoint; put `preset` inside the JSON/TOML when you want layering. Config paths and default artifact directories such as `outputs/` are resolved relative to the current working directory, so run these commands from the repository root or use absolute paths.
+**2. JSON / TOML** — Copy **`config.example.json`**, **`config.example.post_train.json`**, or write your own file. Optional top-level **`preset`**: `default`, `minimal`, `pytorch`/`gpu`, `post_train`, `reproducible`. A file passed with `--config` replaces the Python preset selected by the entrypoint. Config paths resolve relative to the current working directory — run from the repository root or use absolute paths.
 Load from the installed CLI:
 
 ```bash
@@ -214,6 +215,8 @@ Programmatically: `FrameworkConfig.from_file("path.json")`, `load_config()` from
 | NVIDIA GPU (auto VRAM profile) | `adaptive-rl-quant-pytorch --preset gpu` |
 | RTX 3090 preset | `adaptive-rl-quant-pytorch --preset 3090` (or `make 3090`) |
 | RTX 4090 preset | `adaptive-rl-quant-pytorch --preset 4090` |
+| 4090 universal policy | `adaptive-rl-quant-pytorch --preset 4090-universal` |
+| Long routed RL post-training | `adaptive-rl-quant-pytorch --preset post-train` (or `make post-train`) |
 | 4090 checks + unittest + run | `bash scripts/run_4090_pipeline.sh` |
 | Multi-seed aggregation | `adaptive-rl-quant-multiseed --preset dense --seeds 13,17,23` |
 | Hyperparameter sweep | `adaptive-rl-quant-sweep --sweep-config config.sweep.example.json` |

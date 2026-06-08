@@ -11,7 +11,8 @@ For a **single file** instead of editing Python presets:
    | --- | --- |
    | `default` (or omit `preset` when loading via API without a file base) | Plain `FrameworkConfig()` |
    | `minimal` | Short run: low `training_episodes`, `stability_probe_count=1`, no replay, preflight off |
-   | `pytorch` | `training_backend="pytorch"`, `torch_gpu_profile="auto"` |
+   | `pytorch` / `gpu` / `torch` | `training_backend="pytorch"`, `torch_gpu_profile="auto"`, `torch_require_cuda=true` |
+   | `post_train` / `posttrain` / `llm_post_train` | Long routed RL post-training (`CONFIG_POST_TRAIN`) |
    | `reproducible` | Same as `FrameworkConfig.reproducible_research()` (sequential env, deterministic train policy & probes, `torch_deterministic`, no compile) |
 
 3. Run from the **repo root** with the installed commands:
@@ -124,7 +125,7 @@ Continuous learning:
 
 GPU replay buffer (VRAM):
 
-- `replay_buffer_capacity`: number of experiences stored in the replay buffer (default: 50,000 via `OnlineSettings`; `CONFIG` baseline uses 20,000; GPU profiles cap this on 8–16 GB cards; PyTorch path only)
+- `replay_buffer_capacity`: PyTorch replay buffer size (default **20,000** for `CONFIG` / `CONFIG_GPU`; `OnlineSettings` schema default is 50,000 but presets override it). GPU profiles tune this on smaller cards (`consumer_8gb`→20k, `rtx4070`→32k, `rtx4080`→48k). `CONFIG_POST_TRAIN` uses 65,536.
 - `replay_buffer_on_gpu`: if true, replay buffer tensors live on CUDA VRAM (default: true)
 
 Safety and reward:

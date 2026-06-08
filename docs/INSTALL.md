@@ -269,15 +269,7 @@ Linux NVIDIA sanity checks:
 
 ```bash
 nvidia-smi
-python3 -c "import torch; print('torch', torch.__version__); print('cuda', torch.cuda.is_available())"
-```
-
-After installation, verify:
-
-```bash
-python3 -c "import torch; print('torch', torch.__version__)"
-python3 -c "import torch; print('cuda', torch.cuda.is_available())"
-python3 -c "import torch; print('device_count', torch.cuda.device_count())"
+python3 scripts/install_cuda_torch.py --check-only
 ```
 
 Optional deeper verification:
@@ -384,8 +376,7 @@ cd ~/src/Adaptive-RL-Quantization
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -e .
-nvidia-smi
-# Install the CUDA-enabled PyTorch wheel that matches the WSL2 environment, then:
+python3 scripts/install_cuda_torch.py
 adaptive-rl-quant-pytorch --preset gpu
 ```
 

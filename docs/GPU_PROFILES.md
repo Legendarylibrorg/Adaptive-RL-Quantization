@@ -8,6 +8,7 @@ Use the installed GPU command from the repo root:
 - `adaptive-rl-quant-pytorch --preset 3090` — fixed RTX 3090 profile (`config.CONFIG_3090`)
 - `adaptive-rl-quant-pytorch --preset 4090` — fixed RTX 4090 profile (`config.CONFIG_4090`)
 - `adaptive-rl-quant-pytorch --preset 4090-universal` — multi-hardware universal policy on a 4090-class host (`config.CONFIG_4090_UNIVERSAL`)
+- `adaptive-rl-quant-pytorch --preset post-train` — long routed RL post-training (`config.CONFIG_POST_TRAIN`; `make post-train`)
 
 Source-checkout equivalents remain `python3 run_pytorch.py --preset ...`.
 
@@ -41,6 +42,7 @@ Profiles tune:
 - `torch_update_epochs`
 - `torch_preflight_batch_size`
 - `torch_preflight_min_free_memory_gb`
+- `replay_buffer_capacity` (on `consumer_8gb`, `rtx4070`, and `rtx4080` only)
 
 The goal is to keep:
 

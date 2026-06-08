@@ -69,20 +69,19 @@ def torch_cuda_diagnostics(requested_device: str = "cuda") -> dict[str, Any]:
         }
     )
     if arch_list and not report["cuda_arch_supported"]:
+        from adaptive_quant.torch_install import INSTALL_CUDA_TORCH_SCRIPT
+
         report["cuda_arch_warning"] = (
             f"Active CUDA device {props.name!s} requires {arch} support, but this "
             f"PyTorch build reports architectures: {', '.join(arch_list)}."
         )
-    if "4090" in str(props.name).lower() and arch != "sm_89":
-        report["cuda_device_warning"] = (
-            f"Expected an RTX 4090-class compute capability of sm_89, got {arch}."
-        )
-    if arch_list and not report["cuda_arch_supported"]:
-        from adaptive_quant.torch_install import INSTALL_CUDA_TORCH_SCRIPT
-
         report["install_hint"] = (
             "Install a CUDA-enabled PyTorch wheel that includes this GPU architecture: "
             f"{INSTALL_CUDA_TORCH_SCRIPT}"
+        )
+    elif "4090" in str(props.name).lower() and arch != "sm_89":
+        report["cuda_device_warning"] = (
+            f"Expected an RTX 4090-class compute capability of sm_89, got {arch}."
         )
     return report
 
