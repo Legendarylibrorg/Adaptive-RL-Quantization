@@ -153,6 +153,7 @@ PyTorch and 4090:
 
 - `torch_device`
 - `torch_require_cuda` (default `false`; GPU presets set `true` to fail fast instead of silently falling back to CPU)
+- `prompt_library_path` (optional JSON prompt curriculum for long post-training runs)
 - `torch_gpu_profile`
 - `torch_dtype`
 - `torch_compile`
@@ -232,6 +233,13 @@ RTX 4090 training:
 - keep `training_backend="pytorch"`
 - keep `cache_prompt_features=True`
 - keep `torch_preflight=True`
+
+Long-horizon open-weight post-training (routed prompts + continuous RL):
+
+- use `from config import CONFIG_POST_TRAIN` (or `adaptive-rl-quant-pytorch --preset post-train`)
+- keep `continuous_training=True`, `env_sampling_mode="sequential"`, and `router_enabled=True`
+- set `prompt_library_path` (see `prompts/post_train_library.json`) and point `router_routes` / `llama_cpp_*` at your GGUF models
+- copy `config.example.post_train.json` for a llama.cpp-grounded starting point
 
 4090-host universal policy training:
 

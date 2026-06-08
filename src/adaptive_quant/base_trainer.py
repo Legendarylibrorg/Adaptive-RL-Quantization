@@ -5,13 +5,15 @@ from typing import Any
 
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.environment import AdaptiveQuantizationEnv
+from adaptive_quant.prompts import PromptLibrary
+from adaptive_quant.router_training import OfflineRouterTrainer, resolve_prompt_library
 from adaptive_quant.trainer_utils import (
     collect_episode_results,
     feedback_vector,
     summarize_episode_results,
     zero_previous_action,
 )
-from adaptive_quant.types import EpisodeResult, HardwareType
+from adaptive_quant.types import EpisodeResult, HardwareType, QuantizationDecision
 
 # Length of ``previous_action`` feedback vector emitted by ``feedback_vector``
 # (bits / scale / clip). Persisted in checkpoints; validated on resume.
@@ -47,9 +49,20 @@ def coerce_previous_action(value: Any) -> list[float]:
 
 
 class TrainerBase:
-    def __init__(self, config: FrameworkConfig, log_path: str | None = None) -> None:
+    def __init__(
+        self,
+        config: FrameworkConfig,
+        log_path: str | None = None,
+        *,
+        prompt_library: PromptLibrary | None = None,
+    ) -> None:
         self.config = config
-        self.env = AdaptiveQuantizationEnv(config, log_path=log_path)
+        library = resolve_prompt_library(config, prompt_library)
+        env_kwargs: dict[str, object] = {}
+        if library is not None:
+            env_kwargs["prompt_library"] = library
+        self.env = AdaptiveQuantizationEnv(config, log_path=log_path, **env_kwargs)
+        self.offline_router = OfflineRouterTrainer.maybe_create(config)
         self.previous_action = zero_previous_action()
         self.training_history: list[dict[str, float]] = []
         self._next_eval_episode = 1_000_000
@@ -71,16 +84,46 @@ class TrainerBase:
         hardware: HardwareType | None = None,
         phase: str = "train",
     ) -> list[EpisodeResult]:
+        router = self.offline_router if phase == "train" else None
+        pending_policy: dict[str, QuantizationDecision] = {}
+        episode_counter = {"n": 0}
+
+        def act(state):
+            decision = self._policy_act(state, deterministic=True)[0]
+            if router is not None:
+                pending_policy["decision"] = decision
+            return decision
+
+        def prepare_decision(decision, state):
+            if router is None:
+                return decision
+            return router.prepare_decision(pending_policy.get("decision", decision), state)
+
+        def on_episode(state, result):
+            if router is None:
+                return
+            episode_index = episode_offset + episode_counter["n"]
+            episode_counter["n"] += 1
+            router.complete_episode(
+                state=state,
+                policy_decision=pending_policy.get("decision", result.decision),
+                routed_result=result,
+                env=self.env,
+                episode_index=episode_index,
+            )
+
         return collect_episode_results(
             episodes,
             initial_previous_action=self.previous_action,
             reset=self.env.reset,
-            act=lambda state: self._policy_act(state, deterministic=True)[0],
+            act=act,
             evaluate_current=self.env.evaluate_current,
             feedback=self._feedback_vector,
             episode_offset=episode_offset,
             hardware=hardware,
             phase=phase,
+            prepare_decision=prepare_decision if router is not None else None,
+            on_episode=on_episode if router is not None else None,
         )
 
     def evaluate(

@@ -1,0 +1,124 @@
+{
+  "prompts": [
+    {
+      "prompt_id": "instruction_following",
+      "domain": "alignment",
+      "text": "Rewrite the following user request as a precise system prompt for a helpful coding assistant. Include safety boundaries and output format constraints."
+    },
+    {
+      "prompt_id": "code_review",
+      "domain": "code",
+      "text": "Review this Python async web service for race conditions, blocking I/O in event loops, and missing backpressure handling. Propose concrete fixes."
+    },
+    {
+      "prompt_id": "sql_analytics",
+      "domain": "code",
+      "text": "Generate a SQL query that computes weekly active users, retention by cohort, and p95 query latency grouped by region."
+    },
+    {
+      "prompt_id": "math_word_problem",
+      "domain": "reasoning",
+      "text": "A warehouse ships packages in batches of 17. If 2,431 packages must arrive within 6 days with at most 12% overtime cost, how should batches be scheduled?"
+    },
+    {
+      "prompt_id": "scientific_summary",
+      "domain": "science",
+      "text": "Summarize the tradeoffs between mixture-of-experts routing, speculative decoding, and KV-cache quantization for serving 7B-class open models on a single GPU."
+    },
+    {
+      "prompt_id": "legal_clause",
+      "domain": "legal",
+      "text": "Explain indemnification, limitation of liability, and data processing addendum clauses in plain language for a startup evaluating an OSS model API."
+    },
+    {
+      "prompt_id": "biomed_qa",
+      "domain": "biomed",
+      "text": "What are the main mechanisms behind CRISPR off-target effects, and which experimental controls reduce false positives in screening?"
+    },
+    {
+      "prompt_id": "translation_technical",
+      "domain": "translation",
+      "text": "Translate this paragraph to German while preserving terms like reinforcement learning, quantization, and mixture-of-experts."
+    },
+    {
+      "prompt_id": "creative_scene",
+      "domain": "creative",
+      "text": "Write a tense dialogue between two engineers debugging a quantized LLM that drifts after overnight fine-tuning."
+    },
+    {
+      "prompt_id": "tool_planning",
+      "domain": "systems",
+      "text": "Plan an evaluation harness for comparing Q4_K_M, Q5_K_M, and Q8_0 GGUF variants of the same open-weight model across latency, VRAM, and perplexity."
+    },
+    {
+      "prompt_id": "safety_refusal",
+      "domain": "alignment",
+      "text": "A user asks for instructions to bypass model safeguards. Provide a safe refusal, a brief explanation, and two legitimate alternatives."
+    },
+    {
+      "prompt_id": "long_context_summary",
+      "domain": "summarization",
+      "text": "Summarize a 40-page incident report about GPU OOM during batched inference. Highlight root cause, mitigations tried, and unresolved risks."
+    },
+    {
+      "prompt_id": "json_extraction",
+      "domain": "structured",
+      "text": "Extract model name, quantization method, context length, and benchmark scores from the following unstructured lab notes into valid JSON."
+    },
+    {
+      "prompt_id": "chat_multi_turn",
+      "domain": "dialogue",
+      "text": "Continue this support conversation: the user upgraded PyTorch, now CUDA is unavailable, and training falls back to CPU."
+    },
+    {
+      "prompt_id": "reasoning_chain",
+      "domain": "reasoning",
+      "text": "Solve step by step: if reward equals weighted latency, throughput, and perplexity terms, which knob most affects stability when batch size doubles?"
+    },
+    {
+      "prompt_id": "hardware_advice",
+      "domain": "systems",
+      "text": "Recommend quantization and batch settings for serving an 8B open model on a 12GB GPU with mixed short and long prompts."
+    },
+    {
+      "prompt_id": "data_cleaning",
+      "domain": "data",
+      "text": "Design rules to deduplicate instruction-tuning examples, strip PII, and flag toxic content before RL post-training."
+    },
+    {
+      "prompt_id": "evaluation_rubric",
+      "domain": "alignment",
+      "text": "Create a rubric for judging whether a post-trained model improved instruction following without increasing hallucination rate."
+    },
+    {
+      "prompt_id": "moe_routing",
+      "domain": "systems",
+      "text": "Describe how expert routing penalties should influence quantization decisions when only half the experts fit in VRAM."
+    },
+    {
+      "prompt_id": "low_resource_deploy",
+      "domain": "systems",
+      "text": "Propose a deployment plan for the same policy on GPU, CPU-only, and 4GB edge hardware with minimal accuracy loss."
+    },
+    {
+      "prompt_id": "history_analysis",
+      "domain": "history",
+      "text": "Compare how industrial electrification and the PC revolution each changed labor markets, citing two similarities and two differences."
+    },
+    {
+      "prompt_id": "finance_explainer",
+      "domain": "finance",
+      "text": "Explain how inference cost per token affects the unit economics of a hosted open-source LLM API."
+    },
+    {
+      "prompt_id": "agentic_workflow",
+      "domain": "agents",
+      "text": "Outline a multi-step agent workflow that calibrates simulator rewards against llama.cpp measurements before a long RL run."
+    },
+    {
+      "prompt_id": "very_long_systems",
+      "domain": "systems",
+      "text": "Design a fault-tolerant post-training pipeline for open-weight models with checkpoint resume, routed prompt curricula, and held-out hardware eval."
+    }
+  ]
+}

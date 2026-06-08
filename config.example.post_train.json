@@ -1,0 +1,20 @@
+{
+  "preset": "post_train",
+  "run_name": "oss_llm_post_train_rl",
+  "continuous_training": true,
+  "max_training_episodes": 50000,
+  "eval_interval": 2000,
+  "checkpoint_interval": 10000,
+  "prompt_library_path": "prompts/post_train_library.json",
+  "env_sampling_mode": "sequential",
+  "router_enabled": true,
+  "router_feature_backend": "hash",
+  "router_routes": [
+    "llama_cpp:/absolute/path/to/model-q4.gguf@q4",
+    "llama_cpp:/absolute/path/to/model-q8.gguf@q8"
+  ],
+  "backend": "llama_cpp",
+  "llama_cpp_binary": "/absolute/path/to/llama-cli",
+  "llama_cpp_model": "/absolute/path/to/model-q4.gguf",
+  "torch_preflight": true
+}

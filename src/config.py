@@ -13,6 +13,7 @@ from adaptive_quant.presets import (
     CONFIG_GPU,
     CONFIG_MOE,
     CONFIG_ONLINE,
+    CONFIG_POST_TRAIN,
     make_rtx_torch_preset,
 )
 
@@ -24,5 +25,6 @@ __all__ = [
     "CONFIG_GPU",
     "CONFIG_MOE",
     "CONFIG_ONLINE",
+    "CONFIG_POST_TRAIN",
     "make_rtx_torch_preset",
 ]

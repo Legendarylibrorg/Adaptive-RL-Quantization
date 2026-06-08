@@ -153,6 +153,7 @@ class TrainingSettings:
     jsonl_integrity_chain: bool = False
     replay_manifest_enabled: bool = False
     replay_verify_after_run: bool = True
+    prompt_library_path: str | None = None
 
 
 # Flat JSON/TOML keys → (section attribute on FrameworkConfig, field on section dataclass).

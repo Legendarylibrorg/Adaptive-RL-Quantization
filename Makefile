@@ -5,7 +5,7 @@
 .PHONY: setup setup-quick
 .PHONY: install install-dev install-torch install-torch-cuda
 .PHONY: run reproduce smoke run-config moe multiseed multiseed-smoke sweep sweep-smoke
-.PHONY: pytorch 3090 4090 4090-universal
+.PHONY: pytorch 3090 4090 4090-universal post-train
 .PHONY: online calibrate route-help
 .PHONY: test test-quiet lint format check secret-scan doctor
 .PHONY: docker-preflight docker-build docker-test docker-smoke docker-no-network-smoke
@@ -58,6 +58,7 @@ help:
 	@echo "  make 3090             same as pytorch with preset 3090 (RTX 3090)"
 	@echo "  make 4090             same as pytorch with preset 4090"
 	@echo "  make 4090-universal   multi-hardware 4090-host preset"
+	@echo "  make post-train       long routed RL post-training (CONFIG_POST_TRAIN)"
 	@echo ""
 	@echo "[Other runners]"
 	@echo "  make online           supported online adaptation pipeline"
@@ -155,6 +156,9 @@ pytorch:
 
 4090-universal:
 	$(PY) run_pytorch.py --preset 4090-universal
+
+post-train:
+	$(PY) run_pytorch.py --preset post-train
 
 # --- Other ---
 

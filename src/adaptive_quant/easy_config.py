@@ -43,6 +43,10 @@ def named_preset(name: str) -> FrameworkConfig:
             torch_gpu_profile="auto",
             torch_require_cuda=True,
         )
+    if key in ("post_train", "posttrain", "llm_post_train"):
+        from adaptive_quant.presets.post_train import CONFIG_POST_TRAIN
+
+        return CONFIG_POST_TRAIN.clone()
     if key in ("minimal", "fast"):
         return FrameworkConfig(
             training_episodes=256,
@@ -54,7 +58,7 @@ def named_preset(name: str) -> FrameworkConfig:
         )
     raise ValueError(
         f"Unknown config preset {name!r}. "
-        f"Use: default, reproducible, pytorch, minimal (or pass no preset)."
+        f"Use: default, reproducible, pytorch, post_train, minimal (or pass no preset)."
     )
 
 

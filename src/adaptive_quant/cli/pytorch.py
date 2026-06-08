@@ -14,6 +14,7 @@ from adaptive_quant.cli.common import (
 )
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.presets.gpu import CONFIG_GPU
+from adaptive_quant.presets.post_train import CONFIG_POST_TRAIN
 from adaptive_quant.presets.rtx3090 import CONFIG_3090
 from adaptive_quant.presets.rtx4090 import CONFIG_4090
 from adaptive_quant.presets.rtx4090_universal import CONFIG_4090_UNIVERSAL
@@ -41,6 +42,11 @@ def _preset_map() -> dict[str, _PytorchPreset]:
             show_training_host=True,
             show_target_hardware=True,
         ),
+        "post-train": _PytorchPreset(
+            CONFIG_POST_TRAIN,
+            CONFIG_POST_TRAIN.torch_gpu_profile,
+            show_training_host=True,
+        ),
     }
 
 
@@ -61,7 +67,8 @@ def main(argv: Iterable[str] | None = None) -> None:
         default="gpu",
         help=(
             "Used when --config is omitted: gpu=auto-detected VRAM profile; 3090/4090=fixed host presets; "
-            "4090-universal=multi-hardware policy on a 4090-class host (see config.CONFIG_4090_UNIVERSAL)."
+            "4090-universal=multi-hardware policy on a 4090-class host; "
+            "post-train=long routed RL post-training for open-weight models (CONFIG_POST_TRAIN)."
         ),
     )
     args = parser.parse_args(list(argv) if argv is not None else None)
