@@ -152,6 +152,7 @@ Simulator calibration:
 PyTorch and 4090:
 
 - `torch_device`
+- `torch_require_cuda` (default `false`; GPU presets set `true` to fail fast instead of silently falling back to CPU)
 - `torch_gpu_profile`
 - `torch_dtype`
 - `torch_compile`

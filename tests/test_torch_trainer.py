@@ -4,7 +4,14 @@ import importlib.util
 import unittest
 from pathlib import Path
 
-from adaptive_quant.torch_policy import _cuda_arch_supported
+from unittest import mock
+
+from adaptive_quant.torch_install import (
+    DEFAULT_CUDA_INDEX,
+    TORCH_CUDA_INDEX_CU126,
+    cuda_torch_pip_command,
+)
+from adaptive_quant.torch_policy import _cuda_arch_supported, resolve_training_device
 from adaptive_quant.torch_trainer import (
     _checkpoint_meta_path,
     _crossed_episode_milestone,
@@ -37,6 +44,36 @@ class TorchTrainerHelperTests(unittest.TestCase):
 
     def test_cuda_arch_support_is_permissive_when_torch_cannot_report_arches(self) -> None:
         self.assertTrue(_cuda_arch_supported(8, 9, []))
+
+    def test_cuda_torch_pip_command_uses_cu130_by_default(self) -> None:
+        cmd = cuda_torch_pip_command()
+        self.assertIn(DEFAULT_CUDA_INDEX, cmd)
+        self.assertNotIn("cu128", cmd)
+
+    def test_cuda_torch_pip_command_accepts_legacy_index(self) -> None:
+        cmd = cuda_torch_pip_command(index_url=TORCH_CUDA_INDEX_CU126)
+        self.assertIn("cu126", cmd)
+
+
+@unittest.skipUnless(importlib.util.find_spec("torch") is not None, "PyTorch not installed")
+class ResolveTrainingDeviceTests(unittest.TestCase):
+    def test_require_cuda_raises_when_cuda_unavailable(self) -> None:
+        import torch
+
+        with mock.patch.object(torch.cuda, "is_available", return_value=False):
+            with self.assertRaises(RuntimeError) as ctx:
+                resolve_training_device("cuda", require_cuda=True)
+        message = str(ctx.exception)
+        self.assertIn("CUDA is not available", message)
+        self.assertIn("cu130", message)
+
+    def test_require_cuda_false_falls_back_to_cpu_with_note(self) -> None:
+        import torch
+
+        with mock.patch.object(torch.cuda, "is_available", return_value=False):
+            device, note = resolve_training_device("cuda", require_cuda=False)
+        self.assertEqual(device.type, "cpu")
+        self.assertIn("using CPU", note or "")
 
 
 @unittest.skipUnless(importlib.util.find_spec("torch") is not None, "PyTorch not installed")

@@ -60,9 +60,9 @@ This creates **`.venv`**, upgrades **`pip`** (using `ensurepip` first and fallin
 Optional extras are intentionally split by workflow:
 
 ```bash
-python3 -m pip install -e ".[torch]"         # PyTorch trainer
+python3 scripts/install_cuda_torch.py        # CUDA PyTorch + package (Linux + NVIDIA)
+python3 -m pip install -e ".[torch]"         # CPU torch only on many hosts — not for GPU training
 python3 -m pip install -e ".[hub]"           # Hugging Face route downloads
-python3 -m pip install -e ".[torch,router]"  # HF embedding router
 python3 -m pip install -e ".[dev]"           # contributor tools
 ```
 
@@ -193,7 +193,7 @@ Requirements:
 - `git` (to clone this repository)
 - `curl` (optional manual fallback on Linux)
 
-The package declares **`dependencies = []`** in **[`pyproject.toml`](../pyproject.toml)** (stdlib only on Python 3.11+). Optional extras include **`torch`** (`pip install -e ".[torch]"`) for GPU training and **`router`** (`pip install -e ".[router]"`) for Hugging Face embedding features in the online router.
+The package declares **`dependencies = []`** in **[`pyproject.toml`](../pyproject.toml)** (stdlib only on Python 3.11+). Optional extras include **`torch`** (often CPU-only via PyPI) and **`router`** for Hugging Face embedding features. **GPU training** needs a CUDA-enabled `torch` wheel — use **`python3 scripts/install_cuda_torch.py`** on Linux + NVIDIA.
 
 Create a virtual environment:
 
@@ -237,27 +237,31 @@ python3 -m unittest discover -s tests -t . -v
 
 ## 3. GPU setup
 
-Optional: install the declared PyTorch extra. This is the simplest path, but on a
-GPU host you should still confirm that pip selected a CUDA wheel rather than a
-CPU-only wheel:
+**Recommended (Linux + NVIDIA):**
 
 ```bash
-python3 -m pip install -e ".[torch]"
+python3 scripts/install_cuda_torch.py
 ```
 
-Or install CUDA-enabled PyTorch manually on the target GPU host. The exact command depends on:
+This installs a CUDA-enabled **PyTorch 2.12+** wheel (`cu130` by default, `cu126`
+for older drivers) and then `pip install -e .`.
 
-- your driver version
-- your CUDA runtime
-- the PyTorch build you want to use
+`pip install -e ".[torch]"` alone often installs a **CPU-only** wheel. Do not
+rely on it for `adaptive-rl-quant-pytorch` on GPU hosts.
 
-For current RTX 4090 Linux/WSL2 hosts, prefer a CUDA 12.x wheel from the
-official PyTorch selector. For example, when your driver supports CUDA 12.8:
+Manual install (pick one CUDA index):
 
 ```bash
-python3 -m pip install --upgrade torch --index-url https://download.pytorch.org/whl/cu128
+# Default for current NVIDIA drivers (PyTorch 2.12+):
+python3 -m pip install --upgrade torch --index-url https://download.pytorch.org/whl/cu130
+python3 -m pip install -e .
+
+# Legacy fallback (older drivers / architectures):
+python3 -m pip install --upgrade torch --index-url https://download.pytorch.org/whl/cu126
 python3 -m pip install -e .
 ```
+
+**Note:** PyTorch 2.12 **removed `cu128` wheels**. Do not use `cu128` install URLs.
 
 Linux NVIDIA sanity checks:
 
@@ -366,8 +370,7 @@ cd Adaptive-RL-Quantization
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -e .
-# Install CUDA-enabled PyTorch: use https://pytorch.org/get-started/locally/ and copy the `pip` line, or:
-# python3 -m pip install -e ".[torch]"
+python3 scripts/install_cuda_torch.py
 adaptive-rl-quant-pytorch --preset gpu
 ```
 

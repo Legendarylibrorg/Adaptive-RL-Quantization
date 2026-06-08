@@ -12,6 +12,7 @@ CONFIG_GPU = CONFIG.clone(
     cache_prompt_features=True,
     log_every_n_episodes=8,
     torch_device="cuda",
+    torch_require_cuda=True,
     torch_gpu_profile="auto",
     torch_dtype="bfloat16",
     torch_compile=True,
