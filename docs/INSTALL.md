@@ -27,9 +27,9 @@ After cloning the repo:
 ./setup.sh && ./run
 ```
 
-`./setup.sh` runs **hardware-aware setup tests** and a short smoke (`config.e2e_smoke.json`). No NVIDIA secure-boundary ack is required for this simulator bootstrap on Linux. `./run` starts a **full** simulator run (uses `.venv/bin/adaptive-rl-quant` when the venv exists). You do not need to activate the venv first.
+`./setup.sh` runs **hardware-aware setup tests** (a fast subset — not the full suite) and a short smoke (`config.e2e_smoke.json`). No NVIDIA secure-boundary ack is required for this simulator bootstrap on Linux. `./run` starts a **full** simulator run (uses `.venv/bin/adaptive-rl-quant` when the venv exists). You do not need to activate the venv first.
 
-**Install only (no tests, no smoke):** `./setup.sh --quick` · **Full unittest:** `./setup.sh --full-tests`
+**Install only (no tests, no smoke):** `./setup.sh --quick` · **Full unittest during setup:** `./setup.sh --full-tests`
 
 Alternatives: `python3 scripts/setup_from_clone.py`, `make setup`. macOS and Windows notes follow below.
 
@@ -60,6 +60,19 @@ On Windows: `setup.bat`, or `py -3.11 scripts/setup_from_clone.py`, or `python s
 This creates **`.venv`**, upgrades **`pip`** (using `ensurepip` first and falling back to `get-pip.py` only if needed), runs **`pip install -e .`**, **hardware-aware setup tests** (core config/CLI on every host; torch and NVIDIA modules only when applicable — see `scripts/run_setup_tests.py`), and a **short reproducible end-to-end RL run** (train → eval → benchmarks → analysis) via **`config.e2e_smoke.json`**. Install, tests, and smoke use the venv interpreter directly (no reliance on activating the venv first). Edit that JSON to tune episode counts, `seed`, and `run_name` without touching Python.
 
 Use **`./setup.sh --full-tests`** for the full **`unittest discover`** suite (contributor parity).
+
+### Setup tests (default during `./setup.sh`)
+
+Bootstrap runs **`scripts/run_setup_tests.py`**, which selects unittest modules for the current host via **`src/adaptive_quant/setup_tests.py`**. The E2E smoke remains the integration check; setup tests only verify install, config, CLI, and optional torch/NVIDIA wiring.
+
+| Tier | When | Modules |
+| --- | --- | --- |
+| **Core** | Every host | `test_presets_and_shims`, `test_easy_config`, `test_guardrails`, `test_features` |
+| **CLI** | Every host | `test_cli_behavior` |
+| **Torch** | PyTorch importable | `test_torch_trainer` |
+| **NVIDIA** | Linux + `nvidia-smi` sees a GPU | `test_nvidia_secure_boundary`, `test_install_cuda_torch` |
+
+Standalone: `python3 scripts/run_setup_tests.py` · skip torch/NVIDIA tiers: `--no-torch` / `--no-nvidia` · full suite: `--full` or `./setup.sh --full-tests`.
 
 Optional extras are intentionally split by workflow:
 
@@ -309,7 +322,7 @@ bash scripts/run_4090_pipeline.sh
 
 By default the script runs **setup tests** on CPU before the GPU preset (`RUN_TESTS=1`). Tests use only modules needed for the current host (config, CLI, torch when installed, NVIDIA boundary when `nvidia-smi` sees a GPU). Skip with `RUN_TESTS=0`; full suite with `RUN_TESTS=full bash scripts/run_4090_pipeline.sh`.
 
-On Linux + NVIDIA, `run_4090_pipeline.sh`, `scripts/install_cuda_torch.py`, and `adaptive-rl-quant-pytorch` enforce the secure boundary in [SECURE_RUN.md](SECURE_RUN.md). Example for a trusted lab host:
+On Linux + NVIDIA, `run_4090_pipeline.sh`, `scripts/install_cuda_torch.py`, and `adaptive-rl-quant-pytorch` enforce the **NVIDIA secure boundary** in [SECURE_RUN.md](SECURE_RUN.md). Approve one tier before CUDA install or GPU training. Example for a trusted lab host:
 
 ```bash
 export ADAPTIVE_RL_NVIDIA_HOST_VENV_ACK=1
