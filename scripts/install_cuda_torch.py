@@ -82,7 +82,16 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     index_url = _index_for(args.cuda)
-    pip_cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "torch", "--index-url", index_url]
+    pip_cmd = [
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        "--upgrade",
+        "torch",
+        "--index-url",
+        index_url,
+    ]
     if args.force_reinstall:
         pip_cmd.insert(4, "--force-reinstall")
     commands = [pip_cmd]
