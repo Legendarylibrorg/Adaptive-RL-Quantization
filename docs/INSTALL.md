@@ -55,7 +55,9 @@ On Windows: `setup.bat`, or `py -3.11 scripts/setup_from_clone.py`, or `python s
 
 **Fast path:** `./setup.sh --quick` — venv + editable install only.
 
-This creates **`.venv`**, upgrades **`pip`** (using `ensurepip` first and falling back to `get-pip.py` only if needed), runs **`pip install -e .`**, **`unittest`**, and a **short reproducible end-to-end RL run** (train → eval → benchmarks → analysis) via **`config.e2e_smoke.json`**. Install, tests, and smoke use the venv interpreter directly (no reliance on activating the venv first). Edit that JSON to tune episode counts, `seed`, and `run_name` without touching Python.
+This creates **`.venv`**, upgrades **`pip`** (using `ensurepip` first and falling back to `get-pip.py` only if needed), runs **`pip install -e .`**, **hardware-aware setup tests** (core config/CLI on every host; torch and NVIDIA modules only when applicable — see `scripts/run_setup_tests.py`), and a **short reproducible end-to-end RL run** (train → eval → benchmarks → analysis) via **`config.e2e_smoke.json`**. Install, tests, and smoke use the venv interpreter directly (no reliance on activating the venv first). Edit that JSON to tune episode counts, `seed`, and `run_name` without touching Python.
+
+Use **`./setup.sh --full-tests`** for the full **`unittest discover`** suite (contributor parity).
 
 Optional extras are intentionally split by workflow:
 
@@ -303,7 +305,7 @@ For a one-command 4090 validation and run:
 bash scripts/run_4090_pipeline.sh
 ```
 
-By default the script **skips** the full unittest suite (`RUN_TESTS=0`) so VRAM stays free for the 4090 training preset. To run tests first (on CPU, not GPU): `RUN_TESTS=1 bash scripts/run_4090_pipeline.sh`.
+By default the script runs **setup tests** on CPU before the GPU preset (`RUN_TESTS=1`). Tests use only modules needed for the current host (config, CLI, torch when installed, NVIDIA boundary when `nvidia-smi` sees a GPU). Skip with `RUN_TESTS=0`; full suite with `RUN_TESTS=full bash scripts/run_4090_pipeline.sh`.
 
 On Linux + NVIDIA, `run_4090_pipeline.sh` and `./setup.sh` enforce the secure boundary in [SECURE_RUN.md](SECURE_RUN.md). Example for a trusted lab host:
 

@@ -89,7 +89,7 @@ cd Adaptive-RL-Quantization
 ./setup.sh && ./run
 ```
 
-`./setup.sh` creates `.venv`, installs the package, runs tests, and runs a short end-to-end smoke (`config.e2e_smoke.json`). `./run` starts a **full** simulator experiment (uses `.venv/bin/adaptive-rl-quant` when present). No need to `activate` the venv or rerun smoke.
+`./setup.sh` creates `.venv`, installs the package, runs **hardware-aware setup tests** (not the full suite), and runs a short end-to-end smoke (`config.e2e_smoke.json`). `./run` starts a **full** simulator experiment (uses `.venv/bin/adaptive-rl-quant` when present). No need to `activate` the venv or rerun smoke.
 
 **No install yet?** From a source checkout you can still smoke-test immediately:
 
@@ -100,6 +100,7 @@ python3 run_research.py --config config.e2e_smoke.json
 | Linux option | Command |
 | --- | --- |
 | Install only (no tests/smoke) | `./setup.sh --quick` |
+| Full unittest during setup | `./setup.sh --full-tests` |
 | After setup, without venv paths | `source .venv/bin/activate` then `adaptive-rl-quant` or `./run` |
 | Makefile (uses `.venv` when present) | `make run` |
 | CI-equivalent smoke | `make reproduce` or `adaptive-rl-quant --config config.e2e_smoke.json` |

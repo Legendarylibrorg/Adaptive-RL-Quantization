@@ -36,7 +36,7 @@ help:
 	@echo "Override PY=... for a non-default interpreter."
 	@echo ""
 	@echo "[Bootstrap]"
-	@echo "  make setup            venv + editable install + tests + E2E smoke (./setup.sh)"
+	@echo "  make setup            venv + editable install + setup tests + E2E smoke (./setup.sh)"
 	@echo "  make setup-quick      venv + editable install only (no tests/smoke)"
 	@echo "  make install          pip install -e . (simulator path; assumes venv active)"
 	@echo "  make install-dev      + Ruff (lint/format)"
