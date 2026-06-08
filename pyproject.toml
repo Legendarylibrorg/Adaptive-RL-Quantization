@@ -59,7 +59,7 @@ adaptive-rl-quant-analyze = "analysis.__main__:main"
 # Sole PyPI runtime extra — PyTorch for training_backend="pytorch" / run_pytorch.py.
 # Easy path: pip install -e ".[torch]"
 # Or install a CUDA-matched wheel from https://pytorch.org/get-started/locally/ then: pip install -e .
-torch = ["torch>=2.7.1"]
+torch = ["torch>=2.12.0"]
 # Optional: Hugging Face CLI for route downloads (`hf` / `huggingface-cli`).
 hub = ["huggingface_hub>=1.18.0"]
 # Optional: Hugging Face embedding router (used when router_feature_backend="hf").
