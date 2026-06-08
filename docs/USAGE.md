@@ -11,8 +11,8 @@ Install and system packages: [INSTALL.md](INSTALL.md). Command reference: [RUNNI
 
 ## Basics
 
-1. `python3 -m pip install -e .` (or `./setup.sh` for venv + tests + smoke)
-2. `python3 -m unittest discover -s tests -t . -q` (works from a source checkout without install — see [CONTRIBUTING.md](../CONTRIBUTING.md))
+1. `python3 -m pip install -e .` (or `./setup.sh` for venv + **setup tests** + E2E smoke — see [INSTALL.md](INSTALL.md))
+2. `python3 scripts/run_setup_tests.py` after setup (hardware-aware subset) or `python3 -m unittest discover -s tests -t . -q` for the **full** suite (works from a source checkout without install — see [CONTRIBUTING.md](../CONTRIBUTING.md))
 3. `adaptive-rl-quant`, `./run`, or `adaptive-rl-quant --config my.json`
 
 Cross-platform shortcuts: `python3 scripts/setup_from_clone.py` and `python3 scripts/pre_commit_check.py` on Unix-like hosts; on Windows use `py -3.11` or `python`.

@@ -9,11 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Hardware-aware **setup tests** (`src/adaptive_quant/setup_tests.py`, `scripts/run_setup_tests.py`): `./setup.sh` runs a host-specific unittest subset; `--full-tests` runs full `unittest discover`.
+- NVIDIA **secure boundary** at startup (`src/adaptive_quant/nvidia_secure_boundary.py`, `scripts/nvidia_secure_startup.py`) for Linux hosts where `nvidia-smi` reports a GPU — see [docs/SECURE_RUN.md](docs/SECURE_RUN.md).
 - [`docs/SWEEP.md`](docs/SWEEP.md): hyperparameter sweep guide (grid vs trials, objectives, artifacts, Makefile shortcuts).
 - Root `./run` script and shared [`src/bootstrap.py`](src/bootstrap.py) for source-checkout path setup; [`tests/__init__.py`](tests/__init__.py) so `unittest discover -s tests -t .` works without an editable install.
 
 ### Changed
 
+- `scripts/run_4090_pipeline.sh`: runs setup tests on CPU by default (`RUN_TESTS=1`); `RUN_TESTS=full` runs the full suite; `RUN_TESTS=0` skips tests before the GPU preset.
 - Slim `run_*.py` shims; removed redundant Unix shell wrappers around `setup_from_clone.py`, `pre_commit_check.py`, and `secret_scan.py` (use the Python scripts directly).
 - CI, Makefile, and docs now use `python3 -m unittest discover -s tests -t .` consistently.
 
