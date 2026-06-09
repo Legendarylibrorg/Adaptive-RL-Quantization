@@ -7,3 +7,7 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/Legendarylibrorg/Adaptive-RL-Quantization"
+
+[profile.release]
+lto = true
+codegen-units = 1

@@ -52,6 +52,12 @@ def print_pipeline_footer(
         ("evidence_level", infer_evidence_level(config)),
         ("summary_json", summary_path),
     ]
+    if config.rust_simulator_enabled and config.backend == "simulator":
+        from adaptive_quant.rust_cli import resolve_rust_cli_binary
+
+        rows.append(
+            ("rust_simulator", "on" if resolve_rust_cli_binary(config) else "binary missing")
+        )
     rp = art.get("report")
     if rp:
         rows.append(("report_md", str(rp)))

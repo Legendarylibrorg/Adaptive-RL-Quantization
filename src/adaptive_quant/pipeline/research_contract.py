@@ -121,6 +121,14 @@ def _escalation_path(config: FrameworkConfig, evidence_level: str) -> list[str]:
         hints.append(
             "Enable llama_cpp_gguf_export_enabled to write a recommendation-driven GGUF under outputs/gguf/."
         )
+    if config.rust_simulator_enabled and config.backend == "simulator" and not config.moe_enabled:
+        from adaptive_quant.rust_cli import resolve_rust_cli_binary
+
+        if resolve_rust_cli_binary(config) is None:
+            hints.append(
+                "rust_simulator_enabled is set but no binary was found; run ./scripts/build_rust.sh "
+                "from the repo root or set rust_cli_binary / ADAPTIVE_RL_RUST_CLI."
+            )
     hints.append(
         "Use outputs/paper_bundles/<run>/manifest.json and claims_validation.md when citing results."
     )
@@ -140,6 +148,8 @@ def build_research_contract(
     sources = metric_sources_for_config(config)
     boundary = _claim_boundary(config, level)
     export_enabled = _gguf_export_enabled(config)
+    from adaptive_quant.rust_cli import rust_cli_status
+
     does_not_train = ["llm_weights"]
     if not export_enabled:
         does_not_train.append("gguf_quantization_export")
@@ -191,6 +201,7 @@ def build_research_contract(
             "gguf_export_enabled": export_enabled,
             "rust_simulator_enabled": config.rust_simulator_enabled,
             "rust_cli_binary": config.rust_cli_binary,
+            "rust_cli": rust_cli_status(config),
         },
         "reproducibility": {
             "git_commit": git_commit,

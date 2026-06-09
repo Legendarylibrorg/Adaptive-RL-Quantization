@@ -8,6 +8,7 @@
 .PHONY: pytorch 3090 4090 4090-universal post-train
 .PHONY: online calibrate route-help
 .PHONY: test test-quiet lint format check secret-scan doctor
+.PHONY: rust-build
 .PHONY: docker-preflight docker-build docker-test docker-smoke docker-no-network-smoke
 .PHONY: docker-gpu-preflight docker-gpu-build docker-gpu-smoke docker-gpu-verify docker-gpu-test docker-gpu-pytorch
 .PHONY: outputs-clean clean-venv
@@ -64,6 +65,7 @@ help:
 	@echo "  make online           supported online adaptation pipeline"
 	@echo "  make calibrate        llama.cpp calibration (needs binary+model in config)"
 	@echo "  make route-help       GGUF route catalog + contextual bandit help"
+	@echo "  make rust-build       optional Rust simulator CLI (./scripts/build_rust.sh)"
 	@echo ""
 	@echo "[Quality]"
 	@echo "  make test | test-quiet | secret-scan | lint | format | check"
@@ -193,6 +195,9 @@ check: lint
 
 doctor:
 	@cd "$(CURDIR)" && PYTHONPATH="$(CURDIR)/src:$(CURDIR):$$PYTHONPATH" $(PY) scripts/env_report.py
+
+rust-build:
+	./scripts/build_rust.sh
 
 # --- Secure Docker (run inside a disposable Linux VM when artifacts are untrusted) ---
 

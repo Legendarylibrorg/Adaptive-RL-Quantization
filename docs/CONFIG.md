@@ -277,11 +277,12 @@ Optional GGUF export (research-grade artifact under `outputs/gguf/`):
 - optionally set `llama_cpp_gguf_quantize_binary` (defaults to `llama-quantize` next to `llama_cpp_binary`)
 - exported path appears in `*_summary.json` → `artifacts.exported_gguf` and the Markdown report **GGUF export** section
 
-Optional Rust simulator CLI (build with `./scripts/build_rust.sh`; default off):
+Optional Rust simulator CLI (build from **repo root** with `./scripts/build_rust.sh` or `make rust-build`; default off):
 
 - set `rust_simulator_enabled=true` with `backend="simulator"` and `moe_enabled=false`
-- optional `rust_cli_binary` (defaults to `rust/target/release/adaptive-rl-quant-rust` when present)
-- metrics gain `simulator_engine: rust_cli`; Python falls back if the binary is missing
+- binary resolution: `rust_cli_binary` → `ADAPTIVE_RL_RUST_CLI` → `PATH` → `rust/target/release/adaptive-rl-quant-rust` (repo checkout only)
+- optional `rust_cli_timeout_s` (default `30`)
+- metrics gain `simulator_engine: rust_cli`; Python falls back to the stdlib simulator if the binary is missing or MoE is enabled
 
 Online routing is controlled separately by `router_enabled` and `router_routes`. It is not a separate `backend` value; routes are evaluated through the configured measurement backend.
 

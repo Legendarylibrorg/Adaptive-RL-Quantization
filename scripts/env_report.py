@@ -146,6 +146,20 @@ def main() -> int:
             print('  warning:     CPU-only torch wheel (pip install -e ".[torch]" is not enough)')
             print(f"  install:     {INSTALL_CUDA_TORCH_SCRIPT}")
 
+    print("== Rust CLI (optional) ==")
+    if import_ok:
+        from adaptive_quant.configuration import FrameworkConfig
+        from adaptive_quant.rust_cli import rust_cli_status
+
+        status = rust_cli_status(FrameworkConfig(run_name="env_report", detect_host_hardware=False))
+        print(f"  enabled:     {status['enabled']} (set rust_simulator_enabled=true)")
+        print(f"  available:   {status['available']}")
+        print(f"  binary:      {status['resolved_binary'] or '(not found)'}")
+        print(f"  repo_root:   {status['repo_root'] or '(not detected)'}")
+        print(f"  build:       ./{status['build_script']}")
+    else:
+        print("  skipped:     adaptive_quant not importable")
+
     print("== Ruff (optional) ==")
     try:
         import importlib.metadata as md

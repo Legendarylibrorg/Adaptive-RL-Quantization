@@ -567,6 +567,7 @@ def validate_rust_cli_settings(
     rust_cli_binary: str | None,
     backend: str,
     moe_enabled: bool,
+    rust_cli_timeout_s: float,
 ) -> None:
     if not rust_simulator_enabled:
         return
@@ -579,3 +580,5 @@ def validate_rust_cli_settings(
             "rust_simulator_enabled cannot be used with moe_enabled=True (MoE uses Python simulator path)"
         )
     validate_optional_filesystem_path("rust_cli_binary", rust_cli_binary)
+    if rust_cli_timeout_s <= 0:
+        raise ValueError("rust_cli_timeout_s must be positive when rust_simulator_enabled is set")
