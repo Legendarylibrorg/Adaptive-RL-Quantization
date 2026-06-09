@@ -193,6 +193,8 @@ FrameworkConfig → orchestrator (Python CLI) → learning (policy/trainer)
 
 The contract **`schema_version`** is `2` when `topology` is present. Metric provenance uses `simulator_rust_cli` when the Rust path is active.
 
+Future narrow crates (GGUF wrapper, route eval) can add subcommands beside `sim-eval` without changing the Python orchestrator.
+
 Evidence ladder (weakest → strongest for deployment claims):
 
 1. **Simulator** — fast RL iteration; no real model required; not valid for hardware latency claims.
