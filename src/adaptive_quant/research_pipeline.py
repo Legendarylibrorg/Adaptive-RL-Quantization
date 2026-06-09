@@ -5,6 +5,7 @@ from adaptive_quant.logging_utils import write_json
 from adaptive_quant.paper_bundle import create_pipeline_paper_bundle
 from adaptive_quant.pipeline.benchmark_warn import warn_if_benchmarks_are_large
 from adaptive_quant.pipeline.report_markdown import write_research_report_markdown
+from adaptive_quant.pipeline.research_contract import build_research_contract
 from adaptive_quant.pipeline.vcs import git_commit_hash
 from adaptive_quant.replay_trace import finalize_replay_artifacts
 from adaptive_quant.security_audit import build_security_audit_record
@@ -28,6 +29,7 @@ def maybe_save_final_checkpoint(config: FrameworkConfig, trainer) -> str | None:
 
 
 def run_research_analysis(config: FrameworkConfig, history_path: str | None) -> dict[str, object]:
+    from adaptive_quant.pipeline.output_summary import resolve_analysis_log_path
     from analysis.analyzers import (
         analyze_hardware,
         analyze_inputs,
@@ -38,24 +40,21 @@ def run_research_analysis(config: FrameworkConfig, history_path: str | None) -> 
     )
 
     analysis_root = f"{config.analysis_dir}/{config.run_name}"
+    primary_log = config.primary_log_path()
     analysis: dict[str, object] = {
         "hardware": analyze_hardware(
-            f"{config.log_dir}/{config.run_name}_multi_hw.jsonl", f"{analysis_root}/hardware"
+            resolve_analysis_log_path(config, "multi_hw"), f"{analysis_root}/hardware"
         ),
         "input": analyze_inputs(
-            f"{config.log_dir}/{config.run_name}_dynamic.jsonl", f"{analysis_root}/inputs"
+            resolve_analysis_log_path(config, "dynamic"), f"{analysis_root}/inputs"
         ),
         "quant_function": analyze_quant(
-            f"{config.log_dir}/{config.run_name}_learned.jsonl", f"{analysis_root}/quant"
+            resolve_analysis_log_path(config, "learned"), f"{analysis_root}/quant"
         ),
     }
     if config.moe_enabled:
-        analysis["moe_experts"] = analyze_moe_experts(
-            f"{config.log_dir}/{config.run_name}.jsonl", f"{analysis_root}/moe_experts"
-        )
-        analysis["moe_cache"] = analyze_moe_cache(
-            f"{config.log_dir}/{config.run_name}.jsonl", f"{analysis_root}/moe_cache"
-        )
+        analysis["moe_experts"] = analyze_moe_experts(primary_log, f"{analysis_root}/moe_experts")
+        analysis["moe_cache"] = analyze_moe_cache(primary_log, f"{analysis_root}/moe_cache")
     if history_path is not None:
         analysis["training_dynamics"] = analyze_training_dynamics(
             history_path, f"{analysis_root}/training"
@@ -149,6 +148,20 @@ class ResearchPipeline:
         summary = {
             "config": config_to_flat_dict(config),
             "git_commit": commit,
+            "research": build_research_contract(
+                config,
+                git_commit=commit,
+                pipeline="offline_research",
+                phases=[
+                    "train",
+                    "evaluate",
+                    "recommendation",
+                    "benchmark",
+                    "analysis",
+                    "report",
+                    "paper_bundle",
+                ],
+            ),
             "security_audit": build_security_audit_record(
                 config,
                 cli_startup_overrides=self.cli_startup_overrides,
@@ -170,6 +183,9 @@ class ResearchPipeline:
                 "replay_manifest": (replay_report or {}).get("manifest_path"),
             },
         }
+        from adaptive_quant.pipeline.output_summary import slim_analysis_for_summary
+
+        summary["analysis"] = slim_analysis_for_summary(analysis, config)
         paper_bundle = create_pipeline_paper_bundle(config=config, summary=summary)
         summary["artifacts"]["paper_bundle"] = paper_bundle
         write_json(config.summary_path(), summary)

@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Pipeline output: slim `analysis` in `*_summary.json`, narrative Markdown reports (tables + takeaways instead of JSON dumps), analysis log-path fallback, and actionable `decision` block on recommendations.
 - `./setup.sh` no longer enforces the NVIDIA secure boundary on Linux GPU hosts (simulator bootstrap only); boundary remains on CUDA install, PyTorch CLI, and `run_4090_pipeline.sh`. Linux venv/Python version failures now print distro-specific hints.
 - `scripts/run_4090_pipeline.sh`: runs setup tests on CPU by default (`RUN_TESTS=1`); `RUN_TESTS=full` runs the full suite; `RUN_TESTS=0` skips tests before the GPU preset.
 - Slim `run_*.py` shims; removed redundant Unix shell wrappers around `setup_from_clone.py`, `pre_commit_check.py`, and `secret_scan.py` (use the Python scripts directly).

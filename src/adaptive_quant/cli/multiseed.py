@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Iterable
-from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +15,8 @@ from adaptive_quant.experiment_aggregate import (
 from adaptive_quant.logging_utils import md_table, write_json, write_text_file
 from adaptive_quant.math_utils import fmt_float
 from adaptive_quant.paper_bundle import create_multiseed_paper_bundle
+from adaptive_quant.pipeline.output_summary import experiment_config_summary
+from adaptive_quant.pipeline.research_contract import EVIDENCE_MULTISEED, build_research_contract
 from adaptive_quant.pipeline.vcs import git_commit_hash
 from adaptive_quant.research_pipeline import run_pipeline_entrypoint
 
@@ -189,8 +190,15 @@ def main(argv: Iterable[str] | None = None) -> None:
         "run_name": multiseed_run_name,
         "preset": args.preset,
         "base_run_name": base_run_name,
-        "config": asdict(base_config),
+        "config": experiment_config_summary(base_config),
         "git_commit": git_commit_hash(),
+        "research": build_research_contract(
+            base_config,
+            git_commit=git_commit_hash(),
+            pipeline="multiseed_aggregate",
+            evidence_level=EVIDENCE_MULTISEED,
+            phases=["per_seed_runs", "aggregate_stats", "report", "paper_bundle"],
+        ),
         "seeds": seeds,
         "per_seed": [
             {"seed": seed, "run_name": f"{base_run_name}_seed{seed}", "summary_path": path}

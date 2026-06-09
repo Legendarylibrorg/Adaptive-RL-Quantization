@@ -42,6 +42,7 @@ class OutputSchemaTests(unittest.TestCase):
             for key in (
                 "config",
                 "git_commit",
+                "research",
                 "train",
                 "evaluation",
                 "recommendation",
@@ -50,6 +51,10 @@ class OutputSchemaTests(unittest.TestCase):
                 "artifacts",
             ):
                 self.assertIn(key, summary)
+
+            research = summary["research"]
+            self.assertIsInstance(research, dict)
+            self.assertEqual(research["learning_target"]["object"], "quantization_policy")
 
             self.assertIsInstance(summary["config"], dict)
             self.assertIsInstance(summary["train"], dict)
