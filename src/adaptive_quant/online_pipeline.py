@@ -5,7 +5,11 @@ from pathlib import Path
 from adaptive_quant.configuration import FrameworkConfig, config_to_flat_dict
 from adaptive_quant.logging_utils import md_table, write_json, write_text_file
 from adaptive_quant.online_learning import OnlineLearningLoop, build_request_stream
-from adaptive_quant.pipeline.report_markdown import fmt_report_num, maybe_report_link, md_code_json
+from adaptive_quant.pipeline.output_summary import (
+    online_analysis_takeaway_lines,
+    slim_online_analysis_for_summary,
+)
+from adaptive_quant.pipeline.report_markdown import fmt_report_num, maybe_report_link
 from adaptive_quant.pipeline.vcs import git_commit_hash
 from adaptive_quant.research_pipeline import maybe_save_final_checkpoint, write_training_history
 from adaptive_quant.security_audit import build_security_audit_record
@@ -79,7 +83,9 @@ def run_online_pipeline(
         "bootstrap_train": bootstrap_summary,
         "online": online_summary,
         "evaluation": eval_summary,
-        "analysis": {"online_learning": online_analysis},
+        "analysis": {
+            "online_learning": slim_online_analysis_for_summary(online_analysis),
+        },
         "artifacts": {
             "training_history": history_path,
             "final_checkpoint": checkpoint_path,
@@ -201,8 +207,8 @@ def _write_online_report(
         "### Figures",
         *_analysis_links(),
         "",
-        "### Summary",
-        md_code_json(online_analysis),
+        "### Takeaways",
+        *online_analysis_takeaway_lines(online_analysis),
     ]
     write_text_file(report_path, "\n".join(lines) + "\n")
     return str(target)

@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import csv
 from collections.abc import Iterable
-from dataclasses import asdict
 from pathlib import Path
 from typing import Any, cast
 
@@ -24,6 +23,7 @@ from adaptive_quant.experiment_aggregate import extract_metric
 from adaptive_quant.logging_utils import md_table, read_json, write_json, write_text_file
 from adaptive_quant.math_utils import fmt_float
 from adaptive_quant.paper_bundle import create_multiseed_paper_bundle
+from adaptive_quant.pipeline.output_summary import experiment_config_summary
 from adaptive_quant.pipeline.vcs import git_commit_hash
 from adaptive_quant.presets.baseline import CONFIG as CONFIG_DENSE
 from adaptive_quant.research_pipeline import run_pipeline_entrypoint
@@ -516,7 +516,7 @@ def main(argv: Iterable[str] | None = None) -> None:
         "base_run_name": base_run_name,
         "objective": spec.objective,
         "direction": spec.direction,
-        "config": asdict(base_config),
+        "config": experiment_config_summary(base_config),
         "git_commit": git_commit_hash(),
         "sweep": {
             "grid": spec.grid,

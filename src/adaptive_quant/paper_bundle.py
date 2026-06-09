@@ -14,6 +14,7 @@ from adaptive_quant.checkpoint_integrity import sha256_canonical
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import load_jsonl, write_json, write_text_file
 from adaptive_quant.math_utils import sample_std
+from adaptive_quant.pipeline.output_summary import headline_summary_for_metrics
 
 
 def paper_bundle_dir(config: FrameworkConfig, *, run_name: str | None = None) -> Path:
@@ -29,7 +30,7 @@ def create_pipeline_paper_bundle(
     bundle_dir = paper_bundle_dir(config)
     bundle_dir.mkdir(parents=True, exist_ok=True)
 
-    metrics = flatten_numeric(summary)
+    metrics = flatten_numeric(headline_summary_for_metrics(summary))
     selected_metrics = _select_metrics(metrics, config=config)
     metric_rows = [{"metric": key, "value": value} for key, value in selected_metrics.items()]
 

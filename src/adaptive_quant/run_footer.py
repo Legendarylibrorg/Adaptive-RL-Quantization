@@ -94,6 +94,9 @@ def print_pipeline_footer(
                         format_display(evaluation.get("mean_reward"), style="footer"),
                     )
                 )
+        decision = recommendation.get("decision")
+        if isinstance(decision, dict) and decision.get("deploy"):
+            rows.append(("deploy", format_display(decision.get("deploy"), style="footer")))
 
     print_cli_block("Run complete", rows)
 

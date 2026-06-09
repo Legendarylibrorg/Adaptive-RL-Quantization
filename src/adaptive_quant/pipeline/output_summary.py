@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.math_utils import format_display
@@ -175,6 +177,104 @@ def benchmark_metric_rows(
     return rows
 
 
+def experiment_config_summary(config: FrameworkConfig) -> dict[str, object]:
+    """Small config fingerprint for multiseed/sweep aggregate JSON (not full ``asdict``)."""
+    return {
+        "run_name": config.run_name,
+        "backend": config.backend,
+        "training_backend": config.training_backend,
+        "training_episodes": config.training_episodes,
+        "evaluation_episodes": config.evaluation_episodes,
+        "quant_mode": config.quant_mode,
+        "hardware_modes": list(config.hardware_modes),
+        "moe_enabled": config.moe_enabled,
+        "seed": config.seed,
+    }
+
+
+def headline_summary_for_metrics(summary: Mapping[str, Any]) -> dict[str, Any]:
+    """Curated summary subset for paper-bundle headline metrics (skip config blobs)."""
+    curated: dict[str, Any] = {}
+    for section in ("train", "evaluation", "bootstrap_train", "online"):
+        block = summary.get(section)
+        if isinstance(block, dict):
+            curated[section] = block
+    benchmarks = summary.get("benchmarks")
+    if isinstance(benchmarks, dict):
+        curated["benchmarks"] = {
+            key: benchmarks[key]
+            for key in ("single_vs_multi", "static_vs_dynamic", "discrete_vs_learned")
+            if key in benchmarks
+        }
+    recommendation = summary.get("recommendation")
+    if isinstance(recommendation, dict):
+        slim_rec: dict[str, Any] = {}
+        if "target_hardware" in recommendation:
+            slim_rec["target_hardware"] = recommendation["target_hardware"]
+        adaptive = recommendation.get("adaptive_policy")
+        if isinstance(adaptive, dict):
+            slim_rec["adaptive_policy"] = {
+                key: adaptive[key] for key in ("mean_reward",) if key in adaptive
+            }
+        fixed = recommendation.get("recommended_quant")
+        if isinstance(fixed, dict):
+            slim_rec["recommended_quant"] = {
+                "signature": fixed.get("signature"),
+                "evaluation": fixed.get("evaluation")
+                if isinstance(fixed.get("evaluation"), dict)
+                else None,
+            }
+        decision = recommendation.get("decision")
+        if isinstance(decision, dict):
+            slim_rec["decision"] = decision
+        curated["recommendation"] = slim_rec
+    analysis = summary.get("analysis")
+    if isinstance(analysis, dict):
+        curated["analysis"] = {
+            name: slim_analysis_section(section)
+            for name, section in analysis.items()
+            if isinstance(section, dict)
+        }
+    return curated
+
+
+def slim_online_analysis_for_summary(online_analysis: dict[str, object]) -> dict[str, object]:
+    """Drop chart paths from online summary JSON; figures live under ``analysis_dir``."""
+    slim: dict[str, object] = {}
+    for key in (
+        "log_path",
+        "records",
+        "reward_by_hardware",
+        "candidate_accept_rate",
+        "online_update_rate",
+        "rollback_count",
+        "mean_served_reward",
+    ):
+        if key in online_analysis:
+            slim[key] = online_analysis[key]
+    return slim
+
+
+def online_analysis_takeaway_lines(online_analysis: dict[str, object]) -> list[str]:
+    lines: list[str] = []
+    if online_analysis.get("mean_served_reward") is not None:
+        lines.append(f"- Mean served reward: **{_fmt(online_analysis.get('mean_served_reward'))}**")
+    if online_analysis.get("candidate_accept_rate") is not None:
+        lines.append(
+            f"- Candidate accept rate: **{_fmt(online_analysis.get('candidate_accept_rate'))}**"
+        )
+    if online_analysis.get("online_update_rate") is not None:
+        lines.append(f"- Online update rate: **{_fmt(online_analysis.get('online_update_rate'))}**")
+    rollback = online_analysis.get("rollback_count")
+    if rollback is not None:
+        lines.append(f"- Rollbacks: **{int(rollback)}**")
+    rewards = online_analysis.get("reward_by_hardware")
+    if isinstance(rewards, dict) and rewards:
+        best = max(rewards.items(), key=lambda item: float(item[1]))
+        lines.append(f"- Best hardware for served reward: `{best[0]}` ({_fmt(best[1])})")
+    return lines or ["- (no online analysis takeaways — check `outputs/analysis/<run>/online/`)"]
+
+
 def recommendation_decision_block(payload: dict[str, object]) -> dict[str, object]:
     adaptive = payload.get("adaptive_policy")
     recommended = payload.get("recommended_quant")
@@ -223,7 +323,11 @@ def recommendation_decision_block(payload: dict[str, object]) -> dict[str, objec
 __all__ = [
     "analysis_takeaway_lines",
     "benchmark_metric_rows",
+    "experiment_config_summary",
+    "headline_summary_for_metrics",
+    "online_analysis_takeaway_lines",
     "recommendation_decision_block",
     "resolve_analysis_log_path",
     "slim_analysis_for_summary",
+    "slim_online_analysis_for_summary",
 ]
