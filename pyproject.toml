@@ -53,6 +53,7 @@ adaptive-rl-quant-sweep = "adaptive_quant.cli.sweep:main"
 adaptive-rl-quant-calibrate = "adaptive_quant.cli.calibrate_llama_cpp:main"
 adaptive-rl-quant-route = "adaptive_quant.cli.route_learning:main"
 adaptive-rl-quant-replay = "adaptive_quant.cli.replay:main"
+adaptive-rl-quant-alignment = "adaptive_quant.cli.alignment:main"
 adaptive-rl-quant-analyze = "analysis.__main__:main"
 
 [project.optional-dependencies]
@@ -69,6 +70,13 @@ hub = ["huggingface_hub>=1.18.0"]
 # On Linux + NVIDIA: run scripts/install_cuda_torch.py first, then pip install -e ".[router]".
 # transformers already pulls safetensors; no separate pin needed.
 router = ["transformers>=5.10.2"]
+# Optional: DPO / preference alignment (llm_alignment package).
+# On Linux + NVIDIA: run scripts/install_cuda_torch.py first, then pip install -e ".[alignment]".
+alignment = [
+    "transformers>=5.10.2",
+    "peft>=0.14.0",
+    "bitsandbytes>=0.45.0; platform_system != 'Darwin'",
+]
 # Local quality + CI audit (hash-pinned via requirements/dev.txt).
 dev = [
     "coverage[toml]>=7.14.1",
@@ -131,5 +139,8 @@ strict_equality = true
 module = [
     "adaptive_quant.torch_trainer",
     "adaptive_quant.torch_policy",
+    "adaptive_quant.llm_alignment.model_loading",
+    "adaptive_quant.llm_alignment.dpo_trainer",
+    "adaptive_quant.llm_alignment.data_collator",
 ]
 ignore_missing_imports = true
