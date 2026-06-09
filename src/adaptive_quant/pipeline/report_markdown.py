@@ -7,6 +7,10 @@ from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import md_table, write_text_file
 from adaptive_quant.math_utils import format_display
 from adaptive_quant.pipeline.output_summary import analysis_takeaway_lines, benchmark_metric_rows
+from adaptive_quant.pipeline.research_contract import (
+    build_research_contract,
+    research_contract_report_lines,
+)
 
 
 def fmt_report_num(value: object, *, digits: int = 2) -> str:
@@ -158,8 +162,19 @@ def write_research_report_markdown(
         )
     ]
 
+    research = build_research_contract(
+        config,
+        git_commit=git_commit,
+        pipeline="offline_research",
+        phases=["train", "evaluate", "benchmark", "analysis", "report"],
+    )
+    research_scope = research_contract_report_lines(research)
+
     lines = [
         f"# {config.run_name}",
+        "",
+        "## Research scope",
+        *research_scope,
         "",
         "## Overview",
         f"- backend: `{config.training_backend}`",

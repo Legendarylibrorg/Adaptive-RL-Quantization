@@ -7,6 +7,7 @@ from typing import Any
 
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.math_utils import format_display
+from adaptive_quant.pipeline.research_contract import infer_evidence_level
 
 
 def _metric_rows(
@@ -48,6 +49,7 @@ def print_pipeline_footer(
     rows: list[tuple[str, str]] = [
         ("run_name", config.run_name),
         ("training_backend", str(config.training_backend)),
+        ("evidence_level", infer_evidence_level(config)),
         ("summary_json", summary_path),
     ]
     rp = art.get("report")

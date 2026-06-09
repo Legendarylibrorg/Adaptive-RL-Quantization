@@ -29,6 +29,8 @@ class RunFooterTests(unittest.TestCase):
         output = buffer.getvalue()
         self.assertIn("deploy", output)
         self.assertIn("adaptive_policy", output)
+        self.assertIn("evidence_level", output)
+        self.assertIn("simulator", output)
 
 
 if __name__ == "__main__":

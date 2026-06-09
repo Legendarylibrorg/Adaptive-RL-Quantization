@@ -10,6 +10,7 @@ from adaptive_quant.pipeline.output_summary import (
     slim_online_analysis_for_summary,
 )
 from adaptive_quant.pipeline.report_markdown import fmt_report_num, maybe_report_link
+from adaptive_quant.pipeline.research_contract import build_research_contract
 from adaptive_quant.pipeline.vcs import git_commit_hash
 from adaptive_quant.research_pipeline import maybe_save_final_checkpoint, write_training_history
 from adaptive_quant.security_audit import build_security_audit_record
@@ -76,6 +77,12 @@ def run_online_pipeline(
     summary = {
         "config": config_to_flat_dict(config),
         "git_commit": git_commit,
+        "research": build_research_contract(
+            config,
+            git_commit=git_commit,
+            pipeline="online_adaptation",
+            phases=["bootstrap_train", "online_stream", "evaluate", "analysis", "report"],
+        ),
         "security_audit": build_security_audit_record(
             config,
             cli_startup_overrides=cli_startup_overrides,

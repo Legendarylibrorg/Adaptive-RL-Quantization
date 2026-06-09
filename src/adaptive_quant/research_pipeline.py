@@ -5,6 +5,7 @@ from adaptive_quant.logging_utils import write_json
 from adaptive_quant.paper_bundle import create_pipeline_paper_bundle
 from adaptive_quant.pipeline.benchmark_warn import warn_if_benchmarks_are_large
 from adaptive_quant.pipeline.report_markdown import write_research_report_markdown
+from adaptive_quant.pipeline.research_contract import build_research_contract
 from adaptive_quant.pipeline.vcs import git_commit_hash
 from adaptive_quant.replay_trace import finalize_replay_artifacts
 from adaptive_quant.security_audit import build_security_audit_record
@@ -147,6 +148,20 @@ class ResearchPipeline:
         summary = {
             "config": config_to_flat_dict(config),
             "git_commit": commit,
+            "research": build_research_contract(
+                config,
+                git_commit=commit,
+                pipeline="offline_research",
+                phases=[
+                    "train",
+                    "evaluate",
+                    "recommendation",
+                    "benchmark",
+                    "analysis",
+                    "report",
+                    "paper_bundle",
+                ],
+            ),
             "security_audit": build_security_audit_record(
                 config,
                 cli_startup_overrides=self.cli_startup_overrides,

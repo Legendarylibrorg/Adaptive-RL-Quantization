@@ -81,6 +81,7 @@ The key architecture rule here is: **different backends share the same `Framewor
 
 - `src/analysis/`: post-hoc analysis (`analyzers.py`, shared `log_records.py`, `python -m analysis` CLI)
 - `src/adaptive_quant/research_pipeline.py`: full offline pipeline orchestration; training-history/checkpoint writers live here
+- `src/adaptive_quant/pipeline/research_contract.py`: **research architecture contract** — evidence tiers, learning scope (policy vs LLM weights), metric provenance, claim boundaries; embedded in every `*_summary.json` as `research`
 - `src/adaptive_quant/experiment_aggregate.py`: shared numeric flattening/aggregation for multiseed and sweep
 - `src/adaptive_quant/sweep.py`: hyperparameter grid expansion, trial naming, ranking
 - `src/adaptive_quant/pipeline/`: VCS stamp, benchmark warnings, analysis runner, and Markdown report helpers
@@ -107,6 +108,50 @@ Use `routing.py` for experiments that pick among configured `router_routes` duri
 Profile names (`rtx4090`, `consumer_8gb`, …) are shared; training overrides and simulator tuning values are intentionally different tables.
 
 Reports are intended to be derived from machine-readable outputs, not handwritten after the fact.
+
+## Research architecture (what gets trained vs measured)
+
+This repo is **research infrastructure for quantization policy learning**, not an LLM fine-tuning or GGUF export pipeline.
+
+```mermaid
+flowchart TB
+  subgraph train [What training updates]
+    Policy[RL policy / router]
+    CKPT[outputs/checkpoints/]
+    Policy --> CKPT
+  end
+  subgraph inputs [Fixed inputs]
+    GGUF[Pre-built GGUF files]
+    Prompts[Prompt library / episodes]
+  end
+  subgraph measure [Measurement backends]
+    Sim[SimulatorBackend]
+    Llama[llama.cpp binary]
+  end
+  Policy -->|QuantizationDecision| measure
+  GGUF --> Llama
+  Prompts --> measure
+  measure -->|latency throughput reward| Policy
+```
+
+Every successful run writes a **`research`** block in `*_summary.json` (via `pipeline/research_contract.py`):
+
+| Field | Purpose |
+| --- | --- |
+| `learning_target` | States that the trained artifact is a **quantization policy**, not LLM weights |
+| `evidence.level` | `simulator`, `local_llama_cpp`, `multiseed_aggregate`, or `sweep_aggregate` |
+| `evidence.metric_sources` | Per-metric provenance (simulator vs llama.cpp vs external quality) |
+| `evidence.claim_boundary` | Explicit valid/invalid claim lists for papers and reviews |
+| `escalation_path` | Actionable next steps to strengthen evidence |
+
+Evidence ladder (weakest → strongest for deployment claims):
+
+1. **Simulator** — fast RL iteration; no real model required; not valid for hardware latency claims.
+2. **Local llama.cpp** — real GGUF + binary on one machine; latency/throughput claimable; quality needs external sidecar for perplexity claims.
+3. **Multiseed / sweep aggregates** — variance-aware comparisons across seeds or hyperparameters.
+4. **Deployment-grade** — out of scope for automatic labeling; requires multi-device validation you run externally.
+
+Paper bundles under `outputs/paper_bundles/<run>/` mirror the same contract in `claims_validation.json` and link `manifest.json` metric source labels.
 
 ## 5. Tooling and ops
 

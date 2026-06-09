@@ -15,6 +15,10 @@ from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import load_jsonl, write_json, write_text_file
 from adaptive_quant.math_utils import sample_std
 from adaptive_quant.pipeline.output_summary import headline_summary_for_metrics
+from adaptive_quant.pipeline.research_contract import (
+    build_claims_validation,
+    metric_sources_for_config,
+)
 
 
 def paper_bundle_dir(config: FrameworkConfig, *, run_name: str | None = None) -> Path:
@@ -35,7 +39,7 @@ def create_pipeline_paper_bundle(
     metric_rows = [{"metric": key, "value": value} for key, value in selected_metrics.items()]
 
     manifest = _manifest(config=config, run_name=config.run_name, summary=summary)
-    manifest["metric_sources"] = _metric_sources(config)
+    manifest["metric_sources"] = metric_sources_for_config(config)
 
     manifest_path = bundle_dir / "manifest.json"
     metrics_json_path = bundle_dir / "metrics_summary.json"
@@ -59,7 +63,7 @@ def create_pipeline_paper_bundle(
         ),
     )
 
-    claims = _claims_validation(config=config, summary=summary, metrics=selected_metrics)
+    claims = build_claims_validation(config=config, summary=summary, metrics=selected_metrics)
     write_json(claims_json_path, claims)
     write_text_file(claims_md_path, _claims_markdown(claims))
     write_text_file(
@@ -99,7 +103,7 @@ def create_multiseed_paper_bundle(
     bundle_dir.mkdir(parents=True, exist_ok=True)
 
     manifest = _manifest(config=config, run_name=run_name, summary=aggregate_payload)
-    manifest["metric_sources"] = _metric_sources(config)
+    manifest["metric_sources"] = metric_sources_for_config(config)
     seeds_raw = aggregate_payload.get("seeds")
     if seeds_raw is not None:
         manifest["experiment_kind"] = "multiseed"
@@ -141,7 +145,7 @@ def create_multiseed_paper_bundle(
         ["metric", "mean", "std", "n", "stderr", "ci95_low", "ci95_high", "effect_size_vs_zero"],
         rows,
     )
-    claims = _claims_validation(
+    claims = build_claims_validation(
         config=config,
         summary=aggregate_payload,
         metrics={k: v.get("mean", 0.0) for k, v in aggregate_stats.items()},
@@ -265,86 +269,25 @@ def _manifest(
     }
 
 
-def _metric_sources(config: FrameworkConfig) -> dict[str, str]:
-    has_external_quality = bool(config.external_quality_path)
-    quality_source = (
-        f"external:{config.external_quality_metric or 'perplexity'}"
-        if has_external_quality
-        else "simulator"
-    )
-    if config.backend == "llama_cpp":
-        return {
-            "latency_ms": "llama_cpp",
-            "throughput_tps": "llama_cpp",
-            "memory_mb": "llama_cpp_when_parseable_else_simulator",
-            "perplexity": quality_source,
-            "reward": (
-                "mixed_llama_cpp_perf_plus_external_quality"
-                if has_external_quality
-                else "mixed_llama_cpp_perf_plus_simulator_quality"
-            ),
-        }
-    return {
-        "latency_ms": "simulator",
-        "throughput_tps": "simulator",
-        "memory_mb": "simulator",
-        "perplexity": quality_source,
-        "reward": "simulator_plus_external_quality" if has_external_quality else "simulator",
-    }
-
-
-def _claims_validation(
-    *, config: FrameworkConfig, summary: Mapping[str, Any], metrics: Mapping[str, float]
-) -> dict[str, Any]:
-    evidence_level = "local_llama_cpp" if config.backend == "llama_cpp" else "simulator"
-    warnings: list[str] = []
-    has_external_quality = bool(config.external_quality_path)
-    if config.backend == "llama_cpp":
-        if has_external_quality:
-            warnings.append(
-                "Latency/throughput are locally measured and quality uses an external sidecar, but this is still single-machine evidence."
-            )
-            warnings.append(
-                "Verify the external quality sidecar was generated from real datasets and fixed scoring code before citing quality claims."
-            )
-        else:
-            warnings.append(
-                "Latency/throughput are locally measured, but perplexity remains simulator-derived unless an external quality metric is supplied."
-            )
-        warnings.append(
-            "Local results are single-machine evidence, not deployment-grade multi-device validation."
-        )
-    else:
-        if has_external_quality:
-            warnings.append(
-                "Systems metrics are simulator-backed; only the configured quality metric uses an external sidecar."
-            )
-        else:
-            warnings.append("All headline metrics are simulator-backed.")
-    return {
-        "evidence_level": evidence_level,
-        "deployment_grade": False,
-        "external_quality": has_external_quality,
-        "external_quality_metric": config.external_quality_metric if has_external_quality else None,
-        "metric_count": len(metrics),
-        "has_benchmark_summary": isinstance(summary.get("benchmarks"), Mapping),
-        "has_evaluation_summary": isinstance(summary.get("evaluation"), Mapping),
-        "warnings": warnings,
-    }
-
-
 def _claims_markdown(claims: Mapping[str, Any]) -> str:
     lines = [
         "# Claims Validation",
         "",
         f"- evidence level: `{claims.get('evidence_level')}`",
+        f"- learning target: `{claims.get('learning_target')}`",
         f"- deployment grade: `{claims.get('deployment_grade')}`",
         f"- external quality: `{claims.get('external_quality')}`",
         f"- external quality metric: `{claims.get('external_quality_metric')}`",
         f"- metric count: `{claims.get('metric_count')}`",
         "",
-        "## Warnings",
+        "## Valid claims",
     ]
+    for claim in claims.get("valid_claims", []):
+        lines.append(f"- {claim}")
+    lines.extend(["", "## Invalid claims"])
+    for claim in claims.get("invalid_claims", []):
+        lines.append(f"- {claim}")
+    lines.extend(["", "## Warnings"])
     for warning in claims.get("warnings", []):
         lines.append(f"- {warning}")
     return "\n".join(lines) + "\n"
