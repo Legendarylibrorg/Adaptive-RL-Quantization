@@ -1,0 +1,15 @@
+[package]
+name = "adaptive_rl_sim"
+description = "Fast episode simulator CLI for adaptive-rl-quant (JSON in/out)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "adaptive-rl-quant-rust"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

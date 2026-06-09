@@ -23,6 +23,24 @@ class SimulatorBackend:
         self.external_quality = ExternalQualityScores.from_config(config)
 
     def evaluate(self, state: EpisodeState, decision: QuantizationDecision) -> BackendMetricDict:
+        from adaptive_quant.rust_cli import (
+            RustCliError,
+            run_rust_sim_eval,
+            rust_simulator_available,
+        )
+
+        if rust_simulator_available(self.config):
+            try:
+                metrics = run_rust_sim_eval(self.config, state, decision)
+                apply_external_quality(metrics, state, self.external_quality)
+                return metrics
+            except RustCliError:
+                pass
+        return self._evaluate_python(state, decision)
+
+    def _evaluate_python(
+        self, state: EpisodeState, decision: QuantizationDecision
+    ) -> BackendMetricDict:
         hardware = state.hardware_profile
         avg_bits = mean(decision.effective_layer_bits)
         bit_variance = variance(decision.effective_layer_bits)

@@ -189,6 +189,8 @@ def build_research_contract(
             if config.external_quality_path
             else None,
             "gguf_export_enabled": export_enabled,
+            "rust_simulator_enabled": config.rust_simulator_enabled,
+            "rust_cli_binary": config.rust_cli_binary,
         },
         "reproducibility": {
             "git_commit": git_commit,

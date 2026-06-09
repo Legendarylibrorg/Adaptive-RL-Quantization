@@ -151,6 +151,17 @@ Every successful run writes a **`research`** block in `*_summary.json` (via `pip
 
 Enable **`llama_cpp_gguf_export_enabled`** to run llama.cpp `quantize` after the recommendation step and record `artifacts.exported_gguf` (default off; policy-only runs unchanged).
 
+### Optional Rust CLI (Python orchestrator unchanged)
+
+For a faster simulator hot path without rewriting the research pipeline, build `rust/adaptive_rl_sim` and enable **`rust_simulator_enabled`** (requires `backend="simulator"`, MoE off):
+
+```bash
+./scripts/build_rust.sh
+# config: rust_simulator_enabled=true, optional rust_cli_binary=/path/to/adaptive-rl-quant-rust
+```
+
+Python calls `adaptive-rl-quant-rust sim-eval` with JSON on stdin (same subprocess pattern as llama.cpp). Metrics include `simulator_engine: rust_cli`. MoE, external quality, and llama.cpp export stay in Python. Future narrow crates (GGUF wrapper, route eval) can add subcommands beside `sim-eval`.
+
 Evidence ladder (weakest → strongest for deployment claims):
 
 1. **Simulator** — fast RL iteration; no real model required; not valid for hardware latency claims.
