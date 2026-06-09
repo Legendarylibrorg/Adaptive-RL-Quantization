@@ -2,7 +2,29 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from adaptive_quant.configuration import FrameworkConfig
+from adaptive_quant.configuration.sections import (
+    artifact_layout,
+    default_route_catalog_path,
+    default_route_models_dir,
+)
+
+
+def _artifact_paths_for_topology(config: FrameworkConfig) -> list[str]:
+    layout = artifact_layout(config.outputs_dir)
+    return [
+        layout["log_dir"],
+        layout["benchmark_dir"],
+        layout["analysis_dir"],
+        layout["checkpoint_dir"],
+        layout["report_dir"],
+        f"{config.outputs_dir.rstrip('/\\')}/paper_bundles",
+        layout["gguf_export_dir"],
+        str(Path(default_route_catalog_path(config.outputs_dir)).parent),
+        default_route_models_dir(config.outputs_dir),
+    ]
 
 
 def infer_simulator_engine(config: FrameworkConfig) -> str | None:
@@ -42,15 +64,7 @@ def build_pipeline_topology(config: FrameworkConfig) -> dict[str, object]:
             "learning": _learning_components(config),
             "measurement": measurement,
             "analysis": ["src/analysis/analyzers", "pipeline/output_summary"],
-            "artifacts": [
-                "outputs/logs",
-                "outputs/benchmarks",
-                "outputs/analysis",
-                "outputs/checkpoints",
-                "outputs/reports",
-                "outputs/paper_bundles",
-                "outputs/gguf",
-            ],
+            "artifacts": _artifact_paths_for_topology(config),
         },
         "active": {
             "backend": config.backend,

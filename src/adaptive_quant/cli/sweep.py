@@ -63,15 +63,7 @@ def _default_base_config(args: argparse.Namespace) -> FrameworkConfig:
 
 
 def _apply_outputs_dir(base_config: FrameworkConfig, outputs_dir: str) -> FrameworkConfig:
-    output_root = Path(outputs_dir)
-    return base_config.clone(
-        outputs_dir=str(output_root),
-        log_dir=str(output_root / "logs"),
-        benchmark_dir=str(output_root / "benchmarks"),
-        analysis_dir=str(output_root / "analysis"),
-        checkpoint_dir=str(output_root / "checkpoints"),
-        report_dir=str(output_root / "reports"),
-    )
+    return base_config.with_output_root(outputs_dir)
 
 
 def _build_cli_sweep_spec(args: argparse.Namespace) -> SweepSpec:

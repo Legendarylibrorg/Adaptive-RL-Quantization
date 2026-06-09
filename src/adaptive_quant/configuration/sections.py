@@ -5,15 +5,40 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
+def artifact_layout(root: str = "outputs") -> dict[str, str]:
+    """Flat artifact directory fields under a single output root."""
+    base = root.rstrip("/\\")
+    return {
+        "outputs_dir": base,
+        "log_dir": f"{base}/logs",
+        "benchmark_dir": f"{base}/benchmarks",
+        "analysis_dir": f"{base}/analysis",
+        "checkpoint_dir": f"{base}/checkpoints",
+        "report_dir": f"{base}/reports",
+        "gguf_export_dir": f"{base}/gguf",
+    }
+
+
+def default_route_catalog_path(root: str = "outputs") -> str:
+    return f"{root.rstrip('/\\')}/routes/catalog.json"
+
+
+def default_route_models_dir(root: str = "outputs") -> str:
+    return f"{root.rstrip('/\\')}/models"
+
+
+_DEFAULT_LAYOUT = artifact_layout()
+
+
 @dataclass
 class ArtifactPaths:
-    outputs_dir: str = "outputs"
-    log_dir: str = "outputs/logs"
-    benchmark_dir: str = "outputs/benchmarks"
-    analysis_dir: str = "outputs/analysis"
-    checkpoint_dir: str = "outputs/checkpoints"
-    report_dir: str = "outputs/reports"
-    gguf_export_dir: str = "outputs/gguf"
+    outputs_dir: str = _DEFAULT_LAYOUT["outputs_dir"]
+    log_dir: str = _DEFAULT_LAYOUT["log_dir"]
+    benchmark_dir: str = _DEFAULT_LAYOUT["benchmark_dir"]
+    analysis_dir: str = _DEFAULT_LAYOUT["analysis_dir"]
+    checkpoint_dir: str = _DEFAULT_LAYOUT["checkpoint_dir"]
+    report_dir: str = _DEFAULT_LAYOUT["report_dir"]
+    gguf_export_dir: str = _DEFAULT_LAYOUT["gguf_export_dir"]
     run_name: str = "adaptive_universal_policy"
 
 

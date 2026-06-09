@@ -371,6 +371,12 @@ class FrameworkConfig:
         flat.update(changes)
         return FrameworkConfig(**flat)
 
+    def with_output_root(self, root: str | Path) -> FrameworkConfig:
+        """Return a copy with all standard artifact dirs rooted at ``root``."""
+        from adaptive_quant.configuration.sections import artifact_layout
+
+        return self.clone(**artifact_layout(str(root)))
+
     def to_flat_dict(self) -> dict[str, Any]:
         return config_to_flat_dict(self)
 

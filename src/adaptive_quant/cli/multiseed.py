@@ -153,15 +153,7 @@ def main(argv: Iterable[str] | None = None) -> None:
 
     base_config = select_dense_moe_preset(args.preset)
     if args.outputs_dir:
-        output_root = Path(args.outputs_dir)
-        base_config = base_config.clone(
-            outputs_dir=str(output_root),
-            log_dir=str(output_root / "logs"),
-            benchmark_dir=str(output_root / "benchmarks"),
-            analysis_dir=str(output_root / "analysis"),
-            checkpoint_dir=str(output_root / "checkpoints"),
-            report_dir=str(output_root / "reports"),
-        )
+        base_config = base_config.with_output_root(args.outputs_dir)
     if args.episodes is not None:
         base_config = apply_short_run_episodes(base_config, args.episodes)
     base_run_name = str(args.run_name or base_config.run_name)

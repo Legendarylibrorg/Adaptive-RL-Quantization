@@ -6,7 +6,10 @@ import sys
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-_SRC = _REPO_ROOT / "src"
-for _entry in (str(_SRC), str(_REPO_ROOT)):
-    if _entry not in sys.path:
-        sys.path.insert(0, _entry)
+_SRC = str(_REPO_ROOT / "src")
+if _SRC not in sys.path:
+    sys.path.insert(0, _SRC)
+
+from bootstrap import ensure_repo_paths
+
+ensure_repo_paths(_REPO_ROOT)

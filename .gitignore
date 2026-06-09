@@ -42,7 +42,6 @@ coverage.xml
 
 # Run artifacts (research outputs are local-only by default)
 outputs/
-runs/
 
 # Local secrets and credentials (never commit)
 .env

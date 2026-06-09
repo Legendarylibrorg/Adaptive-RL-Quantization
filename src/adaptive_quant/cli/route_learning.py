@@ -61,9 +61,13 @@ from adaptive_quant.route_pipeline import (
     train_route_bandit,
     validate_local_route_models,
 )
+from adaptive_quant.configuration.sections import (
+    default_route_catalog_path,
+    default_route_models_dir,
+)
 from adaptive_quant.types import HardwareType
 
-DEFAULT_CATALOG_PATH = "outputs/routes/catalog.json"
+DEFAULT_CATALOG_PATH = default_route_catalog_path()
 
 
 def main(argv: Iterable[str] | None = None) -> None:
@@ -415,7 +419,11 @@ def _cmd_download(catalog_path: Path, args: argparse.Namespace) -> None:
 
         cli = HuggingFaceCli(binary="hf", dialect="hf")
 
-    local_dir = Path(args.local_dir) if args.local_dir else Path("outputs/models") / route.route_id
+    local_dir = (
+        Path(args.local_dir)
+        if args.local_dir
+        else Path(default_route_models_dir()) / route.route_id
+    )
     local_dir.parent.mkdir(parents=True, exist_ok=True)
 
     allowed_repos = tuple(hf_allowed_repos_from_env())
