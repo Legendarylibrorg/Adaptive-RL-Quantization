@@ -68,7 +68,7 @@ flowchart LR
 
 **Installed entrypoints (thin `run_*.py` shims at repo root match these):** `adaptive-rl-quant` (default simulator), `adaptive-rl-quant-moe`, `adaptive-rl-quant-pytorch`, `adaptive-rl-quant-online`, `adaptive-rl-quant-multiseed`, `adaptive-rl-quant-sweep`, `adaptive-rl-quant-calibrate`, `adaptive-rl-quant-route`, `adaptive-rl-quant-replay`, `adaptive-rl-quant-analyze`.
 
-**Artifacts:** one layout under **`outputs/`** — `logs/` (JSONL), `benchmarks/`, `analysis/<run_name>/`, `checkpoints/`, `reports/`, `paper_bundles/` — regardless of backend ([Outputs](#outputs)).
+**Artifacts:** one layout under **`outputs/`** — `logs/`, `benchmarks/`, `analysis/<run_name>/`, `checkpoints/`, `reports/`, `paper_bundles/`, optional `gguf/`, plus route dirs `routes/` and `models/` — regardless of backend ([Outputs](#outputs)).
 
 **Stack:** Python ≥ 3.11, stdlib-first RL, optional **`[torch]`** for NVIDIA, [**llama.cpp**](https://github.com/ggml-org/llama.cpp) for local GGUF inference research, hash-chained replay for audit. **Linux / WSL2** is the default for CUDA and `llama.cpp`; simulator also runs on **macOS** and **native Windows**.
 
@@ -249,7 +249,7 @@ python3 -m unittest discover -s tests -t . -q
 
 ## Outputs
 
-Under **`outputs/`**:
+Under **`outputs/`** (override root via `outputs_dir` or multiseed/sweep `--outputs-dir`):
 
 - `logs/` — JSONL episodes
 - `benchmarks/` — summaries, optional `*_preflight.json` (GPU)
@@ -258,8 +258,11 @@ Under **`outputs/`**:
 - `checkpoints/` — policy checkpoints (PyTorch)
 - `reports/` — Markdown reports
 - `paper_bundles/<run_name>/` — manifest, metric CSV/JSON, flattened telemetry, appendix, and claims validation for citation/review
+- `gguf/` — optional llama.cpp export artifacts
+- `routes/` — route catalog JSON (default `catalog.json`)
+- `models/<route_id>/` — GGUF files from `adaptive-rl-quant-route download`
 
-Paths are driven by `run_name` and directory fields in config.
+Paths are driven by `run_name` and directory fields in config ([docs/CONFIG.md](docs/CONFIG.md#output-paths)).
 
 ---
 

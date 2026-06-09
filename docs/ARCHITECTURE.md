@@ -62,7 +62,7 @@ This layer defines reproducibility knobs such as:
 - prompt sampling modes
 - train/eval determinism
 - benchmark budgets
-- output paths
+- output paths (`artifact_layout()` in `configuration/sections.py` — shared by defaults, `FrameworkConfig.with_output_root()`, and `research.topology`)
 
 ## 3. Core runtime
 
@@ -191,6 +191,8 @@ FrameworkConfig → orchestrator (Python CLI) → learning (policy/trainer)
   → measurement (simulator | rust_cli | llama.cpp) → analysis → outputs/
 ```
 
+`research.topology.layers.artifacts` lists the active dirs for the run (from `outputs_dir` and flat artifact keys): `logs`, `benchmarks`, `analysis`, `checkpoints`, `reports`, `paper_bundles`, `gguf`, `routes`, and `models`.
+
 The contract **`schema_version`** is `2` when `topology` is present. Metric provenance uses `simulator_rust_cli` when the Rust path is active.
 
 Future narrow crates (GGUF wrapper, route eval) can add subcommands beside `sim-eval` without changing the Python orchestrator.
@@ -210,7 +212,7 @@ Paper bundles under `outputs/paper_bundles/<run>/` mirror the same contract in `
 - `scripts/run_setup_tests.py` / `src/adaptive_quant/setup_tests.py`: hardware-aware unittest subset during setup
 - `scripts/pre_commit_check.py`: syntax, hashes, full unittest, and scans
 - `scripts/env_report.py`: environment diagnosis (`make doctor`)
-- `Makefile`: Linux/WSL2-oriented convenience commands
+- `Makefile`: Linux/WSL2-oriented convenience commands (`outputs-clean`, `clean-cache` for local artifact hygiene)
 
 ## Research-grade workflow
 

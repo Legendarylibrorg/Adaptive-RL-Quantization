@@ -129,7 +129,7 @@ For **upstream** alignment, note the repo’s relationship to the upstream proje
 
 - **First / routine releases:** follow [`RELEASING.md`](RELEASING.md) (pre-release checklist, tag, GitHub Release body, security settings).
 - **CI** uses `permissions: contents: read`, workflow concurrency, a Python version matrix, and hash-verified bootstrap dependencies from `requirements/ci.txt`.
-- **E2E smoke** is intentionally short; full research budgets live in `config*.py` / JSON presets.
+- **E2E smoke** is intentionally short; full research budgets live in [`src/config.py`](src/config.py) presets and JSON/TOML configs.
 - **GPU pipelines** (e.g. `run_pytorch.py`, `scripts/run_4090_pipeline.sh`) are validated on appropriate hardware, not in default CI.
 
 ---

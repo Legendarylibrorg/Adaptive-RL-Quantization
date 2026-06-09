@@ -106,7 +106,7 @@ Startup overrides are available on research-style entrypoints. Use named flags f
 
 ## Outputs
 
-`outputs/logs/`, `outputs/benchmarks/` (including `*_preflight.json` on GPU), `outputs/analysis/<run_name>/`, `outputs/checkpoints/`, `outputs/reports/`, and `outputs/paper_bundles/<run_name>/`.
+Under `outputs/` by default: `logs/`, `benchmarks/` (including `*_preflight.json` on GPU), `analysis/<run_name>/`, `checkpoints/`, `reports/`, `paper_bundles/<run_name>/`, optional `gguf/`, plus route workflow dirs `routes/` and `models/`. Relocate via config or multiseed/sweep `--outputs-dir` — see [CONFIG.md](CONFIG.md#output-paths).
 
 ## llama.cpp
 
