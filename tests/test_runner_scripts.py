@@ -432,6 +432,9 @@ class RunnerScriptCliTests(unittest.TestCase):
             scripts["adaptive-rl-quant-route"], "adaptive_quant.cli.route_learning:main"
         )
         self.assertEqual(scripts["adaptive-rl-quant-replay"], "adaptive_quant.cli.replay:main")
+        self.assertEqual(
+            scripts["adaptive-rl-quant-alignment"], "adaptive_quant.cli.alignment:main"
+        )
         setuptools_cfg = payload["tool"]["setuptools"]
         self.assertEqual(setuptools_cfg["package-dir"], {"": "src"})
         self.assertEqual(setuptools_cfg["packages"]["find"]["where"], ["src"])
