@@ -18,6 +18,14 @@ class ArtifactPaths:
 
 
 @dataclass
+class RustSettings:
+    """Optional Rust CLI accelerators (Python remains orchestrator)."""
+
+    simulator_enabled: bool = False
+    cli_binary: str | None = None
+
+
+@dataclass
 class MoESettings:
     num_experts: int = 16
     top_k: int = 2
@@ -183,6 +191,9 @@ for _field in MoESettings.__dataclass_fields__:
 for _field in LlamaCppSettings.__dataclass_fields__:
     FLAT_FIELD_MAP[f"llama_cpp_{_field}"] = ("llama_cpp", _field)
 
+for _field in RustSettings.__dataclass_fields__:
+    FLAT_FIELD_MAP[f"rust_{_field}"] = ("rust", _field)
+
 for _field in TorchSettings.__dataclass_fields__:
     FLAT_FIELD_MAP[f"torch_{_field}"] = ("torch", _field)
 
@@ -207,13 +218,24 @@ for _field in TrainingSettings.__dataclass_fields__:
     FLAT_FIELD_MAP[_field] = ("training", _field)
 
 NESTED_SECTION_KEYS = frozenset(
-    {"artifacts", "moe", "llama_cpp", "torch", "online", "router", "training", "reward_weights"}
+    {
+        "artifacts",
+        "moe",
+        "llama_cpp",
+        "rust",
+        "torch",
+        "online",
+        "router",
+        "training",
+        "reward_weights",
+    }
 )
 
 SECTION_TYPES: dict[str, type] = {
     "artifacts": ArtifactPaths,
     "moe": MoESettings,
     "llama_cpp": LlamaCppSettings,
+    "rust": RustSettings,
     "torch": TorchSettings,
     "online": OnlineSettings,
     "router": RouterSettings,

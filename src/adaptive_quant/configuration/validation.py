@@ -559,3 +559,23 @@ def validate_gguf_export_settings(
         raise ValueError(
             "llama_cpp_gguf_export_enabled requires llama_cpp_gguf_quantize_binary or llama_cpp_binary"
         )
+
+
+def validate_rust_cli_settings(
+    *,
+    rust_simulator_enabled: bool,
+    rust_cli_binary: str | None,
+    backend: str,
+    moe_enabled: bool,
+) -> None:
+    if not rust_simulator_enabled:
+        return
+    if backend != "simulator":
+        raise ValueError(
+            "rust_simulator_enabled requires backend='simulator' (Rust CLI replaces the Python simulator only)"
+        )
+    if moe_enabled:
+        raise ValueError(
+            "rust_simulator_enabled cannot be used with moe_enabled=True (MoE uses Python simulator path)"
+        )
+    validate_optional_filesystem_path("rust_cli_binary", rust_cli_binary)

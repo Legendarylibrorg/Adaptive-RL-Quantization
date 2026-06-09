@@ -18,6 +18,7 @@ from adaptive_quant.configuration.sections import (
     MoESettings,
     OnlineSettings,
     RouterSettings,
+    RustSettings,
     TorchSettings,
     TrainingSettings,
 )
@@ -48,6 +49,7 @@ class FrameworkConfig:
     artifacts: ArtifactPaths
     moe: MoESettings
     llama_cpp: LlamaCppSettings
+    rust: RustSettings
     torch: TorchSettings
     online: OnlineSettings
     router: RouterSettings
@@ -76,6 +78,7 @@ class FrameworkConfig:
         object.__setattr__(self, "artifacts", ArtifactPaths())
         object.__setattr__(self, "moe", MoESettings())
         object.__setattr__(self, "llama_cpp", LlamaCppSettings())
+        object.__setattr__(self, "rust", RustSettings())
         object.__setattr__(self, "torch", TorchSettings())
         object.__setattr__(self, "online", OnlineSettings())
         object.__setattr__(self, "router", RouterSettings())
@@ -132,6 +135,7 @@ class FrameworkConfig:
             "artifacts",
             "moe",
             "llama_cpp",
+            "rust",
             "torch",
             "online",
             "router",
@@ -167,6 +171,12 @@ class FrameworkConfig:
         )
         v.validate_optional_filesystem_path("external_quality_path", self.external_quality_path)
         v.validate_backend(self.backend)
+        v.validate_rust_cli_settings(
+            rust_simulator_enabled=self.rust_simulator_enabled,
+            rust_cli_binary=self.rust_cli_binary,
+            backend=self.backend,
+            moe_enabled=self.moe_enabled,
+        )
         v.validate_torch_policy_algorithm(self.torch_policy_algorithm)
         v.validate_env_sampling_mode(self.env_sampling_mode)
         v.validate_rl_train_policy_mode(self.rl_train_policy_mode)

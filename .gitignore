@@ -28,6 +28,7 @@ pip-wheel-metadata/
 .ruff_cache/
 .mypy_cache/
 .pytype/
+rust/target/
 .tox/
 .nox/
 
