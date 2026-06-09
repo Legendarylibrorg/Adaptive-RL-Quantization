@@ -47,7 +47,7 @@ def recommend_quantization(trainer, config: FrameworkConfig) -> dict[str, object
     evaluated_candidates.sort(key=_evaluation_sort_key)
 
     best_fixed = evaluated_candidates[0] if evaluated_candidates else None
-    return {
+    payload: dict[str, object] = {
         "detected_hardware": detected.to_metadata() if detected is not None else None,
         "target_hardware": target_hardware.value,
         "episodes": episodes,
@@ -56,6 +56,10 @@ def recommend_quantization(trainer, config: FrameworkConfig) -> dict[str, object
         "recommended_quant": best_fixed,
         "candidates": evaluated_candidates,
     }
+    from adaptive_quant.pipeline.output_summary import recommendation_decision_block
+
+    payload["decision"] = recommendation_decision_block(payload)
+    return payload
 
 
 def _collect_policy_rollout(

@@ -174,6 +174,11 @@ class ReportMarkdownTests(unittest.TestCase):
                             "signature": "Q4",
                             "evaluation": {"mean_reward": 1.0},
                         },
+                        "decision": {
+                            "deploy": "adaptive_policy",
+                            "use_adaptive_policy": True,
+                            "rationale": "test",
+                        },
                     },
                 )
             self.assertIsNotNone(path)
@@ -182,6 +187,8 @@ class ReportMarkdownTests(unittest.TestCase):
             self.assertIn("# report_on", text)
             self.assertIn("abc123", text)
             self.assertIn("universal policy gap improvement", text)
+            self.assertIn("Benchmark comparisons", text)
+            self.assertNotIn("```json", text)
 
 
 if __name__ == "__main__":

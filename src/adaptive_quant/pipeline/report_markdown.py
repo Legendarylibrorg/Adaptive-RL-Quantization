@@ -6,6 +6,7 @@ from pathlib import Path
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import md_table, write_text_file
 from adaptive_quant.math_utils import format_display
+from adaptive_quant.pipeline.output_summary import analysis_takeaway_lines, benchmark_metric_rows
 
 
 def fmt_report_num(value: object, *, digits: int = 2) -> str:
@@ -21,6 +22,12 @@ def maybe_report_link(report_dir: Path, rel_path: Path) -> str:
 
 def md_code_json(obj: object) -> str:
     return "```json\n" + json.dumps(obj, indent=2, sort_keys=True) + "\n```"
+
+
+def _dict_table_rows(data: dict[str, object] | None) -> list[list[str]]:
+    if not isinstance(data, dict):
+        return []
+    return [[str(key), fmt_report_num(value)] for key, value in sorted(data.items())]
 
 
 def write_research_report_markdown(
@@ -58,6 +65,19 @@ def write_research_report_markdown(
             ("quant function params", analysis_root / "quant" / "quant_function_parameters.svg"),
             ("training reward curve", analysis_root / "training" / "training_reward_curve.svg"),
         ]
+        if config.moe_enabled:
+            candidates.extend(
+                [
+                    (
+                        "MoE variant usage",
+                        analysis_root / "moe_experts" / "moe_variant_usage.svg",
+                    ),
+                    (
+                        "MoE cache metrics",
+                        analysis_root / "moe_cache" / "moe_cache_metrics.svg",
+                    ),
+                ]
+            )
         lines: list[str] = []
         for label, abs_path in candidates:
             rel_path = rel_root / abs_path.relative_to(analysis_root)
@@ -77,6 +97,7 @@ def write_research_report_markdown(
     recommended_quant = (
         recommendation.get("recommended_quant") if isinstance(recommendation, dict) else None
     )
+    decision = recommendation.get("decision") if isinstance(recommendation, dict) else None
 
     bench = benchmark_summary
     single_vs_multi = bench.get("single_vs_multi") if isinstance(bench, dict) else None
@@ -119,6 +140,24 @@ def write_research_report_markdown(
                     f"{fmt_report_num(discrete_metrics.get('mean_latency_ms'))} → {fmt_report_num(learned_metrics.get('mean_latency_ms'))}"
                 )
 
+    benchmark_rows = benchmark_metric_rows(benchmark_summary)
+    benchmark_table_lines = (
+        md_table(["comparison", "left", "right"], benchmark_rows)
+        if benchmark_rows
+        else ["_no benchmark comparisons available_"]
+    )
+
+    analysis_root = Path("..") / "analysis" / config.run_name
+    analysis_json_links = [
+        f"- {name}: {maybe_report_link(report_dir, analysis_root / sub / json_file)}"
+        for name, sub, json_file in (
+            ("hardware", "hardware", "hardware_generalization_summary.json"),
+            ("inputs", "inputs", "input_adaptation_summary.json"),
+            ("quant", "quant", "quant_function_behavior_summary.json"),
+            ("training", "training", "training_dynamics_summary.json"),
+        )
+    ]
+
     lines = [
         f"# {config.run_name}",
         "",
@@ -145,46 +184,77 @@ def write_research_report_markdown(
         *md_table(["metric", "value"], eval_rows),
         "",
         "## Recommendation",
-        f"- target_hardware: `{recommendation.get('target_hardware') if recommendation else 'n/a'}`",
-        f"- detected_hardware: `{recommendation.get('detected_hardware') if recommendation else 'n/a'}`",
-        f"- adaptive_policy_reward: `{fmt_report_num((recommendation or {}).get('adaptive_policy', {}).get('mean_reward') if recommendation else None)}`",
-        f"- recommended_fixed_quant: `{(recommended_quant or {}).get('signature', 'n/a')}`",
-        f"- recommended_fixed_reward: `{fmt_report_num((recommended_quant or {}).get('evaluation', {}).get('mean_reward') if isinstance(recommended_quant, dict) else None)}`",
-        "",
-        "## Benchmarks",
-        "",
-        "### Single-hardware vs multi-hardware",
-        md_code_json(single_vs_multi) if single_vs_multi is not None else "_not run_",
-        "",
-        "### Static vs dynamic",
-        md_code_json(static_vs_dynamic) if static_vs_dynamic is not None else "_not run_",
-        "",
-        "### Discrete vs learned",
-        md_code_json(discrete_vs_learned) if discrete_vs_learned is not None else "_not run_",
-        "",
-        "## GPU / VRAM / Preflight",
-        f"- gpu profile: `{gpu_profile_report or 'n/a'}`",
-        f"- preflight: `{preflight_report or 'n/a'}`",
-        f"- continuous_training: `{config.continuous_training}`",
-        f"- max_training_episodes: `{config.max_training_episodes:,}`",
-        f"- replay_buffer_capacity: `{config.replay_buffer_capacity:,}`",
-        *(
-            [
-                f"- vram_allocated_mb: `{vram_report.get('vram_allocated_mb', 'n/a')}`",
-                f"- vram_reserved_mb: `{vram_report.get('vram_reserved_mb', 'n/a')}`",
-                f"- replay_buffer_mb: `{vram_report.get('replay_buffer_mb', 'n/a')}`",
-                f"- replay_buffer_entries: `{vram_report.get('replay_buffer_entries', 'n/a')}`",
-            ]
-            if vram_report
-            else ["- vram: `n/a (cpu backend)`"]
-        ),
-        "",
-        "## Analysis",
-        "### Figures",
-        *_analysis_fig_links(),
-        "",
-        "### Analysis summaries",
-        md_code_json(analysis),
     ]
+    if isinstance(decision, dict):
+        lines.extend(
+            [
+                f"- **deploy:** `{decision.get('deploy', 'n/a')}`",
+                f"- use_adaptive_policy: `{decision.get('use_adaptive_policy')}`",
+                f"- rationale: {decision.get('rationale', 'n/a')}",
+            ]
+        )
+        if decision.get("reward_delta_vs_adaptive") is not None:
+            lines.append(
+                f"- reward_delta_vs_adaptive: `{fmt_report_num(decision.get('reward_delta_vs_adaptive'))}`"
+            )
+    lines.extend(
+        [
+            f"- target_hardware: `{recommendation.get('target_hardware') if recommendation else 'n/a'}`",
+            f"- adaptive_policy_reward: `{fmt_report_num((recommendation or {}).get('adaptive_policy', {}).get('mean_reward') if recommendation else None)}`",
+            f"- recommended_fixed_quant: `{(recommended_quant or {}).get('signature', 'n/a')}`",
+            f"- recommended_fixed_reward: `{fmt_report_num((recommended_quant or {}).get('evaluation', {}).get('mean_reward') if isinstance(recommended_quant, dict) else None)}`",
+            f"- full recommendation JSON: `{config.recommendation_path()}`",
+            "",
+            "## Benchmark comparisons",
+            "",
+            *benchmark_table_lines,
+            "",
+            "## GPU / VRAM / Preflight",
+        ]
+    )
+    if gpu_profile_report:
+        lines.extend(
+            [
+                "",
+                "### GPU profile",
+                *md_table(["field", "value"], _dict_table_rows(gpu_profile_report)),
+            ]
+        )
+    if preflight_report:
+        lines.extend(
+            ["", "### Preflight", *md_table(["field", "value"], _dict_table_rows(preflight_report))]
+        )
+    lines.extend(
+        [
+            "",
+            f"- continuous_training: `{config.continuous_training}`",
+            f"- max_training_episodes: `{config.max_training_episodes:,}`",
+            f"- replay_buffer_capacity: `{config.replay_buffer_capacity:,}`",
+        ]
+    )
+    if vram_report:
+        lines.extend(["", *md_table(["vram metric", "value"], _dict_table_rows(vram_report))])
+    else:
+        lines.append("- vram: `n/a (cpu backend)`")
+    lines.extend(
+        [
+            "",
+            "## Analysis",
+            "",
+            "### Takeaways",
+            *analysis_takeaway_lines(analysis),
+            "",
+            "### Figures",
+            *_analysis_fig_links(),
+            "",
+            "### Analysis JSON (on disk)",
+            *analysis_json_links,
+            "",
+            f"Full analysis tree: `{config.analysis_dir}/{config.run_name}/`",
+        ]
+    )
     write_text_file(report_path, "\n".join(lines) + "\n")
     return str(target)
+
+
+__all__ = ["fmt_report_num", "maybe_report_link", "md_code_json", "write_research_report_markdown"]
