@@ -269,6 +269,14 @@ Real llama.cpp experiments:
 - set `llama_cpp_binary`
 - set `llama_cpp_model`
 
+Optional GGUF export (research-grade artifact under `outputs/gguf/`):
+
+- set `llama_cpp_gguf_export_enabled=true`
+- set `llama_cpp_gguf_export_source` to a high-bit source GGUF (F16/F32) or rely on `llama_cpp_model`
+- set `llama_cpp_gguf_export_quant_type` (default `Q4_K_M`; mapped from recommendation bit width when a fixed quant wins)
+- optionally set `llama_cpp_gguf_quantize_binary` (defaults to `llama-quantize` next to `llama_cpp_binary`)
+- exported path appears in `*_summary.json` → `artifacts.exported_gguf` and the Markdown report **GGUF export** section
+
 Online routing is controlled separately by `router_enabled` and `router_routes`. It is not a separate `backend` value; routes are evaluated through the configured measurement backend.
 
 ### Custom measurement backends (advanced)

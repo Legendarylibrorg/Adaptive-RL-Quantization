@@ -6,7 +6,11 @@ from pathlib import Path
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.logging_utils import md_table, write_text_file
 from adaptive_quant.math_utils import format_display
-from adaptive_quant.pipeline.output_summary import analysis_takeaway_lines, benchmark_metric_rows
+from adaptive_quant.pipeline.output_summary import (
+    analysis_takeaway_lines,
+    benchmark_metric_rows,
+    gguf_export_report_lines,
+)
 from adaptive_quant.pipeline.research_contract import (
     build_research_contract,
     research_contract_report_lines,
@@ -48,6 +52,7 @@ def write_research_report_markdown(
     history_path: str | None,
     checkpoint_path: str | None,
     recommendation_summary: dict[str, object] | None,
+    gguf_export_summary: dict[str, object] | None = None,
 ) -> str | None:
     if not config.write_research_report:
         return None
@@ -219,6 +224,9 @@ def write_research_report_markdown(
             f"- recommended_fixed_quant: `{(recommended_quant or {}).get('signature', 'n/a')}`",
             f"- recommended_fixed_reward: `{fmt_report_num((recommended_quant or {}).get('evaluation', {}).get('mean_reward') if isinstance(recommended_quant, dict) else None)}`",
             f"- full recommendation JSON: `{config.recommendation_path()}`",
+            "",
+            "## GGUF export",
+            *gguf_export_report_lines(gguf_export_summary),
             "",
             "## Benchmark comparisons",
             "",

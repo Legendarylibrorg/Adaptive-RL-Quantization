@@ -119,9 +119,13 @@ flowchart TB
     Policy[RL policy / router]
     CKPT[outputs/checkpoints/]
     Policy --> CKPT
+    Export[Optional GGUF export]
+    Policy -->|recommendation quant type| Export
+    Export --> GGUFOut[outputs/gguf/]
   end
   subgraph inputs [Fixed inputs]
     GGUF[Pre-built GGUF files]
+    SourceGGUF[High-bit source GGUF for export]
     Prompts[Prompt library / episodes]
   end
   subgraph measure [Measurement backends]
@@ -143,6 +147,9 @@ Every successful run writes a **`research`** block in `*_summary.json` (via `pip
 | `evidence.metric_sources` | Per-metric provenance (simulator vs llama.cpp vs external quality) |
 | `evidence.claim_boundary` | Explicit valid/invalid claim lists for papers and reviews |
 | `escalation_path` | Actionable next steps to strengthen evidence |
+| `artifact_index` | Stable paths to summary, report, checkpoint, exported GGUF, paper bundle |
+
+Enable **`llama_cpp_gguf_export_enabled`** to run llama.cpp `quantize` after the recommendation step and record `artifacts.exported_gguf` (default off; policy-only runs unchanged).
 
 Evidence ladder (weakest → strongest for deployment claims):
 

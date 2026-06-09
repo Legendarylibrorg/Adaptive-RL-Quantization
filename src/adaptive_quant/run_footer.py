@@ -99,6 +99,9 @@ def print_pipeline_footer(
         decision = recommendation.get("decision")
         if isinstance(decision, dict) and decision.get("deploy"):
             rows.append(("deploy", format_display(decision.get("deploy"), style="footer")))
+    exported = art.get("exported_gguf")
+    if exported:
+        rows.append(("exported_gguf", str(exported)))
 
     print_cli_block("Run complete", rows)
 

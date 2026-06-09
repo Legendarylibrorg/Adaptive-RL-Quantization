@@ -523,3 +523,39 @@ def validate_hf_allowed_models(models: tuple[str, ...]) -> None:
         if not isinstance(model, str) or not model.strip():
             raise ValueError("router_hf_allowed_models entries must be non-empty strings")
         validate_hf_model_id("router_hf_allowed_models", model.strip(), require_hub_namespace=True)
+
+
+def validate_gguf_export_settings(
+    *,
+    gguf_export_enabled: bool,
+    gguf_export_source: str | None,
+    gguf_export_quant_type: str,
+    gguf_quantize_binary: str | None,
+    llama_cpp_binary: str | None,
+    llama_cpp_model: str | None,
+) -> None:
+    if not gguf_export_enabled:
+        return
+    from adaptive_quant.model_routes import QUANT_BITS
+
+    if not isinstance(gguf_export_quant_type, str) or not gguf_export_quant_type.strip():
+        raise ValueError(
+            "llama_cpp_gguf_export_quant_type must be a non-empty string when export is enabled"
+        )
+    quant_key = gguf_export_quant_type.strip().upper()
+    if quant_key not in QUANT_BITS:
+        allowed = ", ".join(sorted(QUANT_BITS))
+        raise ValueError(
+            f"llama_cpp_gguf_export_quant_type must be one of [{allowed}], got {gguf_export_quant_type!r}"
+        )
+    source = gguf_export_source or llama_cpp_model
+    if not source:
+        raise ValueError(
+            "llama_cpp_gguf_export_enabled requires llama_cpp_gguf_export_source or llama_cpp_model"
+        )
+    validate_optional_filesystem_path("llama_cpp_gguf_export_source", source)
+    validate_optional_filesystem_path("llama_cpp_gguf_quantize_binary", gguf_quantize_binary)
+    if gguf_quantize_binary is None and not llama_cpp_binary:
+        raise ValueError(
+            "llama_cpp_gguf_export_enabled requires llama_cpp_gguf_quantize_binary or llama_cpp_binary"
+        )

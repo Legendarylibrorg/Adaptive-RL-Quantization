@@ -41,6 +41,23 @@ class ResearchContractTests(unittest.TestCase):
         self.assertIn("llm_weights", does_not)
         self.assertIn("gguf_quantization_export", does_not)
 
+    def test_contract_with_gguf_export_enabled(self) -> None:
+        cfg = FrameworkConfig(
+            run_name="export_scope",
+            llama_cpp_gguf_export_enabled=True,
+            llama_cpp_gguf_export_source="/models/base.gguf",
+            llama_cpp_binary="/bin/llama-cli",
+            detect_host_hardware=False,
+        )
+        contract = build_research_contract(cfg)
+        learning = contract["learning_target"]
+        assert isinstance(learning, dict)
+        self.assertTrue(learning["gguf_export_enabled"])
+        self.assertIn("exported_gguf", learning["trained_artifacts"])
+        does_not = learning["does_not_train"]
+        assert isinstance(does_not, list)
+        self.assertNotIn("gguf_quantization_export", does_not)
+
     def test_simulator_invalidates_hardware_claims(self) -> None:
         cfg = FrameworkConfig(run_name="sim", detect_host_hardware=False)
         contract = build_research_contract(cfg)

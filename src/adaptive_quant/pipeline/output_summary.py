@@ -320,10 +320,58 @@ def recommendation_decision_block(payload: dict[str, object]) -> dict[str, objec
     return block
 
 
+def build_research_artifact_index(
+    config: FrameworkConfig,
+    artifacts: Mapping[str, Any],
+) -> dict[str, str | None]:
+    """Stable artifact map for research-grade navigation in summaries and reports."""
+    paper_bundle = artifacts.get("paper_bundle")
+    bundle_dir: str | None = None
+    if isinstance(paper_bundle, Mapping):
+        raw = paper_bundle.get("paper_bundle_dir")
+        bundle_dir = str(raw) if raw else None
+    return {
+        "summary_json": config.summary_path(),
+        "report_md": _artifact_path(artifacts, "report"),
+        "checkpoint": _artifact_path(artifacts, "final_checkpoint"),
+        "recommendation_json": _artifact_path(artifacts, "recommendation"),
+        "training_history": _artifact_path(artifacts, "training_history"),
+        "exported_gguf": _artifact_path(artifacts, "exported_gguf"),
+        "paper_bundle_dir": bundle_dir,
+        "analysis_dir": f"{config.analysis_dir}/{config.run_name}/",
+    }
+
+
+def _artifact_path(artifacts: Mapping[str, Any], key: str) -> str | None:
+    value = artifacts.get(key)
+    if value is None:
+        return None
+    return str(value)
+
+
+def gguf_export_report_lines(gguf_export: Mapping[str, Any] | None) -> list[str]:
+    if not isinstance(gguf_export, dict):
+        return ["- GGUF export disabled."]
+    if not gguf_export.get("enabled"):
+        return ["- GGUF export disabled (`llama_cpp_gguf_export_enabled=false`)."]
+    if gguf_export.get("error"):
+        return [f"- GGUF export failed: `{gguf_export.get('error')}`"]
+    output_path = gguf_export.get("output_path")
+    if output_path:
+        return [
+            f"- exported GGUF: `{output_path}`",
+            f"- quant type: `{gguf_export.get('quant_type')}`",
+            f"- source: `{gguf_export.get('source_path')}`",
+        ]
+    return ["- GGUF export did not produce an output path."]
+
+
 __all__ = [
     "analysis_takeaway_lines",
     "benchmark_metric_rows",
+    "build_research_artifact_index",
     "experiment_config_summary",
+    "gguf_export_report_lines",
     "headline_summary_for_metrics",
     "online_analysis_takeaway_lines",
     "recommendation_decision_block",
