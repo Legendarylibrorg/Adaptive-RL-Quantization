@@ -19,6 +19,11 @@ EVIDENCE_MULTISEED = "multiseed_aggregate"
 EVIDENCE_SWEEP = "sweep_aggregate"
 
 LEARNING_TARGET_POLICY = "quantization_policy"
+LEARNING_TARGET_GGUF_EXPORT = "exported_gguf"
+
+
+def _gguf_export_enabled(config: FrameworkConfig) -> bool:
+    return bool(config.llama_cpp_gguf_export_enabled)
 
 
 def infer_evidence_level(config: FrameworkConfig) -> str:
@@ -60,10 +65,11 @@ def _claim_boundary(config: FrameworkConfig, evidence_level: str) -> dict[str, o
     valid: list[str] = []
     invalid: list[str] = [
         "llm_weight_updates",
-        "automatic_gguf_requantization",
         "multi_device_deployment_validation",
         "production_serving_sla",
     ]
+    if not _gguf_export_enabled(config):
+        invalid.append("automatic_gguf_requantization")
     if evidence_level == EVIDENCE_SIMULATOR:
         valid.extend(
             [
@@ -87,6 +93,9 @@ def _claim_boundary(config: FrameworkConfig, evidence_level: str) -> dict[str, o
             valid.append("external_quality_on_configured_sidecar")
         else:
             invalid.append("real_perplexity_claims_without_external_sidecar")
+    if _gguf_export_enabled(config):
+        valid.append("exported_gguf_from_recommendation_quant_type")
+        valid.append("single_machine_gguf_export_provenance")
     return {"valid_claims": valid, "invalid_claims": invalid}
 
 
@@ -108,6 +117,10 @@ def _escalation_path(config: FrameworkConfig, evidence_level: str) -> list[str]:
         hints.append(
             "Enable router_enabled with router_routes to compare multiple GGUF quant variants in one run."
         )
+    if not _gguf_export_enabled(config) and config.backend == "llama_cpp":
+        hints.append(
+            "Enable llama_cpp_gguf_export_enabled to write a recommendation-driven GGUF under outputs/gguf/."
+        )
     hints.append(
         "Use outputs/paper_bundles/<run>/manifest.json and claims_validation.md when citing results."
     )
@@ -126,17 +139,33 @@ def build_research_contract(
     level = evidence_level or infer_evidence_level(config)
     sources = metric_sources_for_config(config)
     boundary = _claim_boundary(config, level)
+    export_enabled = _gguf_export_enabled(config)
+    does_not_train = ["llm_weights"]
+    if not export_enabled:
+        does_not_train.append("gguf_quantization_export")
+    trained_artifacts = ["policy_checkpoint"]
+    if export_enabled:
+        trained_artifacts.append(LEARNING_TARGET_GGUF_EXPORT)
+    summary_text = (
+        "Trains an RL quantization/routing policy and exports a GGUF via llama.cpp quantize "
+        "when llama_cpp_gguf_export_enabled is set."
+        if export_enabled
+        else (
+            "Trains an RL quantization/routing policy; GGUF files are pre-built "
+            "measurement inputs unless llama_cpp_gguf_export_enabled is set."
+        )
+    )
     return {
         "schema_version": SCHEMA_VERSION,
         "pipeline": pipeline,
         "learning_target": {
             "object": LEARNING_TARGET_POLICY,
-            "trained_artifact": "policy_checkpoint",
-            "does_not_train": ["llm_weights", "gguf_quantization_export"],
-            "summary": (
-                "Trains an RL quantization/routing policy; GGUF files are pre-built "
-                "measurement inputs, not outputs of in-run weight quantization."
-            ),
+            "trained_artifacts": trained_artifacts,
+            "trained_artifact": trained_artifacts[0],
+            "secondary_artifacts": trained_artifacts[1:],
+            "does_not_train": does_not_train,
+            "gguf_export_enabled": export_enabled,
+            "summary": summary_text,
         },
         "evidence": {
             "level": level,
@@ -159,6 +188,7 @@ def build_research_contract(
             "external_quality_metric": config.external_quality_metric
             if config.external_quality_path
             else None,
+            "gguf_export_enabled": export_enabled,
         },
         "reproducibility": {
             "git_commit": git_commit,
@@ -230,10 +260,17 @@ def research_contract_report_lines(contract: Mapping[str, Any]) -> list[str]:
     measurement = contract.get("measurement")
     lines: list[str] = []
     if isinstance(learning, dict):
-        lines.append(
-            f"- **Learning target:** `{learning.get('object')}` "
-            f"(checkpoint: `{learning.get('trained_artifact')}`)"
-        )
+        artifacts = learning.get("trained_artifacts")
+        if isinstance(artifacts, list) and len(artifacts) > 1:
+            primary = ", ".join(f"`{x}`" for x in artifacts)
+            lines.append(f"- **Trained artifacts:** {primary}")
+        else:
+            lines.append(
+                f"- **Learning target:** `{learning.get('object')}` "
+                f"(checkpoint: `{learning.get('trained_artifact')}`)"
+            )
+        if learning.get("gguf_export_enabled"):
+            lines.append("- **GGUF export:** enabled (`llama_cpp_gguf_export_enabled`)")
         does_not = learning.get("does_not_train")
         if isinstance(does_not, list) and does_not:
             lines.append(f"- **Does not train:** {', '.join(f'`{x}`' for x in does_not)}")
@@ -266,6 +303,7 @@ __all__ = [
     "EVIDENCE_MULTISEED",
     "EVIDENCE_SIMULATOR",
     "EVIDENCE_SWEEP",
+    "LEARNING_TARGET_GGUF_EXPORT",
     "LEARNING_TARGET_POLICY",
     "SCHEMA_VERSION",
     "build_claims_validation",

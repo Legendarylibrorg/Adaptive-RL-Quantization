@@ -153,9 +153,18 @@ class FrameworkConfig:
         v.validate_artifact_dir("analysis_dir", self.analysis_dir)
         v.validate_artifact_dir("checkpoint_dir", self.checkpoint_dir)
         v.validate_artifact_dir("report_dir", self.report_dir)
+        v.validate_artifact_dir("gguf_export_dir", self.gguf_export_dir)
         v.validate_optional_filesystem_path("resume_from_checkpoint", self.resume_from_checkpoint)
         v.validate_optional_filesystem_path("llama_cpp_binary", self.llama_cpp_binary)
         v.validate_optional_filesystem_path("llama_cpp_model", self.llama_cpp_model)
+        v.validate_gguf_export_settings(
+            gguf_export_enabled=self.llama_cpp_gguf_export_enabled,
+            gguf_export_source=self.llama_cpp_gguf_export_source,
+            gguf_export_quant_type=self.llama_cpp_gguf_export_quant_type,
+            gguf_quantize_binary=self.llama_cpp_gguf_quantize_binary,
+            llama_cpp_binary=self.llama_cpp_binary,
+            llama_cpp_model=self.llama_cpp_model,
+        )
         v.validate_optional_filesystem_path("external_quality_path", self.external_quality_path)
         v.validate_backend(self.backend)
         v.validate_torch_policy_algorithm(self.torch_policy_algorithm)
@@ -377,6 +386,10 @@ class FrameworkConfig:
 
     def report_path(self) -> str:
         return f"{self.report_dir}/{self.run_name}_report.md"
+
+    def gguf_export_path(self, *, quant_type: str) -> str:
+        safe_type = quant_type.replace("/", "_").replace("\\", "_")
+        return f"{self.gguf_export_dir}/{self.run_name}_{safe_type}.gguf"
 
     def replay_manifest_path(self) -> str:
         return f"{self.log_dir}/{self.run_name}_replay_manifest.json"

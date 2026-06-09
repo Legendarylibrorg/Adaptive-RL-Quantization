@@ -13,6 +13,7 @@ class ArtifactPaths:
     analysis_dir: str = "outputs/analysis"
     checkpoint_dir: str = "outputs/checkpoints"
     report_dir: str = "outputs/reports"
+    gguf_export_dir: str = "outputs/gguf"
     run_name: str = "adaptive_universal_policy"
 
 
@@ -41,6 +42,11 @@ class LlamaCppSettings:
     generate_tokens: int = 64
     cache_enabled: bool = False
     cache_max_entries: int = 256
+    gguf_export_enabled: bool = False
+    gguf_export_source: str | None = None
+    gguf_export_quant_type: str = "Q4_K_M"
+    gguf_quantize_binary: str | None = None
+    gguf_export_allow_requantize: bool = False
 
 
 @dataclass
@@ -166,6 +172,7 @@ _ARTIFACT_FLAT = {
     "analysis_dir": ("artifacts", "analysis_dir"),
     "checkpoint_dir": ("artifacts", "checkpoint_dir"),
     "report_dir": ("artifacts", "report_dir"),
+    "gguf_export_dir": ("artifacts", "gguf_export_dir"),
     "run_name": ("artifacts", "run_name"),
 }
 FLAT_FIELD_MAP.update(_ARTIFACT_FLAT)

@@ -43,6 +43,7 @@ class OutputSchemaTests(unittest.TestCase):
                 "config",
                 "git_commit",
                 "research",
+                "artifact_index",
                 "train",
                 "evaluation",
                 "recommendation",

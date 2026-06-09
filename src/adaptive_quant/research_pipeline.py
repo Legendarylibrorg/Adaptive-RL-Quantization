@@ -85,6 +85,7 @@ class ResearchPipeline:
         train_summary: dict[str, object] = {}
         eval_summary: dict[str, object] = {}
         recommendation_summary: dict[str, object] | None = None
+        gguf_export_summary: dict[str, object] = {}
         vram_report: dict[str, object] | None = None
         history_path: str | None = None
         checkpoint_path: str | None = None
@@ -114,6 +115,9 @@ class ResearchPipeline:
             recommendation_summary = self._recommend_quantization(config, trainer)
             recommendation_path = config.recommendation_path()
             write_json(recommendation_path, recommendation_summary)
+            from adaptive_quant.pipeline.gguf_export import maybe_export_gguf
+
+            gguf_export_summary = maybe_export_gguf(config, recommendation_summary)
             history_path = write_training_history(config, trainer)
             checkpoint_path = maybe_save_final_checkpoint(config, trainer)
         except KeyboardInterrupt:
@@ -144,7 +148,29 @@ class ResearchPipeline:
             history_path=history_path,
             checkpoint_path=checkpoint_path,
             recommendation_summary=recommendation_summary,
+            gguf_export_summary=gguf_export_summary,
         )
+        phases = [
+            "train",
+            "evaluate",
+            "recommendation",
+            "benchmark",
+            "analysis",
+            "report",
+            "paper_bundle",
+        ]
+        if config.llama_cpp_gguf_export_enabled:
+            phases.insert(3, "gguf_export")
+        artifact_payload: dict[str, object] = {
+            "training_history": history_path,
+            "final_checkpoint": checkpoint_path,
+            "recommendation": recommendation_path,
+            "report": report_path,
+            "replay_manifest": (replay_report or {}).get("manifest_path"),
+        }
+        exported_gguf = gguf_export_summary.get("output_path")
+        if exported_gguf:
+            artifact_payload["exported_gguf"] = exported_gguf
         summary = {
             "config": config_to_flat_dict(config),
             "git_commit": commit,
@@ -152,15 +178,7 @@ class ResearchPipeline:
                 config,
                 git_commit=commit,
                 pipeline="offline_research",
-                phases=[
-                    "train",
-                    "evaluate",
-                    "recommendation",
-                    "benchmark",
-                    "analysis",
-                    "report",
-                    "paper_bundle",
-                ],
+                phases=phases,
             ),
             "security_audit": build_security_audit_record(
                 config,
@@ -172,22 +190,21 @@ class ResearchPipeline:
             "train": train_summary,
             "evaluation": eval_summary,
             "recommendation": recommendation_summary,
+            "gguf_export": gguf_export_summary,
             "benchmarks": benchmark_summary,
             "analysis": analysis,
             "replay": replay_report,
-            "artifacts": {
-                "training_history": history_path,
-                "final_checkpoint": checkpoint_path,
-                "recommendation": recommendation_path,
-                "report": report_path,
-                "replay_manifest": (replay_report or {}).get("manifest_path"),
-            },
+            "artifacts": artifact_payload,
         }
-        from adaptive_quant.pipeline.output_summary import slim_analysis_for_summary
+        from adaptive_quant.pipeline.output_summary import (
+            build_research_artifact_index,
+            slim_analysis_for_summary,
+        )
 
         summary["analysis"] = slim_analysis_for_summary(analysis, config)
         paper_bundle = create_pipeline_paper_bundle(config=config, summary=summary)
         summary["artifacts"]["paper_bundle"] = paper_bundle
+        summary["artifact_index"] = build_research_artifact_index(config, summary["artifacts"])
         write_json(config.summary_path(), summary)
         return summary
 
