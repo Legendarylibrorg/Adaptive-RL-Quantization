@@ -153,9 +153,7 @@ def build_research_contract(
             "router_enabled": config.router_enabled,
             "router_route_count": len(config.router_routes) if config.router_enabled else 0,
             "llama_cpp_configured": bool(
-                config.backend == "llama_cpp"
-                and config.llama_cpp_binary
-                and config.llama_cpp_model
+                config.backend == "llama_cpp" and config.llama_cpp_binary and config.llama_cpp_model
             ),
             "external_quality": bool(config.external_quality_path),
             "external_quality_metric": config.external_quality_metric
