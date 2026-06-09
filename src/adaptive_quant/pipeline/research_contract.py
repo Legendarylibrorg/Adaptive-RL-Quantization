@@ -11,7 +11,7 @@ from typing import Any
 
 from adaptive_quant.configuration import FrameworkConfig
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 EVIDENCE_SIMULATOR = "simulator"
 EVIDENCE_LOCAL_LLAMA_CPP = "local_llama_cpp"
@@ -52,12 +52,17 @@ def metric_sources_for_config(config: FrameworkConfig) -> dict[str, str]:
                 else "mixed_llama_cpp_perf_plus_simulator_quality"
             ),
         }
+    from adaptive_quant.pipeline.topology import infer_simulator_engine
+
+    sim_engine = infer_simulator_engine(config)
+    perf_source = "simulator_rust_cli" if sim_engine == "rust_cli" else "simulator"
     return {
-        "latency_ms": "simulator",
-        "throughput_tps": "simulator",
-        "memory_mb": "simulator",
+        "latency_ms": perf_source,
+        "throughput_tps": perf_source,
+        "memory_mb": perf_source,
         "perplexity": quality_source,
-        "reward": "simulator_plus_external_quality" if has_external_quality else "simulator",
+        "reward": "simulator_plus_external_quality" if has_external_quality else perf_source,
+        "simulator_engine": sim_engine or "python",
     }
 
 
@@ -121,6 +126,14 @@ def _escalation_path(config: FrameworkConfig, evidence_level: str) -> list[str]:
         hints.append(
             "Enable llama_cpp_gguf_export_enabled to write a recommendation-driven GGUF under outputs/gguf/."
         )
+    if config.rust_simulator_enabled and config.backend == "simulator" and not config.moe_enabled:
+        from adaptive_quant.rust_cli import resolve_rust_cli_binary
+
+        if resolve_rust_cli_binary(config) is None:
+            hints.append(
+                "rust_simulator_enabled is set but no binary was found; run ./scripts/build_rust.sh "
+                "from the repo root or set rust_cli_binary / ADAPTIVE_RL_RUST_CLI."
+            )
     hints.append(
         "Use outputs/paper_bundles/<run>/manifest.json and claims_validation.md when citing results."
     )
@@ -140,6 +153,11 @@ def build_research_contract(
     sources = metric_sources_for_config(config)
     boundary = _claim_boundary(config, level)
     export_enabled = _gguf_export_enabled(config)
+    from adaptive_quant.pipeline.topology import build_pipeline_topology
+    from adaptive_quant.rust_cli import rust_cli_status
+
+    topology = build_pipeline_topology(config)
+
     does_not_train = ["llm_weights"]
     if not export_enabled:
         does_not_train.append("gguf_quantization_export")
@@ -191,6 +209,7 @@ def build_research_contract(
             "gguf_export_enabled": export_enabled,
             "rust_simulator_enabled": config.rust_simulator_enabled,
             "rust_cli_binary": config.rust_cli_binary,
+            "rust_cli": rust_cli_status(config),
         },
         "reproducibility": {
             "git_commit": git_commit,
@@ -199,6 +218,7 @@ def build_research_contract(
             "phases_completed": list(phases or ()),
         },
         "escalation_path": _escalation_path(config, level),
+        "topology": topology,
     }
 
 
@@ -297,7 +317,30 @@ def research_contract_report_lines(contract: Mapping[str, Any]) -> list[str]:
             lines.append(
                 f"- **Router:** `{measurement.get('router_route_count')}` pre-built GGUF route(s)"
             )
+        rust_cli = measurement.get("rust_cli")
+        if isinstance(rust_cli, dict) and rust_cli.get("enabled"):
+            avail = "available" if rust_cli.get("available") else "binary missing (Python fallback)"
+            lines.append(f"- **Rust simulator CLI:** {avail}")
     return lines
+
+
+def artifact_index_report_lines(artifact_index: Mapping[str, Any] | None) -> list[str]:
+    if not isinstance(artifact_index, dict):
+        return []
+    lines: list[str] = []
+    for key in (
+        "summary_json",
+        "report_md",
+        "checkpoint",
+        "recommendation_json",
+        "exported_gguf",
+        "paper_bundle_dir",
+        "analysis_dir",
+    ):
+        path = artifact_index.get(key)
+        if path:
+            lines.append(f"- `{key}`: `{path}`")
+    return lines or ["- (artifact paths recorded in summary JSON)"]
 
 
 __all__ = [
@@ -308,6 +351,7 @@ __all__ = [
     "LEARNING_TARGET_GGUF_EXPORT",
     "LEARNING_TARGET_POLICY",
     "SCHEMA_VERSION",
+    "artifact_index_report_lines",
     "build_claims_validation",
     "build_research_contract",
     "infer_evidence_level",

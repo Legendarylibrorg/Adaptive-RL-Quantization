@@ -23,6 +23,7 @@ class RustSettings:
 
     simulator_enabled: bool = False
     cli_binary: str | None = None
+    cli_timeout_s: float = 30.0
 
 
 @dataclass

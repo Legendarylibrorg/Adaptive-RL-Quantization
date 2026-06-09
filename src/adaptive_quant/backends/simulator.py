@@ -21,17 +21,29 @@ class SimulatorBackend:
         self.config = config
         self.expert_bank = ExpertBank(config) if config.moe_enabled else None
         self.external_quality = ExternalQualityScores.from_config(config)
+        from adaptive_quant.rust_cli import resolve_rust_cli_binary
+
+        self._rust_binary: str | None = None
+        self._use_rust = False
+        if (
+            config.rust_simulator_enabled
+            and config.backend == "simulator"
+            and not config.moe_enabled
+        ):
+            self._rust_binary = resolve_rust_cli_binary(config)
+            self._use_rust = self._rust_binary is not None
 
     def evaluate(self, state: EpisodeState, decision: QuantizationDecision) -> BackendMetricDict:
-        from adaptive_quant.rust_cli import (
-            RustCliError,
-            run_rust_sim_eval,
-            rust_simulator_available,
-        )
+        from adaptive_quant.rust_cli import RustCliError, run_rust_sim_eval
 
-        if rust_simulator_available(self.config):
+        if self._use_rust and self._rust_binary is not None:
             try:
-                metrics = run_rust_sim_eval(self.config, state, decision)
+                metrics = run_rust_sim_eval(
+                    self.config,
+                    state,
+                    decision,
+                    binary=self._rust_binary,
+                )
                 apply_external_quality(metrics, state, self.external_quality)
                 return metrics
             except RustCliError:

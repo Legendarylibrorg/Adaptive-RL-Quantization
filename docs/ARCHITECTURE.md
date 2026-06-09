@@ -82,6 +82,7 @@ The key architecture rule here is: **different backends share the same `Framewor
 - `src/analysis/`: post-hoc analysis (`analyzers.py`, shared `log_records.py`, `python -m analysis` CLI)
 - `src/adaptive_quant/research_pipeline.py`: full offline pipeline orchestration; training-history/checkpoint writers live here
 - `src/adaptive_quant/pipeline/research_contract.py`: **research architecture contract** — evidence tiers, learning scope (policy vs LLM weights), metric provenance, claim boundaries; embedded in every `*_summary.json` as `research`
+- `src/adaptive_quant/pipeline/topology.py`: **pipeline topology** — layer map (config → orchestrator → learning → measurement → artifacts) in `research.topology`
 - `src/adaptive_quant/experiment_aggregate.py`: shared numeric flattening/aggregation for multiseed and sweep
 - `src/adaptive_quant/sweep.py`: hyperparameter grid expansion, trial naming, ranking
 - `src/adaptive_quant/pipeline/`: VCS stamp, benchmark warnings, analysis runner, and Markdown report helpers
@@ -130,7 +131,9 @@ flowchart TB
   end
   subgraph measure [Measurement backends]
     Sim[SimulatorBackend]
+    RustCLI[adaptive-rl-quant-rust sim-eval]
     Llama[llama.cpp binary]
+    Sim -.->|optional| RustCLI
   end
   Policy -->|QuantizationDecision| measure
   GGUF --> Llama
@@ -148,19 +151,49 @@ Every successful run writes a **`research`** block in `*_summary.json` (via `pip
 | `evidence.claim_boundary` | Explicit valid/invalid claim lists for papers and reviews |
 | `escalation_path` | Actionable next steps to strengthen evidence |
 | `artifact_index` | Stable paths to summary, report, checkpoint, exported GGUF, paper bundle |
+| `topology` | Layer map: orchestrator → learning → measurement → analysis → artifacts |
 
 Enable **`llama_cpp_gguf_export_enabled`** to run llama.cpp `quantize` after the recommendation step and record `artifacts.exported_gguf` (default off; policy-only runs unchanged).
 
 ### Optional Rust CLI (Python orchestrator unchanged)
 
-For a faster simulator hot path without rewriting the research pipeline, build `rust/adaptive_rl_sim` and enable **`rust_simulator_enabled`** (requires `backend="simulator"`, MoE off):
+For a faster simulator hot path without rewriting the research pipeline, build from the **repository root** and enable **`rust_simulator_enabled`** (requires `backend="simulator"`, `moe_enabled=false`):
 
 ```bash
 ./scripts/build_rust.sh
-# config: rust_simulator_enabled=true, optional rust_cli_binary=/path/to/adaptive-rl-quant-rust
+# or: make rust-build
 ```
 
-Python calls `adaptive-rl-quant-rust sim-eval` with JSON on stdin (same subprocess pattern as llama.cpp). Metrics include `simulator_engine: rust_cli`. MoE, external quality, and llama.cpp export stay in Python. Future narrow crates (GGUF wrapper, route eval) can add subcommands beside `sim-eval`.
+**Binary discovery order** (first match wins):
+
+1. `rust_cli_binary` in config
+2. `ADAPTIVE_RL_RUST_CLI` environment variable
+3. `adaptive-rl-quant-rust` on `PATH`
+4. `rust/target/release/adaptive-rl-quant-rust` under repo root (`ADAPTIVE_RL_REPO_ROOT` or walk-up from cwd / package)
+
+Config example:
+
+```json
+{
+  "backend": "simulator",
+  "rust_simulator_enabled": true
+}
+```
+
+Python calls `adaptive-rl-quant-rust sim-eval` with JSON on stdin (same subprocess pattern as llama.cpp). Metrics include `simulator_engine: rust_cli`. MoE, external quality, and llama.cpp export stay in Python. Installed-only `pip` layouts without a checkout must set `rust_cli_binary` or `ADAPTIVE_RL_RUST_CLI` explicitly.
+
+### Pipeline topology (`research.topology`)
+
+Every `research` block includes a **`topology`** object (`pipeline/topology.py`) describing how layers connect:
+
+```text
+FrameworkConfig → orchestrator (Python CLI) → learning (policy/trainer)
+  → measurement (simulator | rust_cli | llama.cpp) → analysis → outputs/
+```
+
+The contract **`schema_version`** is `2` when `topology` is present. Metric provenance uses `simulator_rust_cli` when the Rust path is active.
+
+Future narrow crates (GGUF wrapper, route eval) can add subcommands beside `sim-eval` without changing the Python orchestrator.
 
 Evidence ladder (weakest → strongest for deployment claims):
 

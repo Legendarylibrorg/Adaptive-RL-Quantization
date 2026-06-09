@@ -81,6 +81,8 @@ This script is **not** the third-party [pre-commit](https://pre-commit.com/) fra
 
 **Optional Git hooks:** `pip install pre-commit && pre-commit install` using [`.pre-commit-config.yaml`](.pre-commit-config.yaml) (wraps the same `pre_commit_check.py` flow).
 
+**Optional Rust simulator:** `./scripts/build_rust.sh` from repo root builds `rust/target/release/adaptive-rl-quant-rust`. Not required for CI; Python tests mock the subprocess. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#optional-rust-cli-python-orchestrator-unchanged).
+
 ---
 
 ## Branching and pull requests

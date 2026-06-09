@@ -62,6 +62,7 @@ flowchart LR
 | Execution mode | What you need |
 | --- | --- |
 | **Simulator (default)** | **Python ≥ 3.11**, `pip install -e .` — no PyPI runtime deps, no CUDA |
+| **Rust simulator CLI (optional)** | Same + `./scripts/build_rust.sh` from repo root; `rust_simulator_enabled=true` (MoE off) |
 | **llama.cpp grounded** | Same + built **llama.cpp** binary and GGUF path in config (`backend="llama_cpp"`) |
 | **PyTorch / CUDA** | Same repo + **CUDA-enabled PyTorch** on **Linux + NVIDIA** (`python3 scripts/install_cuda_torch.py`, `adaptive-rl-quant-pytorch`) |
 

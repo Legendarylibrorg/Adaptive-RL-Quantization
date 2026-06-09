@@ -102,6 +102,9 @@ def run_online_pipeline(
             "report": report_path,
         },
     }
+    from adaptive_quant.pipeline.output_summary import build_research_artifact_index
+
+    summary["artifact_index"] = build_research_artifact_index(config, summary["artifacts"])
     write_json(summary_path, summary)
     return summary
 

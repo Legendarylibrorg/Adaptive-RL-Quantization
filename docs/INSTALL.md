@@ -83,6 +83,17 @@ python3 -m pip install -e ".[hub]"           # Hugging Face route downloads
 python3 -m pip install -e ".[dev]"           # contributor tools
 ```
 
+**Optional Rust simulator CLI** (faster `backend="simulator"` hot path; not required for CI):
+
+```bash
+# from repo root — needs https://rustup.rs
+./scripts/build_rust.sh
+# or: make rust-build
+make doctor   # shows resolved rust binary path when built
+```
+
+Set `rust_simulator_enabled=true` in config (see [CONFIG.md](CONFIG.md)); MoE runs still use the Python simulator.
+
 Override paths if needed:
 
 ```bash

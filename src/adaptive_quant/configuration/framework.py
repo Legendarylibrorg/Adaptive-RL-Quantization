@@ -176,6 +176,7 @@ class FrameworkConfig:
             rust_cli_binary=self.rust_cli_binary,
             backend=self.backend,
             moe_enabled=self.moe_enabled,
+            rust_cli_timeout_s=self.rust_cli_timeout_s,
         )
         v.validate_torch_policy_algorithm(self.torch_policy_algorithm)
         v.validate_env_sampling_mode(self.env_sampling_mode)

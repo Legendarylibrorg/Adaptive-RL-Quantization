@@ -337,6 +337,9 @@ def build_research_artifact_index(
         "recommendation_json": _artifact_path(artifacts, "recommendation"),
         "training_history": _artifact_path(artifacts, "training_history"),
         "exported_gguf": _artifact_path(artifacts, "exported_gguf"),
+        "replay_manifest": _artifact_path(artifacts, "replay_manifest"),
+        "online_telemetry": _artifact_path(artifacts, "online_telemetry"),
+        "online_replay": _artifact_path(artifacts, "online_replay"),
         "paper_bundle_dir": bundle_dir,
         "analysis_dir": f"{config.analysis_dir}/{config.run_name}/",
     }

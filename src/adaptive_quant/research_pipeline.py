@@ -135,6 +135,39 @@ class ResearchPipeline:
         warn_if_benchmarks_are_large(config)
         benchmark_summary = BenchmarkSuite(config).run()
         analysis = run_research_analysis(config, history_path)
+        phases = [
+            "train",
+            "evaluate",
+            "recommendation",
+            "benchmark",
+            "analysis",
+            "report",
+            "paper_bundle",
+        ]
+        if config.llama_cpp_gguf_export_enabled:
+            phases.insert(3, "gguf_export")
+        research = build_research_contract(
+            config,
+            git_commit=commit,
+            pipeline="offline_research",
+            phases=phases,
+        )
+        artifact_payload: dict[str, object] = {
+            "training_history": history_path,
+            "final_checkpoint": checkpoint_path,
+            "recommendation": recommendation_path,
+            "report": None,
+            "replay_manifest": (replay_report or {}).get("manifest_path"),
+        }
+        exported_gguf = gguf_export_summary.get("output_path")
+        if exported_gguf:
+            artifact_payload["exported_gguf"] = exported_gguf
+        from adaptive_quant.pipeline.output_summary import (
+            build_research_artifact_index,
+            slim_analysis_for_summary,
+        )
+
+        provisional_index = build_research_artifact_index(config, artifact_payload)
         report_path = write_research_report_markdown(
             config,
             git_commit=commit,
@@ -149,37 +182,14 @@ class ResearchPipeline:
             checkpoint_path=checkpoint_path,
             recommendation_summary=recommendation_summary,
             gguf_export_summary=gguf_export_summary,
+            research=research,
+            artifact_index=provisional_index,
         )
-        phases = [
-            "train",
-            "evaluate",
-            "recommendation",
-            "benchmark",
-            "analysis",
-            "report",
-            "paper_bundle",
-        ]
-        if config.llama_cpp_gguf_export_enabled:
-            phases.insert(3, "gguf_export")
-        artifact_payload: dict[str, object] = {
-            "training_history": history_path,
-            "final_checkpoint": checkpoint_path,
-            "recommendation": recommendation_path,
-            "report": report_path,
-            "replay_manifest": (replay_report or {}).get("manifest_path"),
-        }
-        exported_gguf = gguf_export_summary.get("output_path")
-        if exported_gguf:
-            artifact_payload["exported_gguf"] = exported_gguf
+        artifact_payload["report"] = report_path
         summary = {
             "config": config_to_flat_dict(config),
             "git_commit": commit,
-            "research": build_research_contract(
-                config,
-                git_commit=commit,
-                pipeline="offline_research",
-                phases=phases,
-            ),
+            "research": research,
             "security_audit": build_security_audit_record(
                 config,
                 cli_startup_overrides=self.cli_startup_overrides,
@@ -196,11 +206,6 @@ class ResearchPipeline:
             "replay": replay_report,
             "artifacts": artifact_payload,
         }
-        from adaptive_quant.pipeline.output_summary import (
-            build_research_artifact_index,
-            slim_analysis_for_summary,
-        )
-
         summary["analysis"] = slim_analysis_for_summary(analysis, config)
         paper_bundle = create_pipeline_paper_bundle(config=config, summary=summary)
         summary["artifacts"]["paper_bundle"] = paper_bundle

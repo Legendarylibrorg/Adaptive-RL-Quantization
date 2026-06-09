@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -13,6 +14,7 @@ from adaptive_quant.rust_cli import (
     RustCliError,
     resolve_rust_cli_binary,
     run_rust_sim_eval,
+    rust_cli_status,
     rust_simulator_available,
 )
 from adaptive_quant.types import (
@@ -114,7 +116,41 @@ class RustCliTests(unittest.TestCase):
                 rust_cli_binary=str(binary),
                 detect_host_hardware=False,
             )
-            self.assertEqual(resolve_rust_cli_binary(cfg), str(binary))
+            self.assertEqual(resolve_rust_cli_binary(cfg), str(binary.resolve()))
+
+    def test_resolve_binary_from_env(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            binary = Path(tmp) / "adaptive-rl-quant-rust"
+            binary.write_text("#!/bin/sh\n", encoding="utf-8")
+            binary.chmod(0o755)
+            os.environ["ADAPTIVE_RL_RUST_CLI"] = str(binary)
+            try:
+                cfg = FrameworkConfig(run_name="env", detect_host_hardware=False)
+                self.assertEqual(resolve_rust_cli_binary(cfg), str(binary.resolve()))
+            finally:
+                os.environ.pop("ADAPTIVE_RL_RUST_CLI", None)
+
+    def test_finalize_adds_variant_churn(self) -> None:
+        cfg = FrameworkConfig(run_name="churn", detect_host_hardware=False)
+        state, decision = _sample_state()
+        decision.metadata["moe_variant_churn"] = 2.5
+        metrics = {
+            "latency_ms": 10.0,
+            "throughput_tps": 5.0,
+            "perplexity": 6.0,
+            "memory_mb": 500.0,
+        }
+        with mock.patch("adaptive_quant.rust_cli.subprocess.run") as run_mock:
+            run_mock.return_value = mock.Mock(returncode=0, stdout=json.dumps(metrics), stderr="")
+            out = run_rust_sim_eval(cfg, state, decision, binary="/fake/rust")
+        self.assertEqual(out["variant_churn"], 2.5)
+        self.assertEqual(out["simulator_engine"], "rust_cli")
+
+    def test_rust_cli_status_reports_repo_root(self) -> None:
+        cfg = FrameworkConfig(run_name="status", detect_host_hardware=False)
+        status = rust_cli_status(cfg)
+        self.assertIn("repo_root", status)
+        self.assertIn("build_script", status)
 
 
 if __name__ == "__main__":
