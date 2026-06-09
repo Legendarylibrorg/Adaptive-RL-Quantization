@@ -44,7 +44,21 @@ Or `ResearchPipeline(cfg).run()`, `FrameworkConfig.from_file`, `FrameworkConfig.
 
 ## Outputs
 
-Everything lands under `outputs/`: `logs/`, `benchmarks/` (summaries + optional `*_preflight.json` + `*_recommendation.json` + online detail JSON), `analysis/<run_name>/`, `checkpoints/`, `reports/`. Names follow `run_name` and path fields in config.
+Everything lands under `outputs/` by default (override via `outputs_dir` and related keys — see [CONFIG.md](CONFIG.md#output-paths)):
+
+| Subdir | Contents |
+| --- | --- |
+| `logs/` | JSONL episodes, replay manifests, route telemetry |
+| `benchmarks/` | Summaries, training history, `*_preflight.json`, `*_recommendation.json`, sweep/multiseed aggregates |
+| `analysis/<run_name>/` | Post-hoc JSON + SVG |
+| `checkpoints/` | Policy checkpoints |
+| `reports/` | Markdown reports |
+| `paper_bundles/<run_name>/` | Citation bundles (manifest, metrics, claims validation) |
+| `gguf/` | Optional llama.cpp export artifacts |
+| `routes/` | Route catalog JSON (`catalog.json` by default) |
+| `models/<route_id>/` | GGUF files fetched by `adaptive-rl-quant-route download` |
+
+Names follow `run_name` and path fields in config.
 
 Multi-seed runs write `<run_name>_multiseed_summary.json` and `<run_name>_multiseed_report.md`. Hyperparameter sweeps write `<run_name>_sweep_summary.json` (leaderboard + per-trial metadata) and `<run_name>_sweep_report.md`, with one full pipeline summary per trial at `<base_run_name>_trialNNN_*_summary.json`. See **[SWEEP.md](SWEEP.md)** for sweep file format, objectives, and examples.
 

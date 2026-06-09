@@ -92,6 +92,8 @@ prompt/hardware pair) so quality tradeoffs stay inspectable.
 
 ## Artifact layout
 
+**Catalog and downloads:** the default catalog path is `outputs/routes/catalog.json` (`--catalog` overrides). `download` writes GGUFs under `outputs/models/<route_id>/` unless `--local-dir` is set. Both paths sit under `outputs_dir` when you relocate artifacts (see [CONFIG.md](CONFIG.md#output-paths)).
+
 After `train` you get two new artifacts under `outputs/benchmarks/<run_name>_*`:
 
 - `<run_name>_route_bandit.json` — full bandit state (per-bucket arm stats) plus the catalog

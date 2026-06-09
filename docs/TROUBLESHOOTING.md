@@ -182,3 +182,14 @@ Use the preflight plus:
 python3 -c "import torch; print(torch.cuda.is_available())"
 python3 -c "import torch; print(torch.cuda.get_device_name(0))"
 ```
+
+## Cleaning local artifacts
+
+Run outputs and tooling caches are gitignored but can accumulate locally:
+
+```bash
+make outputs-clean CONFIRM=yes   # benchmarks, logs, analysis, checkpoints, reports
+make clean-cache                 # __pycache__, .ruff_cache, egg-info
+```
+
+`outputs/paper_bundles/`, `outputs/gguf/`, `outputs/routes/`, and `outputs/models/` are left by `outputs-clean`; remove them manually if needed. Artifact path defaults and relocation: [CONFIG.md](CONFIG.md#output-paths).

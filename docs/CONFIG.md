@@ -34,7 +34,7 @@ For a **single file** instead of editing Python presets:
 
    **Privileged keys** (backend, llama.cpp paths, router/HF allowlists, checkpoint resume, MoE enablement, online learning toggle, and related fields) are **refused via `--set`** unless `ADAPTIVE_RL_ALLOW_PRIVILEGED_OVERRIDES=1`. Put those changes in a reviewed config file instead. Applied CLI overrides are recorded under `security_audit.cli_startup_overrides` in run summaries.
 
-5. **API:** `FrameworkConfig.from_file(path)`, `load_config(path)` (from `adaptive_quant`), or `FrameworkConfig.from_mapping(dict, strict=True)` to reject unknown keys. TOML/JSON files are the **preferred** way to share reproducible runs (version control, CI, no import side effects). Python module presets under `config*.py` remain for local iteration and GPU-specific paths. TOML parsing uses stdlib **`tomllib`** (requires **Python 3.11+** per `pyproject.toml`).
+5. **API:** `FrameworkConfig.from_file(path)`, `load_config(path)` (from `adaptive_quant`), or `FrameworkConfig.from_mapping(dict, strict=True)` to reject unknown keys. TOML/JSON files are the **preferred** way to share reproducible runs (version control, CI, no import side effects). Python presets via [`src/config.py`](../src/config.py) or `adaptive_quant.presets` remain for local iteration and GPU-specific paths. TOML parsing uses stdlib **`tomllib`** (requires **Python 3.11+** per `pyproject.toml`).
 
    Untrusted config integers (episode counts, MoE topology, llama.cpp limits, etc.) are capped at load time; see `MAX_*` constants in [`validation.py`](../src/adaptive_quant/configuration/validation.py).
 
@@ -53,6 +53,28 @@ Configuration also lives in:
 - [`adaptive_quant/configuration/`](../src/adaptive_quant/configuration/) (`framework.py`: `FrameworkConfig`)
 
 Use [`config.py`](../src/config.py) as the canonical offline research baseline when you are not using `--config`. It is the simplest preset to reproduce and the best starting point for stable experiments.
+
+---
+
+## Output paths
+
+Artifact directories are grouped under **`artifacts`** in nested config (flat keys still work). Defaults are derived from a single root (`outputs_dir`, default `outputs`):
+
+| Flat key | Default | Role |
+| --- | --- | --- |
+| `outputs_dir` | `outputs` | Root for paper bundles and `--outputs-dir` remapping |
+| `log_dir` | `outputs/logs` | JSONL episodes, replay manifests, route telemetry |
+| `benchmark_dir` | `outputs/benchmarks` | Summaries, training history, recommendations, sweep/multiseed aggregates |
+| `analysis_dir` | `outputs/analysis` | Per-run analysis JSON + SVG (`<run_name>/…`) |
+| `checkpoint_dir` | `outputs/checkpoints` | Policy checkpoints (`.pt` / `.json`) |
+| `report_dir` | `outputs/reports` | Markdown reports |
+| `gguf_export_dir` | `outputs/gguf` | Optional llama.cpp `quantize` exports |
+
+Route-learning CLIs also use **`outputs/routes/`** (catalog JSON; default `outputs/routes/catalog.json`) and **`outputs/models/`** (default download dir per `route_id`). These follow `outputs_dir` when you relocate artifacts.
+
+**Relocate all standard dirs at once:** set flat keys individually, or use `FrameworkConfig.with_output_root(path)` / multiseed and sweep `--outputs-dir` (rewrites the table above under a new root). `research.topology` in `*_summary.json` lists the active artifact paths for the run.
+
+Local cleanup: `make outputs-clean CONFIRM=yes` (run artifacts) and `make clean-cache` (bytecode, `.ruff_cache`, egg-info). See [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
 ---
 
