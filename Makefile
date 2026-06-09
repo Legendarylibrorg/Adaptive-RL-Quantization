@@ -11,7 +11,7 @@
 .PHONY: rust-build
 .PHONY: docker-preflight docker-build docker-test docker-smoke docker-no-network-smoke
 .PHONY: docker-gpu-preflight docker-gpu-build docker-gpu-smoke docker-gpu-verify docker-gpu-test docker-gpu-pytorch
-.PHONY: outputs-clean clean-venv
+.PHONY: outputs-clean clean-cache clean-venv
 
 # After ./setup.sh, prefer the repo venv so `make run` works without activating it.
 _VENV_PY := $(firstword $(wildcard .venv/bin/python) $(wildcard .venv/Scripts/python.exe))
@@ -86,6 +86,7 @@ help:
 	@echo ""
 	@echo "[Maintenance]"
 	@echo "  make outputs-clean CONFIRM=yes   wipe outputs/{benchmarks,logs,...}"
+	@echo "  make clean-cache                 remove __pycache__, .ruff_cache, egg-info"
 	@echo "  make clean-venv                  remove .ruff-venv scratch dir"
 
 setup:
@@ -248,6 +249,10 @@ outputs-clean:
 	fi
 	rm -rf outputs/benchmarks outputs/logs outputs/analysis outputs/checkpoints outputs/reports
 	@echo "Removed those directories under outputs/ (rest of outputs/ left untouched)."
+
+clean-cache:
+	find . -type d -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true
+	rm -rf .ruff_cache src/adaptive_rl_quant.egg-info
 
 clean-venv:
 	rm -rf .ruff-venv
