@@ -56,6 +56,7 @@ class OutputSchemaTests(unittest.TestCase):
             research = summary["research"]
             self.assertIsInstance(research, dict)
             self.assertEqual(research["learning_target"]["object"], "quantization_policy")
+            self.assertIn("topology", research)
 
             self.assertIsInstance(summary["config"], dict)
             self.assertIsInstance(summary["train"], dict)

@@ -12,6 +12,7 @@ from adaptive_quant.pipeline.output_summary import (
     gguf_export_report_lines,
 )
 from adaptive_quant.pipeline.research_contract import (
+    artifact_index_report_lines,
     build_research_contract,
     research_contract_report_lines,
 )
@@ -53,6 +54,8 @@ def write_research_report_markdown(
     checkpoint_path: str | None,
     recommendation_summary: dict[str, object] | None,
     gguf_export_summary: dict[str, object] | None = None,
+    research: dict[str, object] | None = None,
+    artifact_index: dict[str, str | None] | None = None,
 ) -> str | None:
     if not config.write_research_report:
         return None
@@ -167,13 +170,14 @@ def write_research_report_markdown(
         )
     ]
 
-    research = build_research_contract(
+    research = research or build_research_contract(
         config,
         git_commit=git_commit,
         pipeline="offline_research",
         phases=["train", "evaluate", "benchmark", "analysis", "report"],
     )
     research_scope = research_contract_report_lines(research)
+    artifact_lines = artifact_index_report_lines(artifact_index)
 
     lines = [
         f"# {config.run_name}",
@@ -276,6 +280,14 @@ def write_research_report_markdown(
             f"Full analysis tree: `{config.analysis_dir}/{config.run_name}/`",
         ]
     )
+    if artifact_lines:
+        lines.extend(
+            [
+                "",
+                "## Artifact index",
+                *artifact_lines,
+            ]
+        )
     write_text_file(report_path, "\n".join(lines) + "\n")
     return str(target)
 
