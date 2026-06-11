@@ -67,15 +67,13 @@ class OnlineLearningLoop:
             config.online_telemetry_path(),
             buffered=bool(config.jsonl_buffered),
             flush_every=int(config.jsonl_flush_every),
-            integrity_chain=bool(config.jsonl_integrity_chain)
-            or jsonl_integrity_chain_enabled(),
+            integrity_chain=bool(config.jsonl_integrity_chain) or jsonl_integrity_chain_enabled(),
         )
         self.replay_logger = JsonlLogger(
             config.online_replay_path(),
             buffered=bool(config.jsonl_buffered),
             flush_every=int(config.jsonl_flush_every),
-            integrity_chain=bool(config.jsonl_integrity_chain)
-            or jsonl_integrity_chain_enabled(),
+            integrity_chain=bool(config.jsonl_integrity_chain) or jsonl_integrity_chain_enabled(),
         )
         self.replay_buffer = ReplayBuffer(config.online_replay_capacity, self.rng)
         self.previous_action = zero_previous_action()

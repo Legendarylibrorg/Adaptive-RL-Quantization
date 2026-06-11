@@ -104,8 +104,7 @@ def main(argv: Iterable[str] | None = None) -> None:
     if history:
         last = history[-1]
         print(
-            f"[DPO] final loss={last.get('loss', 0):.4f} "
-            f"margin={last.get('reward_margin', 0):.4f}",
+            f"[DPO] final loss={last.get('loss', 0):.4f} margin={last.get('reward_margin', 0):.4f}",
             file=sys.stderr,
         )
 
