@@ -113,17 +113,28 @@ class ResearchPipeline:
                     flush()
                 replay_report = finalize_replay_artifacts(config, log_path, git_commit=commit)
             recommendation_summary = self._recommend_quantization(config, trainer)
-            recommendation_path = config.recommendation_path()
-            write_json(recommendation_path, recommendation_summary)
             from adaptive_quant.pipeline.gguf_export import maybe_export_gguf
 
             gguf_export_summary = maybe_export_gguf(config, recommendation_summary)
+            recommendation_path = config.recommendation_path()
+            write_json(recommendation_path, recommendation_summary)
             history_path = write_training_history(config, trainer)
             checkpoint_path = maybe_save_final_checkpoint(config, trainer)
         except KeyboardInterrupt:
             raise
         except Exception as exc:
             pipeline_error = exc
+            try:
+                write_json(
+                    f"{config.benchmark_dir}/{config.run_name}_pipeline_failure.json",
+                    {
+                        "run_name": config.run_name,
+                        "error": str(exc),
+                        "error_type": type(exc).__name__,
+                    },
+                )
+            except Exception:
+                pass
         finally:
             if trainer is not None:
                 trainer.close()

@@ -26,12 +26,14 @@ The code is intentionally split into a small number of layers so experiments sta
 - `run_calibrate_llama_cpp.py`: simulator calibration from local `llama.cpp` measurements
 - `run_route_learning.py`: GGUF route catalog and contextual bandit workflow
 - `run_replay.py`: hash-chained JSONL replay / audit verification
+- `run_alignment.py`: optional DPO / preference alignment on an SFT checkpoint (`pip install -e ".[alignment]"`)
 
-Root `run_*.py` files prepend `src/` on `sys.path` and delegate to `adaptive_quant.cli`; installed commands call the same modules directly. From repo root, `./run` (or `make run`) starts the default simulator pipeline without activating a venv when `.venv` exists.
+Root `run_*.py` files delegate to `adaptive_quant.cli` via [`_repo_entrypoint.py`](../_repo_entrypoint.py); installed commands call the same modules directly. From repo root, `./run` (or `make run`) starts the default simulator pipeline without activating a venv when `.venv` exists.
 
 Path bootstrap for source checkouts:
 
 - [`src/bootstrap.py`](../src/bootstrap.py): shared `ensure_repo_paths()` used by [`_repo_entrypoint.py`](../_repo_entrypoint.py) and [`src/analysis/__main__.py`](../src/analysis/__main__.py)
+- [`_repo_entrypoint.py`](../_repo_entrypoint.py): prepends `src/` **before** importing `bootstrap`, then calls `ensure_repo_paths()` so `run_*.py` works without `pip install -e .`
 - [`tests/__init__.py`](../tests/__init__.py): lets `python3 -m unittest discover -s tests -t .` run without `pip install -e .`
 
 Installed console commands map onto those wrappers:
@@ -45,6 +47,7 @@ Installed console commands map onto those wrappers:
 - `adaptive-rl-quant-calibrate`
 - `adaptive-rl-quant-route`
 - `adaptive-rl-quant-replay`
+- `adaptive-rl-quant-alignment` (optional `[alignment]` extra)
 - `adaptive-rl-quant-analyze` / `python -m analysis`
 
 ## 2. Configuration layer
@@ -74,6 +77,7 @@ This layer defines reproducibility knobs such as:
 - `src/adaptive_quant/benchmark.py`: fixed benchmark comparisons
 - `src/adaptive_quant/recommendation.py`: deterministic recommendation pass
 - `src/adaptive_quant/online_learning.py`, `src/adaptive_quant/online_pipeline.py`: online adaptation flow
+- `src/adaptive_quant/llm_alignment/`: optional DPO / preference alignment (`adaptive-rl-quant-alignment`); separate from the quantization-policy RL loop and not part of default simulator evidence
 
 The key architecture rule here is: **different backends share the same `FrameworkConfig` and artifact layout**.
 

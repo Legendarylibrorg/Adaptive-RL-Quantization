@@ -9,7 +9,12 @@ from typing import Any
 from adaptive_quant.configuration import FrameworkConfig
 from adaptive_quant.configuration.validation import validate_online_prompt_text
 from adaptive_quant.guardrails import passes_online_guardrails
-from adaptive_quant.logging_utils import JsonlLogger, to_jsonable, write_json
+from adaptive_quant.logging_utils import (
+    JsonlLogger,
+    jsonl_integrity_chain_enabled,
+    to_jsonable,
+    write_json,
+)
 from adaptive_quant.math_utils import mean
 from adaptive_quant.prompts import PromptLibrary
 from adaptive_quant.routing import EfficientTaskRouter
@@ -62,11 +67,15 @@ class OnlineLearningLoop:
             config.online_telemetry_path(),
             buffered=bool(config.jsonl_buffered),
             flush_every=int(config.jsonl_flush_every),
+            integrity_chain=bool(config.jsonl_integrity_chain)
+            or jsonl_integrity_chain_enabled(),
         )
         self.replay_logger = JsonlLogger(
             config.online_replay_path(),
             buffered=bool(config.jsonl_buffered),
             flush_every=int(config.jsonl_flush_every),
+            integrity_chain=bool(config.jsonl_integrity_chain)
+            or jsonl_integrity_chain_enabled(),
         )
         self.replay_buffer = ReplayBuffer(config.online_replay_capacity, self.rng)
         self.previous_action = zero_previous_action()

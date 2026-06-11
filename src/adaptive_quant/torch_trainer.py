@@ -46,10 +46,16 @@ def _torch_load_v2_tensor_file(path: str) -> dict[str, Any]:
     load_kw: dict[str, Any] = {"map_location": "cpu"}
     try:
         sig = inspect.signature(torch.load)
-        if "weights_only" in sig.parameters:
-            load_kw["weights_only"] = True
-    except (TypeError, ValueError):
-        pass
+        if "weights_only" not in sig.parameters:
+            raise RuntimeError(
+                "PyTorch build lacks weights_only= support for torch.load; "
+                "install PyTorch >= 2.0 with safe tensor loading before loading .pt checkpoints."
+            )
+        load_kw["weights_only"] = True
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(
+            "Unable to inspect torch.load signature for safe checkpoint loading."
+        ) from exc
     return cast(dict[str, Any], torch.load(path, **load_kw))
 
 

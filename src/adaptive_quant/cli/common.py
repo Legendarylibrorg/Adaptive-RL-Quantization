@@ -103,6 +103,25 @@ def load_config_or_fallback(path: str | None, fallback: FrameworkConfig) -> Fram
         raise SystemExit(str(exc)) from exc
 
 
+def enforce_cli_startup(*, context: str, nvidia_boundary: bool = False) -> None:
+    """Shared security gates for CLI entrypoints (bypass visibility + optional NVIDIA boundary)."""
+    from adaptive_quant.security_bypass import enforce_security_bypass_policy
+
+    enforce_security_bypass_policy(context=context)
+    if nvidia_boundary:
+        from adaptive_quant.nvidia_secure_boundary import enforce_nvidia_secure_boundary
+
+        enforce_nvidia_secure_boundary(context=context)
+
+
+def validate_cli_output_dir(field: str, path: str | None) -> None:
+    if path is None:
+        return
+    from adaptive_quant.configuration.validation import validate_cli_path_argument
+
+    validate_cli_path_argument(field, path)
+
+
 def run_research_pipeline_cli(
     *,
     fallback: FrameworkConfig,
@@ -115,6 +134,7 @@ def run_research_pipeline_cli(
     add_config_file_argument(parser, help_suffix=config_help_suffix)
     add_config_override_arguments(parser)
     args = parser.parse_args()
+    enforce_cli_startup(context="research CLI")
     config, cli_overrides = resolve_startup_config(
         load_config_or_fallback(args.config, fallback), args
     )

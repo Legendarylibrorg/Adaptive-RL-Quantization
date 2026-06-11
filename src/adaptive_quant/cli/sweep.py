@@ -448,6 +448,13 @@ def main(argv: Iterable[str] | None = None) -> None:
     )
     args = parser.parse_args(list(argv) if argv is not None else None)
 
+    from adaptive_quant.cli.common import enforce_cli_startup, validate_cli_output_dir
+
+    enforce_cli_startup(context="sweep CLI")
+    validate_cli_output_dir("outputs-dir", args.outputs_dir)
+    if args.sweep_config:
+        validate_cli_output_dir("sweep-config", args.sweep_config)
+
     base_config, spec = _resolve_sweep_inputs(args)
 
     if args.outputs_dir:

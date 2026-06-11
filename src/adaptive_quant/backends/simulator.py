@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import cast
 
 from adaptive_quant.backends.protocol import per_token_latency_fields
@@ -14,6 +15,8 @@ from adaptive_quant.types import (
     QuantizationDecision,
     QuantMode,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class SimulatorBackend:
@@ -46,9 +49,16 @@ class SimulatorBackend:
                 )
                 apply_external_quality(metrics, state, self.external_quality)
                 return metrics
-            except RustCliError:
-                pass
-        return self._evaluate_python(state, decision)
+            except RustCliError as exc:
+                _LOGGER.warning(
+                    "Rust simulator CLI failed (%s); falling back to Python simulator.",
+                    exc,
+                )
+        metrics = self._evaluate_python(state, decision)
+        if self._use_rust and self._rust_binary is not None:
+            metrics = dict(metrics)
+            metrics["simulator_engine"] = "python_rust_fallback"
+        return metrics
 
     def _evaluate_python(
         self, state: EpisodeState, decision: QuantizationDecision

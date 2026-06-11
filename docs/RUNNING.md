@@ -43,6 +43,9 @@ Artifacts and API: [USAGE.md](USAGE.md).
 | Route-bandit training | `adaptive-rl-quant-route --catalog outputs/routes/catalog.json train --config local_llama.json --iterations 128 --evaluate` |
 | Online experiment | `adaptive-rl-quant-online` |
 | Online + file | `adaptive-rl-quant-online --config online.toml` |
+| Hash-chain replay / audit verify | `adaptive-rl-quant-replay --config path.json` |
+| DPO / preference alignment (optional `[alignment]`) | `adaptive-rl-quant-alignment --sft-model PATH --dataset PATH` |
+| Post-hoc log / history analysis | `adaptive-rl-quant-analyze` or `python -m analysis` |
 
 ## Commands
 

@@ -307,6 +307,9 @@ def _coerce_seeds(raw: object) -> tuple[int, ...]:
 
 
 def load_sweep_file(path: str | Path) -> tuple[SweepSpec, FrameworkConfig | None]:
+    from adaptive_quant.configuration.validation import validate_cli_path_argument
+
+    validate_cli_path_argument("sweep-config", str(path))
     raw_path = Path(path)
     if not raw_path.is_file():
         raise FileNotFoundError(f"Sweep file not found: {raw_path}")

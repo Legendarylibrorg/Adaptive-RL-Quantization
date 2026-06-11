@@ -66,9 +66,12 @@ class Trainer(TrainerBase):
 
     def _train_continuous(self) -> dict[str, float]:
         """Continuous learning: train up to max_training_episodes with periodic eval."""
+        eval_interval = self.config.eval_interval
+        ckpt_interval = self.config.checkpoint_interval
+        if eval_interval <= 0:
+            raise ValueError("continuous_training requires eval_interval > 0")
         rewards: list[float] = []
         target = self.config.max_training_episodes
-        eval_interval = self.config.eval_interval
         ckpt_interval = self.config.checkpoint_interval
 
         for episode_index in range(self.completed_episodes, target):

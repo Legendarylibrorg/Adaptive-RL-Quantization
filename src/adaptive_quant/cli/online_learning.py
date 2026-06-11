@@ -27,6 +27,9 @@ def main() -> None:
         help="Override the number of online requests (defaults to config.online_requests).",
     )
     args = parser.parse_args()
+    from adaptive_quant.cli.common import enforce_cli_startup
+
+    enforce_cli_startup(context="online learning CLI")
     cfg, cli_overrides = resolve_startup_config(
         load_config_or_fallback(args.config, CONFIG_ONLINE),
         args,

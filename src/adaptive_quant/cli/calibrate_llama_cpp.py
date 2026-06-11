@@ -36,6 +36,10 @@ def main(argv: Iterable[str] | None = None) -> None:
     parser.add_argument("--seed", default="1234", help="RNG seed for prompt sampling.")
     args = parser.parse_args(list(argv) if argv is not None else None)
 
+    from adaptive_quant.cli.common import enforce_cli_startup
+
+    enforce_cli_startup(context="calibrate CLI")
+
     from adaptive_quant.presets.baseline import CONFIG as BASE
 
     # Calibration must run with a real llama.cpp binary + model.

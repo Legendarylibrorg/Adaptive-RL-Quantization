@@ -209,6 +209,26 @@ def require_llama_cpp_paths(
     return str(binary), str(model)
 
 
+def _decision_measurement_key(decision: QuantizationDecision) -> str:
+    """Cache / provenance key for policy decisions (model override + quant signature)."""
+    model_override = str(decision.metadata.get("llama_cpp_model_path", ""))
+    avg_bits = 0.0
+    if decision.effective_layer_bits:
+        avg_bits = sum(decision.effective_layer_bits) / len(decision.effective_layer_bits)
+    return "|".join(
+        [
+            decision.mode.value,
+            f"{avg_bits:.3f}",
+            str(decision.base_bit_width),
+            model_override,
+        ]
+    )
+
+
+def _subprocess_applies_quant_decision(decision: QuantizationDecision) -> bool:
+    return bool(decision.metadata.get("llama_cpp_model_path"))
+
+
 class LlamaCppBackend:
     def __init__(self, config: FrameworkConfig) -> None:
         self.config = config
@@ -228,6 +248,7 @@ class LlamaCppBackend:
             llama_cpp_model=llama_cpp_model,
             prompt_text=state.prompt.text,
             ngl=state.hardware_profile.ngl,
+            decision=decision,
         )
         metrics = self._simulator.evaluate(state, decision)
 
@@ -257,6 +278,9 @@ class LlamaCppBackend:
                 "throughput_source": "llama_cpp",
                 "memory_source": "llama_cpp" if parsed.get("memory_mb", 0.0) > 0.0 else "simulator",
                 "perplexity_source": "simulator",
+                "measurement_contract": "hybrid",
+                "subprocess_applies_quant_decision": _subprocess_applies_quant_decision(decision),
+                "decision_measurement_key": _decision_measurement_key(decision),
             }
         )
         apply_external_quality(metrics, state, self.external_quality)
@@ -269,7 +293,9 @@ class LlamaCppBackend:
         llama_cpp_model: str,
         prompt_text: str,
         ngl: int,
+        decision: QuantizationDecision | None = None,
     ) -> dict[str, float]:
+        decision_key = _decision_measurement_key(decision) if decision is not None else ""
         cache = self._cache
         if cache is None:
             return run_llama_cpp_measurement(
@@ -294,6 +320,7 @@ class LlamaCppBackend:
                 str(int(self.config.llama_cpp_threads)),
                 str(int(self.config.llama_cpp_context)),
                 str(int(self.config.llama_cpp_generate_tokens)),
+                _decision_measurement_key(decision) if decision is not None else "",
                 digest,
             ]
         )
