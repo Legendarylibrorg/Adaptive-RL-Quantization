@@ -260,6 +260,10 @@ class UniversalQuantizationPolicy:
         }
 
     def restore(self, snapshot: dict[str, object]) -> None:
+        if isinstance(snapshot.get("mode_head"), dict):
+            self.restore_checkpoint_state(snapshot)
+            return
+        self._validate_live_snapshot(snapshot)
         self.rng.setstate(snapshot["rng_state"])
         self.mode_head = copy.deepcopy(snapshot["mode_head"])
         self.discrete_head = copy.deepcopy(snapshot["discrete_head"])
@@ -268,6 +272,39 @@ class UniversalQuantizationPolicy:
         self.learned_head = copy.deepcopy(snapshot["learned_head"])
         self.moe_heads = copy.deepcopy(snapshot.get("moe_heads", self.moe_heads))
         self.value_head = copy.deepcopy(snapshot["value_head"])
+
+    def _validate_live_snapshot(self, snapshot: dict[str, object]) -> None:
+        required = (
+            "rng_state",
+            "mode_head",
+            "discrete_head",
+            "group_heads",
+            "layer_heads",
+            "learned_head",
+            "value_head",
+        )
+        for key in required:
+            if key not in snapshot:
+                raise ValueError(f"policy snapshot missing {key!r}")
+        mode_head = snapshot["mode_head"]
+        if not isinstance(mode_head, CategoricalHead):
+            raise TypeError("policy snapshot mode_head must be a CategoricalHead instance")
+        if len(mode_head.weights) != len(self.supported_modes):
+            raise ValueError("policy snapshot mode_head output dimension mismatch")
+        discrete_head = snapshot["discrete_head"]
+        if not isinstance(discrete_head, CategoricalHead):
+            raise TypeError("policy snapshot discrete_head must be a CategoricalHead instance")
+        if len(discrete_head.weights) != len(self.config.discrete_bit_widths):
+            raise ValueError("policy snapshot discrete_head output dimension mismatch")
+        group_heads = snapshot["group_heads"]
+        if not isinstance(group_heads, list) or len(group_heads) != len(self.group_heads):
+            raise ValueError("policy snapshot group_heads length mismatch")
+        layer_heads = snapshot["layer_heads"]
+        if not isinstance(layer_heads, list) or len(layer_heads) != len(self.layer_heads):
+            raise ValueError("policy snapshot layer_heads length mismatch")
+        moe_heads = snapshot.get("moe_heads", self.moe_heads)
+        if not isinstance(moe_heads, list) or len(moe_heads) != len(self.moe_heads):
+            raise ValueError("policy snapshot moe_heads length mismatch")
 
     def checkpoint_state(self) -> dict[str, object]:
         return {

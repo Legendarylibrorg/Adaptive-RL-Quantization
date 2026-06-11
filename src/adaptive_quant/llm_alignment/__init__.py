@@ -9,7 +9,7 @@ from __future__ import annotations
 import importlib
 from typing import Any
 
-from adaptive_quant.llm_alignment.config import DPOSettings
+from adaptive_quant.llm_alignment.config import DPOSettings  # noqa: F401
 
 _EAGER_EXPORTS = ("DPOSettings",)
 

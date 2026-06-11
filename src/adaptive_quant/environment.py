@@ -15,7 +15,7 @@ from adaptive_quant.math_utils import variance
 from adaptive_quant.moe import ExpertBank
 from adaptive_quant.prompts import PromptLibrary
 from adaptive_quant.quantization import finalize_decision, safe_fallback_decision
-from adaptive_quant.reward import compute_weighted_reward
+from adaptive_quant.reward import apply_moe_reward_penalties, compute_weighted_reward
 from adaptive_quant.trainer_utils import zero_previous_action
 from adaptive_quant.types import (
     BackendMetricDict,
@@ -258,10 +258,7 @@ class AdaptiveQuantizationEnv:
             perplexity_reference=self.config.reward_perplexity_reference,
             include_instability=True,
         )
-        reward -= self.config.moe_swap_penalty * float(metrics.get("swap_cost_ms", 0.0))
-        reward -= self.config.moe_cache_miss_penalty * float(metrics.get("cache_miss_count", 0.0))
-        reward -= self.config.moe_variant_churn_penalty * float(metrics.get("variant_churn", 0.0))
-        return float(reward)
+        return apply_moe_reward_penalties(reward, metrics, self.config)
 
     def _stability_penalty(self, decision: QuantizationDecision, state: EpisodeState) -> float:
         if self.config.stability_probe_count <= 1:

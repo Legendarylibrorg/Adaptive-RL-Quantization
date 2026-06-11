@@ -20,7 +20,7 @@ PY ?= $(_VENV_PY)
 else
 PY ?= python3
 endif
-PKG := src/adaptive_quant src/analysis tests
+PKG := src/adaptive_quant src/analysis tests _repo_entrypoint.py src/bootstrap.py
 SCRIPTS_PY := $(wildcard scripts/*.py)
 RUN := $(wildcard run_*.py)
 CFG := $(wildcard src/config*.py)

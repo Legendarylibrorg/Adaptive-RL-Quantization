@@ -5,6 +5,12 @@ from typing import Protocol
 from adaptive_quant.types import BackendMetricDict
 
 
+class _MoEPenaltyConfig(Protocol):
+    moe_swap_penalty: float
+    moe_cache_miss_penalty: float
+    moe_variant_churn_penalty: float
+
+
 class _RewardWeights(Protocol):
     alpha_latency: float
     beta_throughput: float
@@ -51,4 +57,17 @@ def compute_weighted_reward(
     return float(reward)
 
 
-__all__ = ["compute_weighted_reward"]
+def apply_moe_reward_penalties(
+    reward: float,
+    metrics: BackendMetricDict,
+    config: _MoEPenaltyConfig,
+) -> float:
+    """Subtract MoE swap/cache/churn terms shared by env and other reward call sites."""
+    adjusted = float(reward)
+    adjusted -= config.moe_swap_penalty * float(metrics.get("swap_cost_ms", 0.0))
+    adjusted -= config.moe_cache_miss_penalty * float(metrics.get("cache_miss_count", 0.0))
+    adjusted -= config.moe_variant_churn_penalty * float(metrics.get("variant_churn", 0.0))
+    return float(adjusted)
+
+
+__all__ = ["apply_moe_reward_penalties", "compute_weighted_reward"]

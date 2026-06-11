@@ -98,6 +98,39 @@ def validate_torch_policy_algorithm(name: str) -> None:
     _validate_choice("torch_policy_algorithm", name, _TORCH_POLICY_ALGORITHMS)
 
 
+def validate_quant_mode(name: str) -> None:
+    from adaptive_quant.types import QuantMode
+
+    if not isinstance(name, str):
+        raise TypeError("quant_mode must be a string")
+    key = name.strip().lower()
+    allowed = frozenset(mode.value for mode in QuantMode)
+    if key not in allowed:
+        raise ValueError(f"quant_mode must be one of {sorted(allowed)}, got {name!r}")
+
+
+def validate_hardware_modes(modes: tuple[str, ...] | list[str]) -> None:
+    from adaptive_quant.types import HardwareType
+
+    if not isinstance(modes, (tuple, list)):
+        raise TypeError("hardware_modes must be a tuple or list of strings")
+    if not modes:
+        raise ValueError("hardware_modes must contain at least one hardware profile")
+    allowed = frozenset(mode.value for mode in HardwareType)
+    normalized: list[str] = []
+    for raw in modes:
+        if not isinstance(raw, str):
+            raise TypeError("hardware_modes entries must be strings")
+        key = raw.strip().lower()
+        if key not in allowed:
+            raise ValueError(
+                f"hardware_modes entries must be one of {sorted(allowed)}, got {raw!r}"
+            )
+        normalized.append(key)
+    if len(set(normalized)) != len(normalized):
+        raise ValueError(f"hardware_modes must not contain duplicates, got {modes!r}")
+
+
 def validate_positive_int(name: str, value: int) -> None:
     if not isinstance(value, int) or isinstance(value, bool):
         raise TypeError(f"{name} must be an int")

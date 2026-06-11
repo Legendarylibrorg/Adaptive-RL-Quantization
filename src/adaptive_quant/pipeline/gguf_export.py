@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from adaptive_quant.configuration import FrameworkConfig
+from adaptive_quant.configuration.validation import validate_llama_cpp_binary_allowlist
 from adaptive_quant.model_routes import QUANT_BITS
 
 _BIT_WIDTH_TO_QUANT: dict[int, str] = {
@@ -83,6 +84,7 @@ def export_gguf(
     output_path = config.gguf_export_path(quant_type=quant_type)
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     quantize_binary = derive_quantize_binary(config)
+    validate_llama_cpp_binary_allowlist(quantize_binary)
 
     argv = [quantize_binary]
     if config.llama_cpp_gguf_export_allow_requantize:

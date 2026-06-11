@@ -27,6 +27,7 @@ services:
       MPLCONFIGDIR: /tmp/matplotlib
       ADAPTIVE_RL_LLAMA_CPP_BINARY_PREFIXES: /usr/local/bin:/usr/bin
       ADAPTIVE_RL_JSONL_INTEGRITY_CHAIN: "1"
+      ADAPTIVE_RL_ABORT_ON_SECURITY_BYPASS: "1"
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=512m
     volumes:

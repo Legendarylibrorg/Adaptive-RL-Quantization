@@ -170,6 +170,8 @@ class FrameworkConfig:
             llama_cpp_model=self.llama_cpp_model,
         )
         v.validate_optional_filesystem_path("external_quality_path", self.external_quality_path)
+        v.validate_quant_mode(self.quant_mode)
+        v.validate_hardware_modes(self.hardware_modes)
         v.validate_backend(self.backend)
         v.validate_rust_cli_settings(
             rust_simulator_enabled=self.rust_simulator_enabled,

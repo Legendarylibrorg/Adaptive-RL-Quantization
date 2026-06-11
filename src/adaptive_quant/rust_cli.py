@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from adaptive_quant.configuration import FrameworkConfig
+from adaptive_quant.configuration.validation import validate_optional_filesystem_path
 from adaptive_quant.repo_paths import default_rust_binary_paths, find_repo_root
 from adaptive_quant.types import BackendMetricDict, EpisodeState, QuantizationDecision
 
@@ -29,6 +30,7 @@ def resolve_rust_cli_binary(config: FrameworkConfig) -> str | None:
 
     env_cli = os.environ.get(_RUST_CLI_ENV, "").strip()
     if env_cli:
+        validate_optional_filesystem_path(_RUST_CLI_ENV, env_cli)
         path = Path(env_cli).expanduser()
         if path.is_file():
             return str(path.resolve())

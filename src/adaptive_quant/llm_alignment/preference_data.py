@@ -30,10 +30,7 @@ def load_preference_dataset(path: str | Path) -> list[dict[str, str]]:
     if isinstance(payload, list):
         return [_normalize_preference_row(row, label=source) for row in payload]
     if isinstance(payload, dict) and isinstance(payload.get("examples"), list):
-        return [
-            _normalize_preference_row(row, label=source)
-            for row in payload["examples"]
-        ]
+        return [_normalize_preference_row(row, label=source) for row in payload["examples"]]
     raise ValueError(
         f"Unsupported preference dataset shape in {source}; "
         "expected a JSON list or {{'examples': [...]}}."

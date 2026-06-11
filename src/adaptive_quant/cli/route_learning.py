@@ -32,6 +32,10 @@ from adaptive_quant.cli.common import (
     resolve_startup_config,
 )
 from adaptive_quant.configuration import FrameworkConfig
+from adaptive_quant.configuration.sections import (
+    default_route_catalog_path,
+    default_route_models_dir,
+)
 from adaptive_quant.configuration.validation import (
     hf_allowed_repos_from_env,
     validate_cli_path_argument,
@@ -60,10 +64,6 @@ from adaptive_quant.route_pipeline import (
     save_bandit_artifacts,
     train_route_bandit,
     validate_local_route_models,
-)
-from adaptive_quant.configuration.sections import (
-    default_route_catalog_path,
-    default_route_models_dir,
 )
 from adaptive_quant.types import HardwareType
 

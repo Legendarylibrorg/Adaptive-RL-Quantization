@@ -69,6 +69,16 @@ def main(argv: Iterable[str] | None = None) -> None:
     )
     args = parser.parse_args(list(argv) if argv is not None else None)
 
+    from adaptive_quant.cli.common import enforce_cli_startup
+    from adaptive_quant.configuration.validation import validate_cli_path_argument
+    from adaptive_quant.nvidia_secure_boundary import enforce_nvidia_secure_boundary
+
+    enforce_cli_startup(context="alignment CLI")
+    enforce_nvidia_secure_boundary(context="alignment CLI")
+    validate_cli_path_argument("sft-model", args.sft_model)
+    validate_cli_path_argument("dataset", args.dataset)
+    validate_cli_path_argument("output-dir", args.output_dir)
+
     if args.lora and args.qlora:
         print("Note: --qlora implies LoRA adapters on the policy.", file=sys.stderr)
 
@@ -94,7 +104,10 @@ def main(argv: Iterable[str] | None = None) -> None:
     if history:
         last = history[-1]
         print(
-            f"[DPO] final loss={last.get('loss', 0):.4f} "
-            f"margin={last.get('reward_margin', 0):.4f}",
+            f"[DPO] final loss={last.get('loss', 0):.4f} margin={last.get('reward_margin', 0):.4f}",
             file=sys.stderr,
         )
+
+
+if __name__ == "__main__":
+    main()
