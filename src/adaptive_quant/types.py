@@ -228,3 +228,7 @@ class BackendMetricDict(BackendMetricRequired, total=False):
     throughput_source: str
     memory_source: str
     perplexity_source: str
+    simulator_engine: str
+    measurement_contract: str
+    subprocess_applies_quant_decision: bool
+    decision_measurement_key: str

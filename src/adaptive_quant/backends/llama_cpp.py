@@ -273,15 +273,22 @@ class LlamaCppBackend:
                 cast(BackendMetricDict, per_token_latency_fields(state, metrics["latency_ms"]))
             )
         metrics.update(
-            {
-                "latency_source": "llama_cpp",
-                "throughput_source": "llama_cpp",
-                "memory_source": "llama_cpp" if parsed.get("memory_mb", 0.0) > 0.0 else "simulator",
-                "perplexity_source": "simulator",
-                "measurement_contract": "hybrid",
-                "subprocess_applies_quant_decision": _subprocess_applies_quant_decision(decision),
-                "decision_measurement_key": _decision_measurement_key(decision),
-            }
+            cast(
+                BackendMetricDict,
+                {
+                    "latency_source": "llama_cpp",
+                    "throughput_source": "llama_cpp",
+                    "memory_source": "llama_cpp"
+                    if parsed.get("memory_mb", 0.0) > 0.0
+                    else "simulator",
+                    "perplexity_source": "simulator",
+                    "measurement_contract": "hybrid",
+                    "subprocess_applies_quant_decision": _subprocess_applies_quant_decision(
+                        decision
+                    ),
+                    "decision_measurement_key": _decision_measurement_key(decision),
+                },
+            )
         )
         apply_external_quality(metrics, state, self.external_quality)
         return metrics

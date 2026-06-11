@@ -56,7 +56,6 @@ class SimulatorBackend:
                 )
         metrics = self._evaluate_python(state, decision)
         if self._use_rust and self._rust_binary is not None:
-            metrics = dict(metrics)
             metrics["simulator_engine"] = "python_rust_fallback"
         return metrics
 
