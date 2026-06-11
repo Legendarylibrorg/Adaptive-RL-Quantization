@@ -65,7 +65,6 @@ def clone_reference_from_policy(policy_model: Any) -> Any:
     ``from_pretrained`` disk load. For PEFT-wrapped policies, call on the
     underlying base model or use adapter-disabled reference forwards.
     """
-    torch = __import__("torch")
     base = policy_model
     if hasattr(policy_model, "get_base_model"):
         base = policy_model.get_base_model()

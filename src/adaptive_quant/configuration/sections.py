@@ -5,9 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
+def normalized_output_root(root: str) -> str:
+    """Strip trailing path separators for stable artifact path joins (Py3.11-safe)."""
+    return root.rstrip("/\\")
+
+
 def artifact_layout(root: str = "outputs") -> dict[str, str]:
     """Flat artifact directory fields under a single output root."""
-    base = root.rstrip("/\\")
+    base = normalized_output_root(root)
     return {
         "outputs_dir": base,
         "log_dir": f"{base}/logs",
@@ -20,11 +25,11 @@ def artifact_layout(root: str = "outputs") -> dict[str, str]:
 
 
 def default_route_catalog_path(root: str = "outputs") -> str:
-    return f"{root.rstrip('/\\')}/routes/catalog.json"
+    return f"{normalized_output_root(root)}/routes/catalog.json"
 
 
 def default_route_models_dir(root: str = "outputs") -> str:
-    return f"{root.rstrip('/\\')}/models"
+    return f"{normalized_output_root(root)}/models"
 
 
 _DEFAULT_LAYOUT = artifact_layout()

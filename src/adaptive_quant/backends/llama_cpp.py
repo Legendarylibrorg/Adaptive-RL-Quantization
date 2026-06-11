@@ -295,7 +295,6 @@ class LlamaCppBackend:
         ngl: int,
         decision: QuantizationDecision | None = None,
     ) -> dict[str, float]:
-        decision_key = _decision_measurement_key(decision) if decision is not None else ""
         cache = self._cache
         if cache is None:
             return run_llama_cpp_measurement(

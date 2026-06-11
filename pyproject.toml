@@ -115,6 +115,7 @@ known-first-party = ["adaptive_quant", "analysis"]
 "run_*.py" = ["E402"]
 "_repo_entrypoint.py" = ["E402"]
 "src/analysis/__main__.py" = ["E402"]
+"tests/__init__.py" = ["E402"]
 
 [tool.coverage.run]
 source = ["adaptive_quant", "analysis"]
